@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 版本管理</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:#f5f7fa; min-height:100vh; }
+    
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      padding: 30px 20px;
+      color: #fff;
+    }
+    .sidebar h1 { font-size:20px; margin-bottom:40px; padding-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar ul { list-style:none; }
+    .sidebar li { margin-bottom:10px; }
+    .sidebar a { display:block; padding:14px 18px; color:#fff; text-decoration:none; border-radius:10px; transition:background 0.3s; font-size:14px; }
+    .sidebar a:hover, .sidebar a.active { background:rgba(255,255,255,0.2); }
+    .sidebar .logout { position:absolute; bottom:30px; width:calc(100% - 40px); background:rgba(255,255,255,0.1); text-align:center; }
+    
+    .main-content { margin-left:240px; padding:30px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+    .header h2 { font-size:24px; color:#333; }
+    .header .welcome { color:#666; font-size:14px; }
+    
+    .toolbar { display:flex; gap:12px; margin-bottom:20px; justify-content:flex-end; }
+    .btn { padding:12px 20px; border:none; border-radius:8px; font-size:14px; cursor:pointer; transition:opacity 0.3s; }
+    .btn-primary { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; }
+    .btn-secondary { background:#fff; color:#667eea; border:1px solid #667eea; }
+    .btn:hover { opacity:0.9; }
+    .btn-danger { background:#ff4444; color:#fff; padding:6px 14px; font-size:13px; }
+    
+    .tbl-wrap { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:12px 16px; text-align:left; border-bottom:1px solid #f0f0f0; font-size:14px; }
+    th { background:#fafafa; color:#666; font-weight:600; font-size:13px; }
+    td { color:#333; }
+    
+    .tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; }
+    .tag-yes { background:#e8f5e9; color:#4caf50; }
+    .tag-no { background:#fce4ec; color:#e91e63; }
+    
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .modal { background:#fff; padding:28px; border-radius:14px; width:92%; max-width:500px; }
+    .modal h2 { margin-bottom:18px; font-size:18px; color:#333; }
+    .modal .close { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:#999; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; margin-bottom:8px; color:#666; font-size:14px; }
+    .form-group input, .form-group textarea { width:100%; padding:10px 14px; border:1px solid #e8e8e8; border-radius:8px; font-size:14px; font-family:inherit; }
+    .form-group textarea { resize:vertical; min-height:80px; }
+    .form-group input[type="file"] { padding:8px 0; border:none; }
+    
+    .empty { text-align:center; padding:50px 20px; color:#bbb; font-size:15px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h1>管理后台</h1>
+    <ul>
+      <li><a href="/admin/dashboard">数据概览</a></li>
+      <li><a href="/admin/items">物品管理</a></li>
+      <li><a href="/admin/users">用户管理</a></li>
+      <li><a href="/admin/versions" class="active">版本管理</a></li>
+    </ul>
+    <a href="/admin/logout" class="logout">退出登录</a>
+  </div>
+  
+  <div class="main-content">
+    <div class="header">
+      <div>
+        <h2>版本管理</h2>
+        <p class="welcome">管理 App 版本发布与更新</p>
+      </div>
+    </div>
+    
+    <div class="toolbar">
+      <button class="btn btn-secondary" onclick="copyDownloadUrl()">📋 复制下载页链接</button>
+      <button class="btn btn-primary" onclick="openVerModal()">+ 发布新版本</button>
+    </div>
+    
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>版本号</th>
+            <th>版本码</th>
+            <th>强制更新</th>
+            <th>更新日志</th>
+            <th>APK 文件</th>
+            <th>发布时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (versions.length === 0) { %>
+            <tr><td colspan="7" class="empty">暂无版本，请点击「发布新版本」</td></tr>
+          <% } else { %>
+            <% versions.forEach(function(v) { %>
+              <tr>
+                <td><%= v.version %></td>
+                <td><%= v.versionCode %></td>
+                <td><span class="tag <%= v.forceUpdate ? 'tag-yes' : 'tag-no' %>"><%= v.forceUpdate ? '是' : '否' %></span></td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<%= v.changelog %>"><%= v.changelog || '-' %></td>
+                <td>
+                  <% if (v.apkUrl) { %>
+                    <a href="<%= v.apkUrl %>" target="_blank">下载 APK</a>
+                  <% } else { %>
+                    -
+                  <% } %>
+                </td>
+                <td><%= v.createdAt %></td>
+                <td><button class="btn btn-danger" onclick="deleteVersion('<%= v.id %>')">删除</button></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- 发布版本弹窗 -->
+  <div id="verModal" class="overlay" style="display:none;">
+    <div class="modal">
+      <button class="close" onclick="closeVerModal()">&times;</button>
+      <h2>发布新版本</h2>
+      <form id="verForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label>版本号（如 1.0.0）</label>
+          <input type="text" name="version" placeholder="1.0.0" required>
+        </div>
+        <div class="form-group">
+          <label>版本码（整数，如 1）</label>
+          <input type="number" name="versionCode" placeholder="1" required>
+        </div>
+        <div class="form-group">
+          <label>更新日志（每行一条）</label>
+          <textarea name="changelog" placeholder="修复已知 bug&#10;优化性能"></textarea>
+        </div>
+        <div class="form-group">
+          <label>APK 文件</label>
+          <input type="file" name="apk" accept=".apk" required>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="forceUpdate"> 强制更新
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">发布</button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    function openVerModal() {
+      document.getElementById('verModal').style.display = 'flex';
+    }
+    function closeVerModal() {
+      document.getElementById('verModal').style.display = 'none';
+      document.getElementById('verForm').reset();
+    }
+    
+    function copyDownloadUrl() {
+      const url = 'http://183.66.27.20:41412/download';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => alert('已复制：' + url));
+      } else {
+        prompt('请手动复制：', url);
+      }
+    }
+    
+    function deleteVersion(id) {
+      if (!confirm('确定删除该版本？')) return;
+      fetch('/admin/version/' + id, { method:'DELETE', headers:{'Authorization':'Bearer '+localStorage.getItem('token')} })
+        .then(r => r.json()).then(() => location.reload());
+    }
+    
+    document.getElementById('verForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(this);
+      fetch('/admin/version/publish', { method:'POST', body: fd, headers:{'Authorization':'Bearer '+localStorage.getItem('token')} })
+        .then(r => r.json()).then(res => {
+          if (res.success) { alert('发布成功！'); closeVerModal(); location.reload(); }
+          else alert('发布失败：' + (res.message || '未知错误'));
+        });
+    });
+  </script>
+</body>
+</html>

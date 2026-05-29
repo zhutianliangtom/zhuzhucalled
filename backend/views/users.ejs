@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 用户管理</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 30px 20px;
+      color: #fff;
+    }
+    
+    .sidebar h1 {
+      font-size: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .sidebar ul {
+      list-style: none;
+    }
+    
+    .sidebar li {
+      margin-bottom: 10px;
+    }
+    
+    .sidebar a {
+      display: block;
+      padding: 14px 18px;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: background 0.3s;
+      font-size: 14px;
+    }
+    
+    .sidebar a:hover, .sidebar a.active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .sidebar .logout {
+      position: absolute;
+      bottom: 30px;
+      width: calc(100% - 40px);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    
+    .header h2 {
+      font-size: 24px;
+      color: #333;
+    }
+    
+    .search-bar {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .search-bar input {
+      padding: 12px 18px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      font-size: 14px;
+      width: 250px;
+    }
+    
+    .search-bar select {
+      padding: 12px 18px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+    
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    
+    .btn-success {
+      background: #4caf50;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    
+    .btn-danger {
+      background: #f44336;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    
+    .btn-warning {
+      background: #ff9800;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+    }
+    
+    .table-container {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #666;
+      font-size: 13px;
+    }
+    
+    td {
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status.pending {
+      background: #fff3e0;
+      color: #ff9800;
+    }
+    
+    .status.approved {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+    
+    .status.rejected {
+      background: #ffebee;
+      color: #f44336;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 25px;
+      padding: 20px;
+    }
+    
+    .pagination button {
+      padding: 10px 20px;
+      border: 1px solid #eee;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination span {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h1>🔍 管理后台</h1>
+    <ul>
+      <li><a href="/admin/dashboard">数据概览</a></li>
+      <li><a href="/admin/items">物品管理</a></li>
+      <li><a href="/admin/users" class="active">用户管理</a></li>
+    </ul>
+    <a href="/admin/logout" class="logout">退出登录</a>
+  </div>
+  
+  <div class="main-content">
+    <div class="header">
+      <h2>用户管理</h2>
+    </div>
+    
+    <div class="search-bar">
+      <select name="status" onchange="document.getElementById('searchForm').submit();">
+        <option value="all" <%= status === 'all' || !status ? 'selected' : '' %>>全部状态</option>
+        <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>待审核</option>
+        <option value="approved" <%= status === 'approved' ? 'selected' : '' %>>已通过</option>
+        <option value="rejected" <%= status === 'rejected' ? 'selected' : '' %>>已拒绝</option>
+      </select>
+      <input type="text" placeholder="搜索学号或姓名" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { document.getElementById('searchForm').submit(); }">
+      <button class="btn btn-primary" onclick="document.getElementById('searchForm').submit();">搜索</button>
+    </div>
+    
+    <form id="searchForm" action="/admin/users" method="GET" style="display: none;">
+      <input type="hidden" name="keyword" value="<%= keyword || '' %>">
+      <input type="hidden" name="status" value="<%= status || 'all' %>">
+    </form>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>头像</th>
+            <th>学号</th>
+            <th>姓名</th>
+            <th>班级</th>
+            <th>电话</th>
+            <th>状态</th>
+            <th>注册时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (users.length === 0) { %>
+            <tr>
+              <td colspan="8" class="empty-state">暂无数据</td>
+            </tr>
+          <% } %>
+          <% users.forEach(user => { %>
+            <tr>
+              <td>
+                <% if (user.avatar) { %>
+                  <img src="<%= user.avatar.startsWith('http') ? user.avatar : '/uploads/' + user.avatar.split('/').pop() %>" class="avatar" alt="" style="object-fit: cover;">
+                <% } else { %>
+                  <div class="avatar"><%= user.name.charAt(0) %></div>
+                <% } %>
+              </td>
+              <td><%= user.studentId %></td>
+              <td><%= user.name %></td>
+              <td><%= user.className %></td>
+              <td><%= user.phone %></td>
+              <td><span class="status <%= user.status %>"><%= user.status === 'pending' ? '待审核' : (user.status === 'approved' ? '已通过' : '已拒绝') %></span></td>
+              <td><%= user.createdAt %></td>
+              <td>
+                <div style="display: flex; gap: 8px;">
+                  <% if (user.status === 'pending') { %>
+                    <button class="btn btn-success" onclick="approveUser('<%= user.id %>')">通过</button>
+                    <button class="btn btn-warning" onclick="rejectUser('<%= user.id %>')">拒绝</button>
+                  <% } %>
+                  <button class="btn btn-danger" onclick="deleteUser('<%= user.id %>')">删除</button>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      
+      <div class="pagination">
+        <button onclick="goPage(<%- currentPage - 1 %>)" <%- currentPage <= 1 ? 'disabled' : '' %>>上一页</button>
+        <span><%- currentPage %> / <%- totalPages %></span>
+        <button onclick="goPage(<%- currentPage + 1 %>)" <%- currentPage >= totalPages ? 'disabled' : '' %>>下一页</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function goPage(page) {
+      const form = document.getElementById('searchForm')
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = 'page'
+      input.value = page
+      form.appendChild(input)
+      form.submit()
+    }
+    
+    function approveUser(userId) {
+      if (confirm('确定通过该用户的注册申请吗？')) {
+        fetch(`/admin/users/approve/${userId}`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              location.reload()
+            }
+          })
+      }
+    }
+    
+    function rejectUser(userId) {
+      if (confirm('确定拒绝该用户的注册申请吗？')) {
+        fetch(`/admin/users/reject/${userId}`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              location.reload()
+            }
+          })
+      }
+    }
+    
+    function deleteUser(userId) {
+      if (confirm('确定删除该用户吗？此操作不可恢复。')) {
+        fetch(`/admin/users/delete/${userId}`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              location.reload()
+            }
+          })
+      }
+    }
+  </script>
+</body>
+</html>

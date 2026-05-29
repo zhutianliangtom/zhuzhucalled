@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 物品管理</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 30px 20px;
+      color: #fff;
+    }
+    
+    .sidebar h1 {
+      font-size: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .sidebar ul {
+      list-style: none;
+    }
+    
+    .sidebar li {
+      margin-bottom: 10px;
+    }
+    
+    .sidebar a {
+      display: block;
+      padding: 14px 18px;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: background 0.3s;
+      font-size: 14px;
+    }
+    
+    .sidebar a:hover, .sidebar a.active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .sidebar .logout {
+      position: absolute;
+      bottom: 30px;
+      width: calc(100% - 40px);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    
+    .header h2 {
+      font-size: 24px;
+      color: #333;
+    }
+    
+    .search-bar {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+    
+    .search-bar input, .search-bar select {
+      padding: 12px 18px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+    
+    .search-bar input {
+      width: 250px;
+    }
+    
+    .search-bar select {
+      width: 150px;
+    }
+    
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    
+    .btn-danger {
+      background: #ff4444;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+    }
+    
+    .table-container {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #666;
+      font-size: 13px;
+    }
+    
+    td {
+      font-size: 14px;
+      color: #333;
+    }
+    
+    td img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    
+    .tag {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .tag-lost {
+      background: #fff3e0;
+      color: #ff9800;
+    }
+    
+    .tag-found {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    .tag-active {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+    
+    .tag-deleted {
+      background: #fce4ec;
+      color: #e91e63;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 25px;
+      padding: 20px;
+    }
+    
+    .pagination button {
+      padding: 10px 20px;
+      border: 1px solid #eee;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination span {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h1>🔍 管理后台</h1>
+    <ul>
+      <li><a href="/admin/dashboard">数据概览</a></li>
+      <li><a href="/admin/items" class="active">物品管理</a></li>
+      <li><a href="/admin/users">用户管理</a></li>
+    </ul>
+    <a href="/admin/logout" class="logout">退出登录</a>
+  </div>
+  
+  <div class="main-content">
+    <div class="header">
+      <h2>物品管理</h2>
+    </div>
+    
+    <div class="search-bar">
+      <input type="text" placeholder="搜索物品名称或描述" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { document.getElementById('searchForm').submit(); }">
+      <select name="type" onchange="document.getElementById('searchForm').submit();">
+        <option value="all" <%= type === 'all' ? 'selected' : '' %>>全部类型</option>
+        <option value="lost" <%= type === 'lost' ? 'selected' : '' %>>寻物启事</option>
+        <option value="found" <%= type === 'found' ? 'selected' : '' %>>失物招领</option>
+      </select>
+      <select name="status" onchange="document.getElementById('searchForm').submit();">
+        <option value="all" <%= status === 'all' ? 'selected' : '' %>>全部状态</option>
+        <option value="active" <%= status === 'active' ? 'selected' : '' %>>正常</option>
+        <option value="deleted" <%= status === 'deleted' ? 'selected' : '' %>>已删除</option>
+      </select>
+      <button class="btn btn-primary" onclick="document.getElementById('searchForm').submit();">搜索</button>
+    </div>
+    
+    <form id="searchForm" action="/admin/items" method="GET" style="display: none;">
+      <input type="hidden" name="keyword" value="<%= keyword || '' %>">
+      <input type="hidden" name="type" value="<%= type %>">
+      <input type="hidden" name="status" value="<%= status %>">
+    </form>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>图片</th>
+            <th>标题</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>联系人</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (items.length === 0) { %>
+            <tr>
+              <td colspan="7" class="empty-state">暂无数据</td>
+            </tr>
+          <% } %>
+          <% items.forEach(item => { %>
+            <tr>
+              <td>
+                <% if (item.images && item.images.length > 0) { %>
+                  <img src="<%= item.images[0] %>" alt="">
+                <% } else { %>
+                  <span style="color:#999">无图片</span>
+                <% } %>
+              </td>
+              <td><%= item.title %></td>
+              <td><span class="tag tag-<%= item.type %>"><%= item.type === 'lost' ? '寻物启事' : '失物招领' %></span></td>
+              <td><span class="tag tag-<%= item.status %>"><%= item.status === 'active' ? '正常' : '已删除' %></span></td>
+              <td><%= item.userName || item.contact %></td>
+              <td><%= item.createdAt %></td>
+              <td>
+                <button class="btn btn-danger" onclick="deleteItem('<%= item.id %>')">删除</button>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      
+      <div class="pagination">
+        <button onclick="goPage(<%= currentPage - 1 %>)" <%= currentPage <= 1 ? 'disabled' : '' %>>上一页</button>
+        <span><%= currentPage %> / <%= totalPages %></span>
+        <button onclick="goPage(<%= currentPage + 1 %>)" <%= currentPage >= totalPages ? 'disabled' : '' %>>下一页</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function deleteItem(id) {
+      if (!confirm('确定要删除该物品吗？')) return
+      
+      fetch(`/admin/items/delete/${id}`, {
+        method: 'POST'
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          location.reload()
+        } else {
+          alert('删除失败')
+        }
+      })
+    }
+    
+    function goPage(page) {
+      const form = document.getElementById('searchForm')
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = 'page'
+      input.value = page
+      form.appendChild(input)
+      form.submit()
+    }
+  </script>
+</body>
+</html>

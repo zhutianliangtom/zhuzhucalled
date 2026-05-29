@@ -1,0 +1,787 @@
+const express = require('express')
+const jwt = require('jsonwebtoken')
+const bcrypt = require('bcryptjs')
+const multer = require('multer')
+const cors = require('cors')
+const { v4: uuidv4 } = require('uuid')
+const path = require('path')
+const cookieParser = require('cookie-parser')
+const fs = require('fs')
+const os = require('os')
+const mysql = require('mysql2/promise')
+
+const app = express()
+const port = 5000
+
+const JWT_SECRET = 'lost_found_secret_key'
+const UPLOAD_DIR = path.join(__dirname, 'uploads')
+const VIDEO_DIR = path.join(__dirname, 'uploads/videos')
+
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true })
+
+// MySQL 连接池
+const pool = mysql.createPool({
+  host: 'localhost',
+  port: 3306,
+  user: 'root',
+  password: '',
+  database: 'lost_found',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true
+})
+
+// 初始化管理员账号
+async function initDatabase() {
+  const [rows] = await pool.execute('SELECT 1 FROM users WHERE studentId = ?', ['admin'])
+  if (rows.length === 0) {
+    const hashedPassword = bcrypt.hashSync('admin123', 10)
+    await pool.execute(
+      'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, createdAt) VALUES (?,?,?,?,?,?,?,?,?)',
+      ['admin', 'admin', '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', Math.floor(Date.now() / 1000)]
+    )
+  }
+}
+
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => cb(null, `img_${uuidv4()}${path.extname(file.originalname)}`)
+})
+
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, VIDEO_DIR),
+  filename: (req, file, cb) => cb(null, `video_${uuidv4()}${path.extname(file.originalname)}`)
+})
+
+const imageUpload = multer({ 
+  storage: imageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
+      cb(null, true)
+    } else {
+      cb(new Error('只支持图片格式'), false)
+    }
+  }
+})
+
+const videoUpload = multer({ 
+  storage: videoStorage,
+  limits: { fileSize: 1024 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    if (['.mp4', '.mov', '.avi', '.wmv'].includes(ext)) {
+      cb(null, true)
+    } else {
+      cb(new Error('只支持视频格式'), false)
+    }
+  }
+})
+
+app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, 'views'))
+
+app.use(cors())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
+app.use('/uploads', express.static(UPLOAD_DIR))
+app.use('/uploads/videos', express.static(VIDEO_DIR))
+app.use(express.static(path.join(__dirname, 'public')))
+
+// 下载官网
+app.get('/download', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views/download.html'))
+})
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+  if (!token) return res.status(401).json({ message: '未授权' })
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(401).json({ message: 'token无效' })
+    req.user = user
+    next()
+  })
+}
+
+function formatTime(timestamp) {
+  const date = new Date(timestamp * 1000)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+app.get('/', (req, res) => res.redirect('/admin/login'))
+
+app.get('/admin/login', (req, res) => res.render('login', { error: null }))
+
+app.post('/admin/login', (req, res) => {
+  const { studentId, password } = req.body
+  const user = DB.users.find(u => u.studentId === studentId)
+  
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.render('login', { error: '用户名或密码错误' })
+  }
+  
+  if (user.id !== 'admin') {
+    return res.render('login', { error: '请使用管理员账号登录' })
+  }
+
+  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET)
+  res.cookie('token', token, { httpOnly: true })
+  res.redirect('/admin/dashboard')
+})
+
+app.get('/admin/logout', (req, res) => {
+  res.clearCookie('token')
+  res.redirect('/admin/login')
+})
+
+function authMiddleware(req, res, next) {
+  const token = req.cookies.token
+  if (!token) return res.redirect('/admin/login')
+  
+  try {
+    const user = jwt.verify(token, JWT_SECRET)
+    if (user.id !== 'admin') return res.redirect('/admin/login')
+    req.user = user
+    next()
+  } catch (err) {
+    res.redirect('/admin/login')
+  }
+}
+
+app.get('/admin/dashboard', authMiddleware, (req, res) => {
+  const totalItems = DB.items.length
+  const activeItems = DB.items.filter(i => i.status === 'active').length
+  const solvedItems = DB.items.filter(i => i.status === 'solved').length
+  const lostItems = DB.items.filter(i => i.type === 'lost' && i.status === 'active').length
+  const foundItems = DB.items.filter(i => i.type === 'found' && i.status === 'active').length
+  const lostSolved = DB.items.filter(i => i.type === 'lost' && i.status === 'solved').length
+  const foundSolved = DB.items.filter(i => i.type === 'found' && i.status === 'solved').length
+  const totalUsers = DB.users.filter(u => u.status === 'approved' && u.studentId !== 'admin').length
+  const pendingUsers = DB.users.filter(u => u.status === 'pending').length
+
+  res.render('dashboard', { totalItems, activeItems, solvedItems, lostItems, foundItems, lostSolved, foundSolved, totalUsers, pendingUsers })
+})
+
+app.get('/admin/items', authMiddleware, (req, res) => {
+  const { page = 1, type = 'all', status = 'all', keyword = '' } = req.query
+  
+  let items = DB.items.map(item => ({
+    ...item,
+    userName: DB.users.find(u => u.id === item.userId)?.name,
+    userPhone: DB.users.find(u => u.id === item.userId)?.phone,
+    createdAt: formatTime(item.createdAt)
+  }))
+
+  if (type !== 'all') items = items.filter(i => i.type === type)
+  if (status !== 'all') items = items.filter(i => i.status === status)
+  if (keyword) items = items.filter(i => i.title.includes(keyword) || i.description.includes(keyword))
+  items.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  const pageSize = 10
+  const totalPages = Math.ceil(items.length / pageSize)
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
+
+  res.render('items', { items: paginatedItems, totalPages, currentPage: parseInt(page), type, status, keyword })
+})
+
+app.post('/admin/items/delete/:id', authMiddleware, (req, res) => {
+  const item = DB.items.find(i => i.id === req.params.id)
+  if (item) {
+    DB.items = DB.items.filter(i => i.id !== req.params.id)
+    saveData('items', DB.items)
+    res.json({ success: true })
+  } else {
+    res.json({ success: false, message: '删除失败' })
+  }
+})
+
+app.get('/admin/versions', authMiddleware, (req, res) => {
+  const versions = DB.versions.map(v => ({
+    ...v,
+    createdAt: formatTime(v.createdAt)
+  }))
+  res.render('versions', { versions })
+})
+
+app.get('/admin/users', authMiddleware, (req, res) => {
+  const { page = 1, keyword = '', status = 'all' } = req.query
+  
+  let users = DB.users.filter(u => u.studentId !== 'admin').map(u => ({
+    ...u,
+    createdAt: formatTime(u.createdAt)
+  }))
+
+  if (status !== 'all') users = users.filter(u => u.status === status)
+  if (keyword) users = users.filter(u => u.studentId.includes(keyword) || u.name.includes(keyword))
+  users.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  const pageSize = 10
+  const totalPages = Math.ceil(users.length / pageSize)
+  const paginatedUsers = users.slice((page - 1) * pageSize, page * pageSize)
+
+  res.render('users', { users: paginatedUsers, totalPages, currentPage: parseInt(page), keyword, status })
+})
+
+app.post('/admin/users/approve/:id', authMiddleware, (req, res) => {
+  const user = DB.users.find(u => u.id === req.params.id)
+  if (user) {
+    user.status = 'approved'
+    saveData('users', DB.users)
+    res.json({ success: true })
+  } else {
+    res.json({ success: false, message: '操作失败' })
+  }
+})
+
+app.post('/admin/users/reject/:id', authMiddleware, (req, res) => {
+  const user = DB.users.find(u => u.id === req.params.id)
+  if (user) {
+    user.status = 'rejected'
+    saveData('users', DB.users)
+    res.json({ success: true })
+  } else {
+    res.json({ success: false, message: '操作失败' })
+  }
+})
+
+app.post('/admin/users/delete/:id', authMiddleware, (req, res) => {
+  DB.users = DB.users.filter(u => u.id !== req.params.id)
+  saveData('users', DB.users)
+  res.json({ success: true })
+})
+
+app.post('/auth/register', (req, res) => {
+  const { studentId, name, phone, password, className, avatar } = req.body
+  
+  if (!studentId || !name || !phone || !password || !className) {
+    return res.status(400).json({ message: '请填写完整信息' })
+  }
+
+  if (DB.users.some(u => u.studentId === studentId)) {
+    return res.status(400).json({ message: '该学号已被注册' })
+  }
+
+  const newUser = {
+    id: uuidv4(),
+    studentId,
+    name,
+    phone,
+    password: bcrypt.hashSync(password, 10),
+    avatar: avatar || '',
+    className,
+    status: 'pending',
+    createdAt: Math.floor(Date.now() / 1000)
+  }
+
+  DB.users.push(newUser)
+  saveData('users', DB.users)
+
+  res.json({ message: '注册成功，请等待管理员审核' })
+})
+
+app.post('/auth/login', (req, res) => {
+  const { studentId, password } = req.body
+  const user = DB.users.find(u => u.studentId === studentId)
+  
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(400).json({ message: '学号或密码错误' })
+  }
+
+  if (user.status !== 'approved') {
+    return res.status(400).json({ message: '账号待审核或已被拒绝，请联系管理员' })
+  }
+
+  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET)
+  res.json({ user: { id: user.id, studentId: user.studentId, name: user.name, phone: user.phone, avatar: user.avatar, className: user.className }, token })
+})
+
+app.get('/user/info', authenticateToken, (req, res) => {
+  const user = DB.users.find(u => u.id === req.user.id)
+  if (!user) return res.status(404).json({ message: '用户不存在' })
+  
+  res.json({ data: { id: user.id, studentId: user.studentId, name: user.name, phone: user.phone, avatar: user.avatar, className: user.className } })
+})
+
+app.put('/user/info', authenticateToken, (req, res) => {
+  const { name, phone, avatar, className } = req.body
+  const user = DB.users.find(u => u.id === req.user.id)
+  
+  if (name) user.name = name
+  if (phone) user.phone = phone
+  if (avatar) user.avatar = avatar
+  if (className) user.className = className
+  
+  saveData('users', DB.users)
+  res.json({ success: true })
+})
+
+app.get('/items', (req, res) => {
+  const { page = 1, pageSize = 10, type = 'all', keyword = '' } = req.query
+  
+  let items = DB.items.filter(i => i.status === 'active').map(item => {
+    const user = DB.users.find(u => u.id === item.userId)
+    return {
+      ...item,
+      userName: user?.name,
+      userAvatar: user?.avatar,
+      userClassName: user?.className
+    }
+  })
+
+  if (type !== 'all') items = items.filter(i => i.type === type)
+  if (keyword) items = items.filter(i => i.title.includes(keyword) || i.description.includes(keyword))
+  items.sort((a, b) => b.createdAt - a.createdAt)
+
+  const start = (page - 1) * pageSize
+  res.json({ data: items.slice(start, start + parseInt(pageSize)), total: items.length })
+})
+
+app.get('/items/:id', (req, res) => {
+  const item = DB.items.find(i => i.id === req.params.id)
+  if (!item) return res.status(404).json({ message: '物品不存在' })
+  
+  const user = DB.users.find(u => u.id === item.userId)
+  res.json({ 
+    data: { 
+      ...item, 
+      userName: user?.name, 
+      userPhone: user?.phone, 
+      userAvatar: user?.avatar,
+      userClassName: user?.className
+    } 
+  })
+})
+
+app.post('/items', authenticateToken, (req, res) => {
+  const { type, title, description, images, contact } = req.body
+  
+  if (!type || !title || !description || !contact) {
+    return res.status(400).json({ message: '请填写完整信息' })
+  }
+
+  const newItem = {
+    id: uuidv4(),
+    type,
+    title,
+    description,
+    images: images || [],
+    contact,
+    userId: req.user.id,
+    status: 'active',
+    createdAt: Math.floor(Date.now() / 1000)
+  }
+
+  DB.items.push(newItem)
+  saveData('items', DB.items)
+  res.json({ success: true, data: newItem })
+})
+
+app.put('/items/:id', authenticateToken, (req, res) => {
+  const item = DB.items.find(i => i.id === req.params.id)
+  if (!item) return res.status(404).json({ message: '物品不存在' })
+  
+  if (item.userId !== req.user.id && req.user.id !== 'admin') {
+    return res.status(403).json({ message: '无权限修改' })
+  }
+
+  const { type, title, description, images, contact, status } = req.body
+  if (type) item.type = type
+  if (title) item.title = title
+  if (description) item.description = description
+  if (images) item.images = images
+  if (contact) item.contact = contact
+  if (status) item.status = status
+  
+  saveData('items', DB.items)
+  res.json({ success: true })
+})
+
+app.put('/items/:id/solve', authenticateToken, (req, res) => {
+  const item = DB.items.find(i => i.id === req.params.id)
+  if (!item) return res.status(404).json({ message: '物品不存在' })
+  
+  if (item.userId !== req.user.id && req.user.id !== 'admin') {
+    return res.status(403).json({ message: '无权限操作' })
+  }
+
+  item.status = 'solved'
+  item.solvedAt = Math.floor(Date.now() / 1000)
+  
+  saveData('items', DB.items)
+  res.json({ success: true })
+})
+
+app.delete('/items/:id', authenticateToken, (req, res) => {
+  const item = DB.items.find(i => i.id === req.params.id)
+  if (!item) return res.status(404).json({ message: '物品不存在' })
+  
+  if (item.userId !== req.user.id && req.user.id !== 'admin') {
+    return res.status(403).json({ message: '无权限删除' })
+  }
+
+  DB.items = DB.items.filter(i => i.id !== req.params.id)
+  saveData('items', DB.items)
+  res.json({ success: true })
+})
+
+app.get('/user/items', authenticateToken, (req, res) => {
+  const { type = 'all', page = 1, pageSize = 10, status = 'active' } = req.query
+  
+  let items = DB.items.filter(i => i.userId === req.user.id)
+  
+  if (status !== 'all') items = items.filter(i => i.status === status)
+  if (type !== 'all') items = items.filter(i => i.type === type)
+  items.sort((a, b) => b.createdAt - a.createdAt)
+
+  const start = (page - 1) * pageSize
+  res.json({ data: items.slice(start, start + parseInt(pageSize)), total: items.length })
+})
+
+app.get('/user/stats', authenticateToken, (req, res) => {
+  const userItems = DB.items.filter(i => i.userId === req.user.id)
+  
+  const stats = {
+    total: userItems.length,
+    active: userItems.filter(i => i.status === 'active').length,
+    solved: userItems.filter(i => i.status === 'solved').length,
+    lost: userItems.filter(i => i.type === 'lost').length,
+    found: userItems.filter(i => i.type === 'found').length,
+    lostActive: userItems.filter(i => i.type === 'lost' && i.status === 'active').length,
+    foundActive: userItems.filter(i => i.type === 'found' && i.status === 'active').length,
+    lostSolved: userItems.filter(i => i.type === 'lost' && i.status === 'solved').length,
+    foundSolved: userItems.filter(i => i.type === 'found' && i.status === 'solved').length
+  }
+  
+  res.json({ data: stats })
+})
+
+app.get('/stats', authenticateToken, (req, res) => {
+  const allItems = DB.items
+  
+  const stats = {
+    total: allItems.length,
+    active: allItems.filter(i => i.status === 'active').length,
+    solved: allItems.filter(i => i.status === 'solved').length,
+    lost: allItems.filter(i => i.type === 'lost').length,
+    found: allItems.filter(i => i.type === 'found').length,
+    lostActive: allItems.filter(i => i.type === 'lost' && i.status === 'active').length,
+    foundActive: allItems.filter(i => i.type === 'found' && i.status === 'active').length,
+    lostSolved: allItems.filter(i => i.type === 'lost' && i.status === 'solved').length,
+    foundSolved: allItems.filter(i => i.type === 'found' && i.status === 'solved').length
+  }
+  
+  res.json({ data: stats })
+})
+
+app.post('/upload', authenticateToken, imageUpload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: '请选择图片' })
+  const url = `http://${localIP}:${port}/uploads/${req.file.filename}`
+  res.json({ url })
+})
+
+app.post('/upload/video', authenticateToken, videoUpload.single('video'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: '请选择视频' })
+  
+  const fileSize = req.file.size
+  const maxSize = 1024 * 1024 * 1024
+  
+  if (fileSize > maxSize) {
+    fs.unlinkSync(req.file.path)
+    return res.status(400).json({ message: '视频大小不能超过1GB' })
+  }
+  
+  const url = `http://${localIP}:${port}/uploads/videos/${req.file.filename}`
+  res.json({ url, size: fileSize })
+})
+
+app.post('/upload/images', authenticateToken, imageUpload.array('images', 9), (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ message: '请选择图片' })
+  
+  const urls = req.files.map(f => `http://${localIP}:${port}/uploads/${f.filename}`)
+  res.json({ urls })
+})
+
+app.get('/messages', authenticateToken, (req, res) => {
+  const userIds = [...new Set([
+    ...DB.messages.filter(m => m.senderId === req.user.id).map(m => m.receiverId),
+    ...DB.messages.filter(m => m.receiverId === req.user.id).map(m => m.senderId)
+  ])]
+
+  const result = userIds.map(userId => {
+    const user = DB.users.find(u => u.id === userId)
+    const recentMsg = DB.messages.filter(m => 
+      (m.senderId === req.user.id && m.receiverId === userId) ||
+      (m.senderId === userId && m.receiverId === req.user.id)
+    ).sort((a, b) => b.createdAt - a.createdAt)[0]
+    
+    const unreadCount = DB.messages.filter(m => 
+      m.senderId === userId && 
+      m.receiverId === req.user.id && 
+      !m.read
+    ).length
+    
+    return { 
+      userId, 
+      userName: user?.name || '',
+      userAvatar: user?.avatar || '',
+      lastMessage: recentMsg?.content || '',
+      lastTime: recentMsg?.createdAt || 0,
+      unread: unreadCount
+    }
+  })
+
+  res.json({ data: result })
+})
+
+// 获取当前用户未读消息总数（用于角标）
+app.get('/messages/unread/count', authenticateToken, (req, res) => {
+  const count = DB.messages.filter(m =>
+    m.receiverId === req.user.id && !m.read
+  ).length
+  res.json({ data: { count } })
+})
+
+app.get('/messages/conversation/:userId', authenticateToken, (req, res) => {
+  const messages = DB.messages.filter(m => 
+    (m.senderId === req.user.id && m.receiverId === req.params.userId) ||
+    (m.senderId === req.params.userId && m.receiverId === req.user.id)
+  ).map(m => ({ ...m, createdAt: m.createdAt * 1000 }))
+
+  messages.sort((a, b) => a.createdAt - b.createdAt)
+  res.json({ data: messages })
+})
+
+app.post('/messages/send', authenticateToken, (req, res) => {
+  const { userId, content, type = 'text', mediaUrl = '' } = req.body
+  
+  if (!userId || (!content && !mediaUrl)) {
+    return res.status(400).json({ message: '参数错误' })
+  }
+
+  const receiver = DB.users.find(u => u.id === userId)
+  if (!receiver) {
+    return res.status(404).json({ message: '用户不存在' })
+  }
+
+  if (receiver.blockedUsers && receiver.blockedUsers.includes(req.user.id)) {
+    return res.status(403).json({ message: '对方已将你拉黑，无法发送消息' })
+  }
+
+  const newMsg = {
+    id: uuidv4(),
+    senderId: req.user.id,
+    receiverId: userId,
+    content: content || '',
+    type,
+    mediaUrl,
+    createdAt: Math.floor(Date.now() / 1000),
+    read: false
+  }
+
+  DB.messages.push(newMsg)
+  saveData('messages', DB.messages)
+  
+  res.json({ success: true, message: newMsg })
+})
+
+app.put('/messages/:id/recall', authenticateToken, (req, res) => {
+  const msg = DB.messages.find(m => m.id === req.params.id)
+  if (!msg) return res.status(404).json({ message: '消息不存在' })
+
+  if (msg.senderId !== req.user.id) {
+    return res.status(403).json({ message: '无权撤回他人消息' })
+  }
+
+  // 已撤回的消息直接返回成功，防止重复请求
+  if (msg.type === 'recalled') {
+    return res.json({ success: true, message: '已撤回' })
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  if (now - msg.createdAt > 120) {
+    return res.status(403).json({ message: '超过2分钟，无法撤回' })
+  }
+
+  msg.type = 'recalled'
+  msg.content = ''
+  msg.mediaUrl = ''
+  saveData('messages', DB.messages)
+
+  res.json({ success: true, message: '撤回成功' })
+})
+
+app.post('/user/block', authenticateToken, (req, res) => {
+  const { userId } = req.body
+  
+  if (!userId) {
+    return res.status(400).json({ message: '参数错误' })
+  }
+  
+  const user = DB.users.find(u => u.id === req.user.id)
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' })
+  }
+  
+  if (!user.blockedUsers) {
+    user.blockedUsers = []
+  }
+  
+  if (!user.blockedUsers.includes(userId)) {
+    user.blockedUsers.push(userId)
+    saveData('users', DB.users)
+  }
+  
+  DB.messages = DB.messages.filter(m => 
+    !(m.senderId === userId && m.receiverId === req.user.id) &&
+    !(m.senderId === req.user.id && m.receiverId === userId)
+  )
+  saveData('messages', DB.messages)
+  
+  res.json({ success: true, message: '拉黑成功' })
+})
+
+app.get('/user/blocked', authenticateToken, (req, res) => {
+  const user = DB.users.find(u => u.id === req.user.id)
+  res.json({ data: user?.blockedUsers || [] })
+})
+
+app.post('/user/unblock', authenticateToken, (req, res) => {
+  const { userId } = req.body
+  
+  if (!userId) {
+    return res.status(400).json({ message: '参数错误' })
+  }
+  
+  const user = DB.users.find(u => u.id === req.user.id)
+  if (!user || !user.blockedUsers) {
+    return res.json({ success: true })
+  }
+  
+  user.blockedUsers = user.blockedUsers.filter(id => id !== userId)
+  saveData('users', DB.users)
+  
+  res.json({ success: true, message: '解除拉黑成功' })
+})
+
+app.get('/user/search', authenticateToken, (req, res) => {
+  const { keyword } = req.query
+  if (!keyword) return res.json({ data: [] })
+  
+  const users = DB.users.filter(u => 
+    u.status === 'approved' && u.id !== req.user.id &&
+    (u.name.includes(keyword) || u.studentId.includes(keyword))
+  ).map(u => ({ id: u.id, name: u.name, avatar: u.avatar, className: u.className }))
+  
+  res.json({ data: users })
+})
+
+initDatabase()
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces()
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address
+      }
+    }
+  }
+  return '127.0.0.1'
+}
+
+const localIP = getLocalIP()
+
+const server = app.listen(port, '0.0.0.0', () => {
+  console.log(`服务器运行在 http://localhost:${port}`)
+  console.log(`局域网访问: http://${localIP}:${port}`)
+})
+
+// ─── 版本管理 API ───
+
+// APK 上传目录
+const APK_DIR = path.join(__dirname, 'uploads/apk')
+if (!fs.existsSync(APK_DIR)) fs.mkdirSync(APK_DIR, { recursive: true })
+
+const apkUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, APK_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.apk'
+      cb(null, uuidv4() + ext)
+    }
+  })
+})
+
+// 发布新版本（管理员，上传 APK）
+app.post('/admin/version/publish', authenticateToken, apkUpload.single('apk'), (req, res) => {
+  if (req.user.id !== 'admin') {
+    return res.status(403).json({ message: '无权操作' })
+  }
+
+  const { version, versionCode, changelog, forceUpdate } = req.body
+  if (!version || !versionCode) {
+    return res.status(400).json({ message: '版本号和版本码必填' })
+  }
+
+  // multer 存的文件无后缀，重命名为 .apk
+  let apkUrl = ''
+  if (req.file) {
+    const ext = '.apk'
+    const newPath = path.join(APK_DIR, req.file.filename + ext)
+    fs.renameSync(req.file.path, newPath)
+    apkUrl = `/uploads/apk/${req.file.filename}${ext}`
+  }
+
+  const newVersion = {
+    id: uuidv4(),
+    version,
+    versionCode: parseInt(versionCode),
+    changelog: changelog || '',
+    apkUrl,
+    forceUpdate: forceUpdate === 'true' || forceUpdate === true,
+    createdAt: Math.floor(Date.now() / 1000)
+  }
+
+  DB.versions.unshift(newVersion)
+  if (DB.versions.length > 20) DB.versions = DB.versions.slice(0, 20)
+  saveData('versions', DB.versions)
+
+  res.json({ success: true, data: newVersion })
+})
+
+// 获取最新版本（App 检测更新用）
+app.get('/version/latest', (req, res) => {
+  if (DB.versions.length === 0) {
+    return res.json({ data: null })
+  }
+  res.json({ data: DB.versions[0] })
+})
+
+// 获取版本列表（官网 / 管理后台用）
+app.get('/version/list', (req, res) => {
+  const { page = 1, pageSize = 20 } = req.query
+  const start = (page - 1) * pageSize
+  res.json({
+    data: DB.versions.slice(start, start + parseInt(pageSize)),
+    total: DB.versions.length
+  })
+})
+
+// 删除版本
+app.delete('/admin/version/:id', authenticateToken, (req, res) => {
+  if (req.user.id !== 'admin') {
+    return res.status(403).json({ message: '无权操作' })
+  }
+  DB.versions = DB.versions.filter(v => v.id !== req.params.id)
+  saveData('versions', DB.versions)
+  res.json({ success: true })
+})
+
+// 静态文件：APK 下载
+app.use('/uploads/apk', express.static(APK_DIR))

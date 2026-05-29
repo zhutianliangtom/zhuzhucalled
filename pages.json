@@ -1,0 +1,108 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "校园失物招领"
+			}
+		},
+		{
+			"path": "pages/message/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "消息"
+			}
+		},
+		{
+			"path": "pages/item/publish",
+			"style": {
+				"navigationBarTitleText": "发布"
+			}
+		},
+		{
+			"path": "pages/user/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/auth/login",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/auth/register",
+			"style": {
+				"navigationBarTitleText": "注册"
+			}
+		},
+		{
+			"path": "pages/item/detail",
+			"style": {
+				"navigationBarTitleText": "物品详情"
+			}
+		},
+		{
+			"path": "pages/message/chat",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "聊天"
+			}
+		},
+		{
+			"path": "pages/user/my-items",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的发布"
+			}
+		},
+		{
+			"path": "pages/user/my-collection",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的收藏"
+			}
+		},
+		{
+			"path": "pages/user/edit",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "编辑资料"
+			}
+		},
+		{
+			"path": "pages/user/settings",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "设置"
+			}
+		},
+		{
+			"path": "pages/user/blocked-users",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "黑名单管理"
+			}
+		},
+		{
+			"path": "pages/message/video-player",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "视频播放"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "校园失物招领",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F5F5F5",
+		"app-plus": {
+			"background": "#efeff4"
+		}
+	}
+}

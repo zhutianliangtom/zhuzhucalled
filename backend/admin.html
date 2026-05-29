@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>校园失物招领管理后台</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:#f5f7fa; min-height:100vh; }
+    .login-page { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+    .login-form { background:#fff; padding:40px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); width:100%; max-width:400px; }
+    .login-form h1 { text-align:center; margin-bottom:30px; color:#333; font-size:24px; }
+    .form-group { margin-bottom:20px; }
+    .form-group label { display:block; margin-bottom:8px; color:#666; font-size:14px; }
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="number"],
+    .form-group textarea { width:100%; padding:12px 16px; border:1px solid #e8e8e8; border-radius:8px; font-size:14px; font-family:inherit; transition:border-color 0.3s; }
+    .form-group input:focus, .form-group textarea:focus { outline:none; border-color:#667eea; }
+    .form-group textarea { resize:vertical; }
+    .btn { padding:12px 20px; border:none; border-radius:8px; font-size:16px; cursor:pointer; transition:opacity 0.3s; }
+    .btn-primary { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; width:100%; }
+    .btn-danger { background:#ff4444; color:#fff; padding:6px 14px; font-size:13px; width:auto; }
+    .btn:hover { opacity:0.9; }
+    .error-msg { color:#ff4444; font-size:13px; margin-top:10px; text-align:center; }
+    .admin-layout { display:flex; height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#667eea 0%,#764ba2 100%); color:#fff; padding:20px; flex-shrink:0; }
+    .sidebar h2 { font-size:18px; margin-bottom:30px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar ul { list-style:none; padding:0; }
+    .sidebar li { margin-bottom:6px; }
+    .sidebar a { display:block; padding:10px 16px; color:#fff; text-decoration:none; border-radius:8px; transition:background 0.3s; font-size:14px; }
+    .sidebar a:hover, .sidebar a.active { background:rgba(255,255,255,0.2); }
+    .main-content { flex:1; padding:24px; overflow-y:auto; }
+    .content-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .content-header h1 { font-size:22px; color:#333; }
+    .logout-btn { padding:8px 16px; background:#f5f5f5; border:1px solid #e8e8e8; border-radius:6px; cursor:pointer; color:#666; font-size:14px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; margin-bottom:24px; }
+    .stat-card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
+    .stat-card .num { font-size:32px; font-weight:700; color:#667eea; }
+    .stat-card .lbl { font-size:13px; color:#999; margin-top:4px; }
+    .toolbar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .toolbar input,
+    .toolbar select { padding:10px 14px; border:1px solid #e8e8e8; border-radius:8px; font-size:14px; }
+    .toolbar input { flex:1; min-width:180px; }
+    .toolbar .btn { width:auto; padding:10px 20px; }
+    .tbl-wrap { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:12px 16px; text-align:left; border-bottom:1px solid #f0f0f0; font-size:14px; }
+    th { background:#fafafa; color:#666; font-weight:600; font-size:13px; }
+    td { color:#333; }
+    td img { width:56px; height:56px; object-fit:cover; border-radius:6px; }
+    .tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; }
+    .tag-lost { background:#fff3e0; color:#ff9800; }
+    .tag-found { background:#e3f2fd; color:#1976d2; }
+    .tag-active { background:#e8f5e9; color:#4caf50; }
+    .tag-deleted { background:#fce4ec; color:#e91e63; }
+    .pager { display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px; }
+    .pager button { padding:8px 16px; border:1px solid #e8e8e8; background:#fff; border-radius:6px; cursor:pointer; font-size:14px; }
+    .pager button:disabled { opacity:0.4; cursor:not-allowed; }
+    .pager span { font-size:14px; color:#666; }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .modal { background:#fff; padding:28px; border-radius:14px; width:92%; max-width:480px; max-height:90vh; overflow-y:auto; }
+    .modal h2 { margin-bottom:18px; font-size:18px; color:#333; }
+    .modal .close { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:#999; }
+    .modal .btn { margin-top:14px; }
+    .empty { text-align:center; padding:50px 20px; color:#bbb; font-size:15px; }
+    input[type="file"] { font-size:13px; }
+    .badge-new { background:#ff4757; color:#fff; font-size:11px; padding:1px 7px; border-radius:10px; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页 -->
+    <div v-if="!loggedIn" class="login-page">
+      <div class="login-form">
+        <h1>管理员登录</h1>
+        <div class="form-group">
+          <label>用户名</label>
+          <input v-model="loginForm.username" type="text" placeholder="请输入用户名">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="doLogin">
+        </div>
+        <button class="btn btn-primary" @click="doLogin">登录</button>
+        <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+      </div>
+    </div>
+
+    <!-- 后台主体 -->
+    <div v-else class="admin-layout">
+      <div class="sidebar">
+        <h2>管理后台</h2>
+        <ul>
+          <li><a :class="{active:page==='dashboard'}" @click="page='dashboard'">首页</a></li>
+          <li><a :class="{active:page==='items'}"    @click="page='items'">物品管理</a></li>
+          <li><a :class="{active:page==='users'}"    @click="page='users'">用户管理</a></li>
+          <li><a :class="{active:page==='versions'}" @click="page='versions'">版本管理</a></li>
+        </ul>
+      </div>
+
+      <div class="main-content">
+        <div class="content-header">
+          <h1>{{ pageTitle }}</h1>
+          <button class="logout-btn" @click="doLogout">退出登录</button>
+        </div>
+
+        <!-- 首页 -->
+        <div v-if="page==='dashboard'">
+          <div class="stats-grid">
+            <div class="stat-card"><div class="num">{{ stats.totalItems }}</div><div class="lbl">总物品数</div></div>
+            <div class="stat-card"><div class="num">{{ stats.lostItems }}</div><div class="lbl">寻物启事</div></div>
+            <div class="stat-card"><div class="num">{{ stats.foundItems }}</div><div class="lbl">失物招领</div></div>
+            <div class="stat-card"><div class="num">{{ stats.totalUsers }}</div><div class="lbl">用户总数</div></div>
+          </div>
+        </div>
+
+        <!-- 物品管理 -->
+        <div v-if="page==='items'">
+          <div class="toolbar">
+            <input v-model="searchKeyword" placeholder="搜索物品名称或描述">
+            <select v-model="filterType">
+              <option value="all">全部类型</option>
+              <option value="lost">寻物启事</option>
+              <option value="found">失物招领</option>
+            </select>
+            <select v-model="filterStatus">
+              <option value="all">全部状态</option>
+              <option value="active">正常</option>
+              <option value="deleted">已删除</option>
+            </select>
+            <button class="btn btn-primary" @click="loadItems(1)">搜索</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>图片</th><th>标题</th><th>类型</th><th>状态</th><th>联系人</th><th>时间</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="item in items" :key="item.id">
+                  <td><img :src="item.images && item.images[0] ? item.images[0] : '/uploads/placeholder.png'" @error="$event.target.src='/uploads/placeholder.png'"></td>
+                  <td>{{ item.title }}</td>
+                  <td><span class="tag" :style="{background:item.type==='lost'?'#fff3e0':'#e3f2fd',color:item.type==='lost'?'#ff9800':'#1976d2'}">{{ item.type==='lost'?'寻物启事':'失物招领' }}</span></td>
+                  <td><span class="tag" :style="{background:item.status==='active'?'#e8f5e9':'#fce4ec',color:item.status==='active'?'#4caf50':'#e91e63'}">{{ item.status==='active'?'正常':'已删除' }}</span></td>
+                  <td>{{ item.contact||'-' }}</td>
+                  <td>{{ fmt(item.createdAt) }}</td>
+                  <td><button class="btn btn-danger" @click="delItem(item.id)">删除</button></td>
+                </tr>
+                <tr v-if="items.length===0"><td colspan="7" style="text-align:center;color:#bbb;padding:30px;">暂无数据</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button @click="loadItems(pagerItems.current-1)" :disabled="pagerItems.current<=1">上一页</button>
+            <span>{{ pagerItems.current }} / {{ pagerItems.totalPages }}</span>
+            <button @click="loadItems(pagerItems.current+1)" :disabled="pagerItems.current>=pagerItems.totalPages">下一页</button>
+          </div>
+        </div>
+
+        <!-- 用户管理 -->
+        <div v-if="page==='users'">
+          <div class="toolbar">
+            <input v-model="userKeyword" placeholder="搜索学号或姓名">
+            <button class="btn btn-primary" @click="loadUsers(1)">搜索</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>学号</th><th>姓名</th><th>手机号</th><th>注册时间</th></tr></thead>
+              <tbody>
+                <tr v-for="u in users" :key="u.id">
+                  <td>{{ u.studentId }}</td>
+                  <td>{{ u.name }}</td>
+                  <td>{{ u.phone||'-' }}</td>
+                  <td>{{ fmt(u.createdAt) }}</td>
+                </tr>
+                <tr v-if="users.length===0"><td colspan="4" style="text-align:center;color:#bbb;padding:30px;">暂无数据</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button @click="loadUsers(pagerUsers.current-1)" :disabled="pagerUsers.current<=1">上一页</button>
+            <span>{{ pagerUsers.current }} / {{ pagerUsers.totalPages }}</span>
+            <button @click="loadUsers(pagerUsers.current+1)" :disabled="pagerUsers.current>=pagerUsers.totalPages">下一页</button>
+          </div>
+        </div>
+
+        <!-- 版本管理 -->
+        <div v-if="page==='versions'">
+          <div class="toolbar">
+            <div style="flex:1"></div>
+            <button class="btn" @click="copyDownloadUrl()" style="background:#fff;color:#667eea;border:1px solid #667eea;margin-right:8px;">📋 复制下载页链接</button>
+            <button class="btn btn-primary" @click="openVerModal()">+ 发布新版本</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>版本号</th><th>版本码</th><th>更新日志</th><th>APK</th><th>强制更新</th><th>发布时间</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="v in versions" :key="v.id">
+                  <td style="font-weight:600;color:#667eea;">v{{ v.version }}</td>
+                  <td>{{ v.versionCode }}</td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="v.changelog">{{ v.changelog||'-' }}</td>
+                  <td>
+                    <a v-if="v.apkUrl" :href="API_BASE+v.apkUrl" download style="color:#667eea;text-decoration:none;font-size:13px;">⬇ 下载</a>
+                    <span v-else style="color:#ccc;">未上传</span>
+                  </td>
+                  <td :style="{color:v.forceUpdate?'#e74c3c':'#999'}">{{ v.forceUpdate?'是':'否' }}</td>
+                  <td>{{ fmt(v.createdAt) }}</td>
+                  <td><button class="btn btn-danger" @click="delVer(v.id)">删除</button></td>
+                </tr>
+                <tr v-if="versions.length===0"><td colspan="7" style="text-align:center;color:#bbb;padding:30px;">暂无版本，请点击「发布新版本」上传</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 版本发布弹窗 -->
+    <div v-if="showVerModal" class="overlay" @click.self="showVerModal=false">
+      <div class="modal">
+        <button class="close" @click="showVerModal=false">×</button>
+        <h2>发布新版本</h2>
+        <div class="form-group">
+          <label>版本号（如 1.0.1）</label>
+          <input v-model="verForm.version" placeholder="1.0.1">
+        </div>
+        <div class="form-group">
+          <label>版本码（整数，如 2）</label>
+          <input v-model.number="verForm.versionCode" type="number" placeholder="2">
+        </div>
+        <div class="form-group">
+          <label>更新日志（每行一条）</label>
+          <textarea v-model="verForm.changelog" rows="4" placeholder="修复已知Bug&#10;优化用户体验"></textarea>
+        </div>
+        <div class="form-group">
+          <label>APK 安装包</label>
+          <input type="file" accept=".apk" @change="onApkSelected">
+          <div v-if="verForm.apkFile" style="font-size:12px;color:#667eea;margin-top:6px;">已选：{{ verForm.apkFile.name }}</div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;flex-direction:row;">
+          <input type="checkbox" v-model="verForm.forceUpdate" id="chkForce">
+          <label for="chkForce" style="margin-bottom:0;cursor:pointer;">强制更新</label>
+        </div>
+        <div v-if="verError" class="error-msg">{{ verError }}</div>
+        <button class="btn btn-primary" @click="publishVer">发布</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script>
+    const API_BASE = location.origin;
+
+    const { createApp, ref, computed, watch, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const loggedIn = ref(false);
+        const loginForm = ref({ username:'', password:'' });
+        const loginError = ref('');
+        const token = ref('');
+        const page = ref('dashboard');
+
+        const stats = ref({ totalItems:0, lostItems:0, foundItems:0, totalUsers:0 });
+        const items = ref([]);
+        const users = ref([]);
+        const versions = ref([]);
+        const searchKeyword = ref('');
+        const filterType = ref('all');
+        const filterStatus = ref('all');
+        const userKeyword = ref('');
+        const pagerItems = ref({ current:1, totalPages:1 });
+        const pagerUsers = ref({ current:1, totalPages:1 });
+
+        const showVerModal = ref(false);
+        const verForm = ref({ version:'', versionCode:null, changelog:'', apkFile:null, forceUpdate:false });
+        const verError = ref('');
+
+        const pageTitle = computed(() => {
+          return { dashboard:'数据概览', items:'物品管理', users:'用户管理', versions:'版本管理' }[page.value] || '';
+        });
+
+        const API = (url, opts={}) => {
+          const h = opts.headers || {};
+          if (token.value) h['Authorization'] = 'Bearer '+token.value;
+          if (opts.body && !(opts.body instanceof FormData)) h['Content-Type'] = 'application/json';
+          return fetch(API_BASE + url, { ...opts, headers:h });
+        };
+
+        const fmt = (ts) => {
+          if (!ts) return '-';
+          const d = new Date(ts*1000);
+          return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        };
+
+        const doLogin = async () => {
+          loginError.value = '';
+          const r = await fetch(API_BASE+'/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ studentId:loginForm.value.username, password:loginForm.value.password }) });
+          const d = await r.json();
+          if (r.ok && d.user && d.user.id==='admin') {
+            token.value = d.token;
+            localStorage.setItem('admin_token', d.token);
+            loggedIn.value = true;
+            await loadStats();
+            await loadVersions();
+          } else {
+            loginError.value = d.message || '登录失败';
+          }
+        };
+
+        const doLogout = () => {
+          localStorage.removeItem('admin_token');
+          token.value = '';
+          loggedIn.value = false;
+          loginForm.value = { username:'', password:'' };
+        };
+
+        const loadStats = async () => {
+          try {
+            const [ir, ur] = await Promise.all([ API('/admin/items?status=all&page=1&pageSize=1000'), API('/admin/users?page=1&pageSize=1000') ]);
+            const id = await ir.json();
+            const ud = await ur.json();
+            stats.value = { totalItems:(id.data||[]).length, lostItems:(id.data||[]).filter(i=>i.type==='lost').length, foundItems:(id.data||[]).filter(i=>i.type==='found').length, totalUsers:(ud.data||[]).length };
+          } catch(e) {}
+        };
+
+        const loadItems = async (p=1) => {
+          const params = new URLSearchParams({ page:p, pageSize:10, type:filterType.value, status:filterStatus.value, keyword:searchKeyword.value });
+          const r = await API('/admin/items?'+params);
+          const d = await r.json();
+          items.value = d.data || [];
+          pagerItems.value = { current:p, totalPages:Math.max(1,Math.ceil((d.total||0)/10)) };
+        };
+
+        const loadUsers = async (p=1) => {
+          const params = new URLSearchParams({ page:p, pageSize:20, keyword:userKeyword.value });
+          const r = await API('/admin/users?'+params);
+          const d = await r.json();
+          users.value = d.data || [];
+          pagerUsers.value = { current:p, totalPages:Math.max(1,Math.ceil((d.total||0)/20)) };
+        };
+
+        const delItem = async (id) => {
+          if (!confirm('确定删除？')) return;
+          await API('/admin/items/'+id, { method:'DELETE' });
+          await loadItems(pagerItems.value.current);
+          await loadStats();
+        };
+
+        // ── 版本管理 ──
+        const loadVersions = async () => {
+          try {
+            const r = await fetch(API_BASE+'/version/list');
+            const d = await r.json();
+            versions.value = d.data || [];
+          } catch(e) { console.error(e); }
+        };
+
+        const onApkSelected = (e) => {
+          const f = e.target.files[0];
+          if (f && !f.name.toLowerCase().endsWith('.apk')) { verError.value='请选择 .apk 文件'; return; }
+          verForm.value.apkFile = f || null;
+          verError.value = '';
+        };
+
+        const openVerModal = () => {
+          verForm.value = { version:'', versionCode:null, changelog:'', apkFile:null, forceUpdate:false };
+          verError.value = '';
+          showVerModal.value = true;
+        };
+
+        const publishVer = async () => {
+          verError.value = '';
+          if (!verForm.value.version || !verForm.value.versionCode) { verError.value='版本号和版本码必填'; return; }
+          const fd = new FormData();
+          fd.append('version', verForm.value.version);
+          fd.append('versionCode', String(verForm.value.versionCode));
+          fd.append('changelog', verForm.value.changelog||'');
+          fd.append('forceUpdate', verForm.value.forceUpdate?'true':'false');
+          if (verForm.value.apkFile) fd.append('apk', verForm.value.apkFile);
+          const r = await fetch(API_BASE+'/admin/version/publish', { method:'POST', headers:{'Authorization':'Bearer '+token.value}, body:fd });
+          const d = await r.json();
+          if (r.ok) {
+            showVerModal.value = false;
+            await loadVersions();
+          } else {
+            verError.value = d.message || '发布失败';
+          }
+        };
+
+        const delVer = async (id) => {
+          if (!confirm('确定删除该版本？')) return;
+          await fetch(API_BASE+'/admin/version/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token.value} });
+          await loadVersions();
+        };
+
+        // 复制下载页链接（6000 端口）
+        const copyDownloadUrl = async () => {
+          const url = API_BASE.replace(/:\d+$/,':6000/download')
+          try {
+            await navigator.clipboard.writeText(url)
+            alert('已复制：' + url)
+          } catch(e) {
+            prompt('请手动复制：', url)
+          }
+        };
+
+        // 初始化
+        onMounted(async () => {
+          const t = localStorage.getItem('admin_token');
+          if (t) {
+            token.value = t;
+            loggedIn.value = true;
+            await loadStats();
+            await loadVersions();
+          }
+        });
+
+        // 切换 tab 时刷新
+        watch(page, (p) => { if (p==='versions') loadVersions(); });
+
+        return {
+          loggedIn, loginForm, loginError, token, page,
+          stats, items, users, versions,
+          searchKeyword, filterType, filterStatus, userKeyword,
+          pagerItems, pagerUsers,
+          showVerModal, verForm, verError,
+          pageTitle, API_BASE,
+          doLogin, doLogout,
+          loadStats, loadItems, loadUsers, delItem,
+          loadVersions, onApkSelected, openVerModal, publishVer, delVer,
+          copyDownloadUrl,
+          fmt
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

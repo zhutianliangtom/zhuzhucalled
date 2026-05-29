@@ -1,0 +1,96 @@
+/* 水平间距 */
+/* 水平间距 */
+.container[data-v-2cc9f8c3] {
+  min-height: 100vh;
+  padding: 1.875rem 1.25rem;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+}
+.logo[data-v-2cc9f8c3] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 0;
+}
+.logo-icon[data-v-2cc9f8c3] {
+  width: 3.75rem;
+  height: 3.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.625rem;
+}
+.icon[data-v-2cc9f8c3] {
+  font-size: 1.5625rem;
+}
+.logo-text[data-v-2cc9f8c3] {
+  font-size: 1.125rem;
+  font-weight: bold;
+  color: #fff;
+}
+.form[data-v-2cc9f8c3] {
+  background: #fff;
+  border-radius: 0.625rem;
+  padding: 1.25rem;
+  box-shadow: 0 0.3125rem 1.25rem rgba(0, 0, 0, 0.1);
+}
+.form-item[data-v-2cc9f8c3] {
+  margin-bottom: 0.9375rem;
+}
+.label[data-v-2cc9f8c3] {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.3125rem;
+  display: block;
+}
+.input[data-v-2cc9f8c3] {
+  width: 100%;
+  height: 2.5rem;
+  border: 0.0625rem solid #eee;
+  border-radius: 0.3125rem;
+  padding: 0 0.625rem;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+.checkbox[data-v-2cc9f8c3] {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 0.0625rem solid #ccc;
+  border-radius: 0.1875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #667eea;
+  margin-right: 0.3125rem;
+}
+.checkbox.checked[data-v-2cc9f8c3] {
+  background: #667eea;
+  border-color: #667eea;
+  color: #fff;
+}
+.checkbox-text[data-v-2cc9f8c3] {
+  font-size: 0.8125rem;
+  color: #666;
+}
+.submit-btn[data-v-2cc9f8c3] {
+  width: 100%;
+  height: 2.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 1.375rem;
+  font-size: 1rem;
+  margin-top: 0.625rem;
+}
+.submit-btn[disabled][data-v-2cc9f8c3] {
+  opacity: 0.5;
+}
+.link-row[data-v-2cc9f8c3] {
+  text-align: center;
+  margin-top: 0.9375rem;
+}
+.link[data-v-2cc9f8c3] {
+  font-size: 0.8125rem;
+  color: #667eea;
+}

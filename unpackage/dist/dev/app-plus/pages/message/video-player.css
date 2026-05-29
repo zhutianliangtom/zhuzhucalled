@@ -1,0 +1,37 @@
+/* 水平间距 */
+/* 水平间距 */
+.container[data-v-12a678ea] {
+  min-height: 100vh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.video-container[data-v-12a678ea] {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-player[data-v-12a678ea] {
+  width: 100%;
+  height: 100vh;
+}
+.close-btn[data-v-12a678ea] {
+  position: absolute;
+  top: 1.25rem;
+  right: 0.9375rem;
+  width: 2.1875rem;
+  height: 2.1875rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.close-btn uni-text[data-v-12a678ea] {
+  color: #fff;
+  font-size: 1rem;
+}
