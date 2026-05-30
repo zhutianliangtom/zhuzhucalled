@@ -1,6 +1,6 @@
 <template>
   <view class="container">
-    <view class="header">
+    <view class="header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <text class="title">发布{{ form.type === 'lost' ? '寻物启事' : '失物招领' }}</text>
     </view>
     
@@ -89,6 +89,10 @@
             :class="{ active: currentTabBarIndex === index }"
             @click="handleTabClick(index)"
           >
+            <!-- 消息 Tab 加角标 -->
+            <view v-if="index === 1 && unreadTotal > 0" class="tab-badge">
+              <text>{{ unreadTotal > 99 ? '99+' : unreadTotal }}</text>
+            </view>
             <text class="tab-icon">{{ item.icon }}</text>
             <text class="tab-text">{{ item.text }}</text>
           </view>
@@ -118,8 +122,14 @@ export default {
         { pagePath: '/pages/item/publish', text: '发布', icon: '+' },
         { pagePath: '/pages/user/index', text: '我的', icon: '👤' }
       ],
-      currentTabBarIndex: 2
+      currentTabBarIndex: 2,
+      unreadTotal: 0,
+      pollTimer: null,
+      statusBarHeight: 0
     }
+  },
+  onLoad() {
+    this.getStatusBarHeight()
   },
   onShow() {
     const user = storage.getUser()
@@ -127,6 +137,11 @@ export default {
       this.form.contact = user.phone
     }
     this.currentTabBarIndex = 2
+    this.checkLoginAndLoadUnread()
+    this.startPoll()
+  },
+  onHide() {
+    this.stopPoll()
   },
   computed: {
     canSubmit() {
@@ -134,6 +149,46 @@ export default {
     }
   },
   methods: {
+    getStatusBarHeight() {
+      try {
+        const systemInfo = uni.getSystemInfoSync()
+        this.statusBarHeight = systemInfo.statusBarHeight || 0
+      } catch (e) {
+        this.statusBarHeight = 0
+      }
+    },
+    checkLoginAndLoadUnread() {
+      const token = storage.getToken()
+      if (token) {
+        this.loadUnreadCount()
+      } else {
+        this.unreadTotal = 0
+      }
+    },
+    async loadUnreadCount() {
+      try {
+        const res = await api.getMessages()
+        const total = res.data.reduce((s, c) => s + (c.unread || 0), 0)
+        this.unreadTotal = total
+      } catch (e) {
+        // 静默失败
+      }
+    },
+    startPoll() {
+      this.stopPoll()
+      this.pollTimer = setInterval(() => {
+        const token = storage.getToken()
+        if (token) {
+          this.loadUnreadCount()
+        }
+      }, 3000)
+    },
+    stopPoll() {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer)
+        this.pollTimer = null
+      }
+    },
     chooseImage() {
       uni.showActionSheet({
         itemList: ['拍照', '从相册选择'],
@@ -441,5 +496,28 @@ export default {
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
   color: #667eea;
+}
+
+/* 消息角标 */
+.tab-badge {
+  position: absolute;
+  top: -8rpx;
+  right: 50%;
+  transform: translateX(50rpx);
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  background: #ff4757;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  
+  text {
+    font-size: 20rpx;
+    color: #fff;
+    line-height: 1;
+  }
 }
 </style>

@@ -42,17 +42,28 @@ const pool = mysql.createPool({
   enableKeepAlive: true
 })
 
-// 初始化管理员账号
+// 初始化数据库
 async function initDatabase() {
+  // 1. 添加 isAdmin 字段（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE users ADD COLUMN isAdmin BOOLEAN DEFAULT FALSE')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 2. 创建或更新管理员账号
   const adminUserId = process.env.ADMIN_USER || 'admin'
-  const [rows] = await pool.execute('SELECT 1 FROM users WHERE studentId = ?', [adminUserId])
+  const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [adminUserId])
   if (rows.length === 0) {
     const adminPass = process.env.ADMIN_PASS || 'admin123'
     const hashedPassword = bcrypt.hashSync(adminPass, 10)
     await pool.execute(
-      'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, createdAt) VALUES (?,?,?,?,?,?,?,?,?)',
-      [adminUserId, adminUserId, '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', Math.floor(Date.now() / 1000)]
+      'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, isAdmin, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [adminUserId, adminUserId, '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', true, Math.floor(Date.now() / 1000)]
     )
+  } else {
+    // 确保管理员账号的 isAdmin 为 true
+    await pool.execute('UPDATE users SET isAdmin = TRUE WHERE studentId = ?', [adminUserId])
   }
 }
 
@@ -104,16 +115,23 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/uploads/videos', express.static(VIDEO_DIR))
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
   if (!token) return res.status(401).json({ message: '未授权' })
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(401).json({ message: 'token无效' })
-    req.user = user
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    // 验证用户是否存在
+    const [rows] = await pool.execute('SELECT id, studentId FROM users WHERE id = ?', [decoded.id])
+    if (rows.length === 0) {
+      return res.status(401).json({ message: '用户不存在，请重新登录' })
+    }
+    req.user = decoded
     next()
-  })
+  } catch (err) {
+    return res.status(401).json({ message: 'token无效' })
+  }
 }
 
 function formatTime(timestamp) {
@@ -134,9 +152,8 @@ app.post('/admin/login', async (req, res) => {
     return res.render('login', { error: '用户名或密码错误' })
   }
 
-  // 从环境变量读取管理员ID，支持自定义管理员账号
-  const adminUserId = process.env.ADMIN_USER || 'admin'
-  if (user.id !== adminUserId) {
+  // 检查用户是否是管理员
+  if (!user.isAdmin) {
     return res.render('login', { error: '请使用管理员账号登录' })
   }
 
@@ -155,12 +172,17 @@ function authMiddleware(req, res, next) {
   if (!token) return res.redirect('/admin/login')
 
   try {
-    const user = jwt.verify(token, JWT_SECRET)
-    // 从环境变量读取管理员ID，支持自定义管理员账号
-    const adminUserId = process.env.ADMIN_USER || 'admin'
-    if (user.id !== adminUserId) return res.redirect('/admin/login')
-    req.user = user
-    next()
+    const decoded = jwt.verify(token, JWT_SECRET)
+    // 验证用户是否存在且是管理员
+    pool.execute('SELECT * FROM users WHERE id = ?', [decoded.id])
+      .then(([rows]) => {
+        if (rows.length === 0 || !rows[0].isAdmin) {
+          return res.redirect('/admin/login')
+        }
+        req.user = rows[0]
+        next()
+      })
+      .catch(() => res.redirect('/admin/login'))
   } catch (err) {
     res.redirect('/admin/login')
   }
@@ -174,12 +196,24 @@ app.get('/admin/dashboard', authMiddleware, async (req, res) => {
   const [[{ foundItems }]] = await pool.execute("SELECT COUNT(*) AS foundItems FROM items WHERE type = 'found' AND status = 'active'")
   const [[{ lostSolved }]] = await pool.execute("SELECT COUNT(*) AS lostSolved FROM items WHERE type = 'lost' AND status = 'solved'")
   const [[{ foundSolved }]] = await pool.execute("SELECT COUNT(*) AS foundSolved FROM items WHERE type = 'found' AND status = 'solved'")
-  // 从环境变量读取管理员ID，排除管理员账号
-  const adminUserId = process.env.ADMIN_USER || 'admin'
-  const [[{ totalUsers }]] = await pool.execute(`SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'approved' AND studentId != ?`, [adminUserId])
+  const [[{ totalUsers }]] = await pool.execute(`SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'approved' AND isAdmin = FALSE`)
   const [[{ pendingUsers }]] = await pool.execute("SELECT COUNT(*) AS pendingUsers FROM users WHERE status = 'pending'")
 
-  res.render('dashboard', { totalItems, activeItems, solvedItems, lostItems, foundItems, lostSolved, foundSolved, totalUsers, pendingUsers })
+  // 获取服务器时间和问候语
+  const now = new Date()
+  const hour = now.getHours()
+  let greeting = '你好'
+  if (hour < 12) greeting = '早上好'
+  else if (hour < 18) greeting = '下午好'
+  else greeting = '晚上好'
+
+  res.render('dashboard', { 
+    totalItems, activeItems, solvedItems, lostItems, foundItems, 
+    lostSolved, foundSolved, totalUsers, pendingUsers,
+    adminName: req.user.name,
+    greeting: greeting,
+    serverTime: now.toLocaleString('zh-CN')
+  })
 })
 
 app.get('/admin/items', authMiddleware, async (req, res) => {
@@ -224,9 +258,8 @@ app.get('/admin/users', authMiddleware, async (req, res) => {
   const pageSize = 10
   const offset = (page - 1) * pageSize
 
-  // 从环境变量读取管理员ID，排除管理员账号
-  const adminUserId = process.env.ADMIN_USER || 'admin'
-  let where = `studentId != '${adminUserId}'`
+  // 不排除管理员账号，以便在列表中可以看到并管理
+  let where = '1=1'
   const params = []
   if (status !== 'all') { where += ' AND status = ?'; params.push(status) }
   if (keyword) { where += ' AND (studentId LIKE ? OR name LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`) }
@@ -235,7 +268,7 @@ app.get('/admin/users', authMiddleware, async (req, res) => {
   const offsetVal = parseInt(offset)
 
   const [rows] = await pool.execute(
-    `SELECT * FROM users WHERE ${where} ORDER BY createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
+    `SELECT * FROM users WHERE ${where} ORDER BY isAdmin DESC, createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
     params
   )
 
@@ -268,7 +301,7 @@ app.get('/admin/users', authMiddleware, async (req, res) => {
     }
     return { ...u, createdAt: formatTime(u.createdAt), avatar: avatarUrl }
   })
-  res.render('users', { users, totalPages, currentPage: parseInt(page), keyword, status })
+  res.render('users', { users, totalPages, currentPage: parseInt(page), keyword, status, currentAdminId: req.user.id })
 })
 
 app.post('/admin/users/approve/:id', authMiddleware, async (req, res) => {
@@ -282,8 +315,30 @@ app.post('/admin/users/reject/:id', authMiddleware, async (req, res) => {
 })
 
 app.post('/admin/users/delete/:id', authMiddleware, async (req, res) => {
+  // 不能删除自己
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ success: false, message: '不能删除自己的账号' })
+  }
   await pool.execute('DELETE FROM users WHERE id = ?', [req.params.id])
   res.json({ success: true })
+})
+
+// 设置/取消管理员
+app.post('/admin/users/toggle-admin/:id', authMiddleware, async (req, res) => {
+  // 不能修改自己的管理员状态
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ success: false, message: '不能修改自己的管理员状态' })
+  }
+  
+  // 先获取当前用户的状态
+  const [rows] = await pool.execute('SELECT isAdmin FROM users WHERE id = ?', [req.params.id])
+  if (rows.length === 0) {
+    return res.status(404).json({ success: false, message: '用户不存在' })
+  }
+  
+  const newStatus = !rows[0].isAdmin
+  await pool.execute('UPDATE users SET isAdmin = ? WHERE id = ?', [newStatus, req.params.id])
+  res.json({ success: true, isAdmin: newStatus })
 })
 
 app.post('/auth/register', async (req, res) => {
@@ -410,6 +465,12 @@ app.put('/user/info', authenticateToken, async (req, res) => {
 app.post('/items', authenticateToken, imageUpload.array('images', 5), async (req, res) => {
   const { title, description, type, contact, location, images: imageUrls } = req.body
   
+  // 先验证用户是否存在
+  const [userRows] = await pool.execute('SELECT id FROM users WHERE id = ?', [req.user.id])
+  if (userRows.length === 0) {
+    return res.status(401).json({ message: '用户不存在，请重新登录' })
+  }
+  
   // 使用外网端口生成完整URL
   const publicHost = '183.66.27.20:41412'
   let images = []
@@ -500,7 +561,7 @@ app.get('/items', async (req, res) => {
     })
     console.log('物品ID:', item.id, '图片URL:', images)
     // 处理用户名空值
-    item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '校园用户'
+    item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '未知用户'
     return { ...item, images }
   })
   res.json({ data: items, total, page: parseInt(page), pageSize })
@@ -545,7 +606,7 @@ app.get('/items/:id', async (req, res) => {
   item.images = images
   
   // 处理用户信息 - 空字符串转为null
-  item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '校园用户'
+  item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '未知用户'
   item.userPhone = item.userPhone || null
   item.userClassName = item.userClassName || null
   
@@ -653,7 +714,7 @@ app.get('/messages/conversation/:userId', authenticateToken, async (req, res) =>
     return { 
       ...m, 
       createdAt,
-      senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '校园用户',
+      senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '未知用户',
       senderAvatar: senderAvatar || ''
     }
   })
@@ -769,7 +830,7 @@ app.get('/user/blocked', authenticateToken, async (req, res) => {
     }
     return {
       id: user.id,
-      name: user.name && user.name.trim() !== '' ? user.name : '校园用户',
+      name: user.name && user.name.trim() !== '' ? user.name : '未知用户',
       avatar: avatar || ''
     }
   })
@@ -805,15 +866,34 @@ app.get('/user/search', authenticateToken, async (req, res) => {
 
 // 用户统计
 app.get('/user/stats', authenticateToken, async (req, res) => {
-  const [[{ totalItems }]] = await pool.execute(
-    "SELECT COUNT(*) AS totalItems FROM items WHERE userId = ?",
+  const [[{ lostActive }]] = await pool.execute(
+    "SELECT COUNT(*) AS lostActive FROM items WHERE userId = ? AND type = 'lost' AND status = 'active'",
     [req.user.id]
   )
-  const [[{ solvedItems }]] = await pool.execute(
-    "SELECT COUNT(*) AS solvedItems FROM items WHERE userId = ? AND status = 'solved'",
+  const [[{ foundActive }]] = await pool.execute(
+    "SELECT COUNT(*) AS foundActive FROM items WHERE userId = ? AND type = 'found' AND status = 'active'",
     [req.user.id]
   )
-  res.json({ data: { totalItems, solvedItems } })
+  const [[{ solved }]] = await pool.execute(
+    "SELECT COUNT(*) AS solved FROM items WHERE userId = ? AND status = 'solved'",
+    [req.user.id]
+  )
+  const [[{ total }]] = await pool.execute(
+    "SELECT COUNT(*) AS total FROM items WHERE userId = ?",
+    [req.user.id]
+  )
+  
+  // 返回前端期望的字段名
+  res.json({ 
+    data: { 
+      lost: lostActive, 
+      lostActive,
+      found: foundActive, 
+      foundActive,
+      solved, 
+      total 
+    } 
+  })
 })
 
 // 全局统计
@@ -891,7 +971,7 @@ app.get('/messages', authenticateToken, async (req, res) => {
     
     return {
       userId: row.userId,
-      userName: row.userName && row.userName.trim() !== '' ? row.userName : '校园用户',
+      userName: row.userName && row.userName.trim() !== '' ? row.userName : '未知用户',
       userAvatar: userAvatar || '',
       lastTime: row.lastTime * 1000, // 转换为毫秒
       unread: row.unread || 0,
@@ -964,6 +1044,79 @@ app.delete('/admin/version/:id', authenticateToken, async (req, res) => {
   }
   await pool.execute('DELETE FROM versions WHERE id = ?', [req.params.id])
   res.json({ success: true })
+})
+
+// ==================== 随机加密下载链接 ====================
+
+// 临时存储下载token (key: token, value: { apkUrl, expiresAt, versionId })
+const downloadTokens = new Map()
+
+// 生成随机token
+function generateToken() {
+  const randomStr = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  const timestamp = Date.now().toString(36)
+  return timestamp + randomStr
+}
+
+// 获取加密的下载地址（临时token）
+app.get('/version/:id/download-url', async (req, res) => {
+  try {
+    const [rows] = await pool.execute('SELECT * FROM versions WHERE id = ?', [req.params.id])
+    if (rows.length === 0) {
+      return res.status(404).json({ message: '版本不存在' })
+    }
+
+    const version = rows[0]
+    if (!version.apkUrl) {
+      return res.status(400).json({ message: '该版本没有安装包' })
+    }
+
+    // 生成随机token，有效期15分钟
+    const token = generateToken()
+    const expiresAt = Date.now() + 15 * 60 * 1000 // 15分钟后过期
+
+    downloadTokens.set(token, {
+      apkUrl: version.apkUrl,
+      expiresAt,
+      versionId: version.id,
+      version: version.version
+    })
+
+    // 清理过期的token
+    const now = Date.now()
+    for (const [key, value] of downloadTokens.entries()) {
+      if (value.expiresAt < now) {
+        downloadTokens.delete(key)
+      }
+    }
+
+    res.json({ data: { url: token } })
+  } catch (e) {
+    console.error('生成下载链接失败:', e)
+    res.status(500).json({ message: '服务器错误' })
+  }
+})
+
+// 通过token下载APK
+app.get('/download/encrypted/:token', async (req, res) => {
+  const token = req.params.token
+  const tokenData = downloadTokens.get(token)
+
+  if (!tokenData) {
+    return res.status(404).json({ message: '下载链接无效或已过期，请重新获取' })
+  }
+
+  if (Date.now() > tokenData.expiresAt) {
+    downloadTokens.delete(token)
+    return res.status(404).json({ message: '下载链接已过期，请重新获取' })
+  }
+
+  // 一次性使用，下载后删除token
+  downloadTokens.delete(token)
+
+  // 下载文件
+  const filePath = path.join(__dirname, tokenData.apkUrl)
+  res.download(filePath, `campus-lostfound-v${tokenData.version}.apk`)
 })
 
 // 静态文件：APK 下载

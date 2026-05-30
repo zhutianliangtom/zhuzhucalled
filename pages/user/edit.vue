@@ -94,19 +94,26 @@ export default {
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: async (res) => {
+        success: (res) => {
           const filePath = res.tempFilePaths[0]
-          uni.showLoading({ title: '上传中...' })
-          try {
-            const result = await api.uploadImage(filePath)
-            this.formData.avatar = result.url
-            uni.hideLoading()
-          } catch (err) {
-            uni.hideLoading()
-            uni.showToast({ title: '上传失败', icon: 'none' })
-          }
+          // 跳转到裁剪页面
+          uni.navigateTo({
+            url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(filePath)}`
+          })
         }
       })
+    },
+    // 处理裁剪结果
+    async handleCropResult(imagePath) {
+      uni.showLoading({ title: '上传中...' })
+      try {
+        const result = await api.uploadImage(imagePath)
+        this.formData.avatar = result.url
+        uni.hideLoading()
+      } catch (err) {
+        uni.hideLoading()
+        uni.showToast({ title: '上传失败', icon: 'none' })
+      }
     },
     async submitForm() {
       if (!this.formData.name) {

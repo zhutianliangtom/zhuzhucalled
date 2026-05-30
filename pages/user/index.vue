@@ -1,6 +1,6 @@
 <template>
   <view class="container">
-    <view class="user-header">
+    <view class="user-header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <view class="avatar-wrapper" @click="chooseAvatar">
         <image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
         <view v-else class="avatar">
@@ -110,6 +110,10 @@
             :class="{ active: currentTabBarIndex === index }"
             @click="handleTabClick(index)"
           >
+            <!-- 消息 Tab 加角标 -->
+            <view v-if="index === 1 && unreadTotal > 0" class="tab-badge">
+              <text>{{ unreadTotal > 99 ? '99+' : unreadTotal }}</text>
+            </view>
             <text class="tab-icon">{{ item.icon }}</text>
             <text class="tab-text">{{ item.text }}</text>
           </view>
@@ -139,18 +143,67 @@ export default {
         { pagePath: '/pages/item/publish', text: '发布', icon: '+' },
         { pagePath: '/pages/user/index', text: '我的', icon: '👤' }
       ],
-      currentTabBarIndex: 3
+      currentTabBarIndex: 3,
+      unreadTotal: 0,
+      pollTimer: null,
+      statusBarHeight: 0
     }
   },
   onLoad() {
+    this.getStatusBarHeight()
     this.loadUser()
   },
   onShow() {
     this.loadUser()
     this.loadStats()
     this.currentTabBarIndex = 3
+    this.checkLoginAndLoadUnread()
+    this.startPoll()
+  },
+  onHide() {
+    this.stopPoll()
   },
   methods: {
+    getStatusBarHeight() {
+      try {
+        const systemInfo = uni.getSystemInfoSync()
+        this.statusBarHeight = systemInfo.statusBarHeight || 0
+      } catch (e) {
+        this.statusBarHeight = 0
+      }
+    },
+    checkLoginAndLoadUnread() {
+      const token = storage.getToken()
+      if (token) {
+        this.loadUnreadCount()
+      } else {
+        this.unreadTotal = 0
+      }
+    },
+    async loadUnreadCount() {
+      try {
+        const res = await api.getMessages()
+        const total = res.data.reduce((s, c) => s + (c.unread || 0), 0)
+        this.unreadTotal = total
+      } catch (e) {
+        // 静默失败
+      }
+    },
+    startPoll() {
+      this.stopPoll()
+      this.pollTimer = setInterval(() => {
+        const token = storage.getToken()
+        if (token) {
+          this.loadUnreadCount()
+        }
+      }, 3000)
+    },
+    stopPoll() {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer)
+        this.pollTimer = null
+      }
+    },
     getFullImageUrl(url) {
       if (!url) return ''
       // 如果已经是完整URL，直接返回
@@ -517,5 +570,28 @@ export default {
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
   color: #667eea;
+}
+
+/* 消息角标 */
+.tab-badge {
+  position: absolute;
+  top: -8rpx;
+  right: 50%;
+  transform: translateX(50rpx);
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  background: #ff4757;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  
+  text {
+    font-size: 20rpx;
+    color: #fff;
+    line-height: 1;
+  }
 }
 </style>

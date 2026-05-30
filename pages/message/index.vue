@@ -1,6 +1,6 @@
 <template>
   <view class="container">
-    <view class="header">
+    <view class="header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <text class="title">消息</text>
     </view>
     
@@ -77,10 +77,12 @@ export default {
       currentTabBarIndex: 1,
       unreadTotal: 0,
       pollTimer: null,
-      _notified: {}
+      _notified: {},
+      statusBarHeight: 0
     }
   },
   onLoad() {
+    this.getStatusBarHeight()
     this.checkLoginAndLoad()
     this.startPoll()
   },
@@ -96,6 +98,14 @@ export default {
     this.stopPoll()
   },
   methods: {
+    getStatusBarHeight() {
+      try {
+        const systemInfo = uni.getSystemInfoSync()
+        this.statusBarHeight = systemInfo.statusBarHeight || 0
+      } catch (e) {
+        this.statusBarHeight = 0
+      }
+    },
     getFullImageUrl(url) {
       if (!url) return ''
       // 如果已经是完整URL，直接返回

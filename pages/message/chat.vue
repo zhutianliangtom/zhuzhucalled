@@ -172,7 +172,7 @@ export default {
   onLoad(options) {
     if (options?.userId) {
       this.userId = options.userId
-      this.userName = decodeURIComponent(options.userName || '校园用户')
+      this.userName = decodeURIComponent(options.userName || '未知用户')
       this.userAvatar = options.userAvatar || ''
     }
     

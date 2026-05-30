@@ -343,5 +343,19 @@ export const api = {
         }
       })
     })
+  },
+
+  // ==================== 版本更新 API ====================
+  async getLatestVersion() {
+    return await this.request('/version/latest', 'GET')
+  },
+
+  async getVersionList() {
+    return await this.request('/version/list', 'GET')
+  },
+
+  // 获取加密的下载地址
+  async getEncryptedDownloadUrl(versionId) {
+    return await this.request(`/version/${versionId}/download-url`, 'GET')
   }
 }

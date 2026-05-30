@@ -146,7 +146,8 @@
     }
 
     .download-btn:hover { opacity: 0.92; }
-    .download-btn:active { transform: scale(0.97); }
+        .download-btn:active { transform: scale(0.97); }
+        .download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .meta {
       text-align: center;
@@ -264,14 +265,15 @@
         </div>
 
         <!-- 下载按钮 -->
-        <a
-          :href="apiBase + latest.apkUrl"
-          download
+        <button
+          @click="handleDownload"
+          :disabled="downloading"
           class="download-btn"
-          v-if="latest.apkUrl"
+          v-if="downloadUrl"
         >
-          ⬇ 立即下载 v{{ latest.version }}
-        </a>
+          <span v-if="downloading">下载中...</span>
+          <span v-else>⬇ 立即下载 v{{ latest.version }}</span>
+        </button>
         <div v-else class="error-msg" style="margin-bottom:0">暂无安装包，请联系管理员上传</div>
 
         <div class="meta">适用于 Android 5.0 及以上</div>
@@ -285,19 +287,36 @@
     // 直接写死后端 API 地址（5000 端口）,避免跨端口自动拼错
     const API_BASE = 'http://183.66.27.20:41412'
 
+    // 从URL获取token参数
+    function getUrlParam(name) {
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get(name)
+    }
+
     const app = {
       data() {
         return {
           apiBase: API_BASE,
           latest: null,
           loading: true,
-          error: ''
+          error: '',
+          encryptedToken: null,
+          downloading: false
         }
       },
       computed: {
         changelogList() {
           if (!this.latest || !this.latest.changelog) return []
           return this.latest.changelog.split('\n').filter(l => l.trim())
+        },
+        downloadUrl() {
+          if (this.encryptedToken) {
+            return `${API_BASE}/download/encrypted/${this.encryptedToken}`
+          }
+          if (this.latest && this.latest.apkUrl) {
+            return API_BASE + this.latest.apkUrl
+          }
+          return null
         }
       },
       methods: {
@@ -324,10 +343,67 @@
           } finally {
             this.loading = false
           }
+        },
+        async getEncryptedDownloadUrl() {
+          if (!this.latest || !this.latest.id) return null
+          
+          try {
+            const res = await fetch(`${API_BASE}/version/${this.latest.id}/download-url`)
+            const json = await res.json()
+            if (json.data && json.data.url) {
+              return json.data.url
+            }
+          } catch (e) {
+            console.error('获取加密下载地址失败:', e)
+          }
+          return null
+        },
+        async handleDownload() {
+          if (this.downloading) return
+          
+          this.downloading = true
+          
+          try {
+            // 尝试获取加密下载地址
+            const token = await this.getEncryptedDownloadUrl()
+            if (token) {
+              this.encryptedToken = token
+              // 延迟一点让UI更新后再触发下载
+              setTimeout(() => {
+                const downloadUrl = `${API_BASE}/download/encrypted/${token}`
+                window.location.href = downloadUrl
+                this.downloading = false
+              }, 100)
+            } else {
+              // 回退到普通下载
+              const downloadUrl = this.downloadUrl
+              if (downloadUrl) {
+                window.location.href = downloadUrl
+              }
+              this.downloading = false
+            }
+          } catch (e) {
+            console.error('下载失败:', e)
+            this.downloading = false
+            this.error = '下载失败，请重试'
+          }
         }
       },
-      mounted() {
-        this.fetchLatest()
+      async mounted() {
+        // 检查URL是否有token参数
+        const tokenFromUrl = getUrlParam('token')
+        if (tokenFromUrl) {
+          this.encryptedToken = tokenFromUrl
+          // 如果有token，自动获取版本信息并下载
+          await this.fetchLatest()
+          // 自动触发下载
+          setTimeout(() => {
+            this.handleDownload()
+          }, 500)
+        } else {
+          // 没有token，正常获取版本信息
+          await this.fetchLatest()
+        }
       }
     }
 

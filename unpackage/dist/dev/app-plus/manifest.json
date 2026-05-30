@@ -7,8 +7,8 @@
   "id": "__UNI__5AB411F",
   "name": "校园失物招领",
   "version": {
-    "name": "1.0.0",
-    "code": "100"
+    "name": "1.1.0",
+    "code": 200
   },
   "description": "校园失物招领App，帮助同学们快速找回丢失的物品",
   "developer": {
@@ -20,6 +20,7 @@
     "Camera": {},
     "VideoPlayer": {},
     "Audio": {},
+    "Push": {},
     "UniNView": {
       "description": "UniNView原生渲染"
     }
@@ -143,5 +144,6 @@
       "concatenate": true
     }
   },
+  "locale": "auto",
   "launch_path": "__uniappview.html"
 }

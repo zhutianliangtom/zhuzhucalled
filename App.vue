@@ -8,6 +8,9 @@ let globalNetworkStatus = {
   listeners: []
 }
 
+// 基础API地址
+const baseUrl = 'http://183.66.27.20:41412'
+
 // 设置网络状态
 export function setNetworkStatus(isOffline) {
   globalNetworkStatus.isOffline = isOffline
@@ -96,7 +99,7 @@ export default {
           plus.runtime.setBadgeNumber(0)
         }
 
-        // ─── 检测版本更新 ───
+        // ─── 检测版本更新（强制检测）───
         this.checkUpdate()
       } catch (e) {
         console.error('初始化plus失败:', e)
@@ -114,6 +117,8 @@ export default {
       if (typeof plus !== 'undefined' && plus && plus.runtime) {
         plus.runtime.setBadgeNumber(0)
       }
+      // 每次App显示时强制检测更新
+      this.checkUpdate()
     } catch (e) {
       console.error('onShow设置角标失败:', e)
     }
@@ -135,15 +140,15 @@ export default {
     }
   },
   methods: {
-    // 检测版本更新（仅 App 平台）
+    // 检测版本更新（仅 App 平台 - 强制检测）
     async checkUpdate() {
       // #ifdef APP-PLUS
       try {
-        const apiBase = 'http://183.66.27.20:41412'
-        const res = await uni.request({ url: `${apiBase}/version/latest` })
-        if (res.statusCode !== 200 || !res.data || !res.data.data) return
+        // 每次强制访问服务器，不缓存
+        const res = await api.getLatestVersion()
+        if (!res || !res.data) return
 
-        const latest = res.data.data
+        const latest = res.data
         const currentCode = parseInt(getAppVersion()) || 0
 
         if (latest.versionCode > currentCode) {
@@ -156,14 +161,22 @@ export default {
           })
 
           if (modalRes.confirm) {
-            // 打开下载页面
-            const downloadUrl = `${apiBase}/download`
+            // 获取加密下载地址并跳转到下载页面
             try {
+              const downloadRes = await api.getEncryptedDownloadUrl(latest.id)
+              const encryptedUrl = downloadRes?.data?.url || ''
+              const downloadPageUrl = `${baseUrl}/download?token=${encodeURIComponent(encryptedUrl)}`
+              
+              if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                plus.runtime.openURL(downloadPageUrl)
+              }
+            } catch (e) {
+              // 如果获取加密地址失败，直接跳转到普通下载页
+              console.error('获取加密下载地址失败，使用普通下载:', e)
+              const downloadUrl = `${baseUrl}/download`
               if (typeof plus !== 'undefined' && plus && plus.runtime) {
                 plus.runtime.openURL(downloadUrl)
               }
-            } catch (e) {
-              console.error('打开URL失败:', e)
             }
           }
           // 强制更新且用户点了取消 → 退出 App

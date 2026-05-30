@@ -3,39 +3,42 @@
     <!-- 断网提示条 -->
     <offline-banner />
     
-    <view class="header">
-      <view class="search-bar" @click="showSearch = true">
-        <text class="search-icon">🔍</text>
-        <text class="search-placeholder">{{ searchKeyword || '搜索丢失物品...' }}</text>
+    <!-- 固定的头部区域 -->
+    <view class="fixed-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="header">
+        <view class="search-bar" @click="showSearch = true">
+          <text class="search-icon">🔍</text>
+          <text class="search-placeholder">{{ searchKeyword || '搜索丢失物品...' }}</text>
+        </view>
+      </view>
+
+      <view class="tabs">
+        <view 
+          v-for="tab in categoryTabs" 
+          :key="tab.value"
+          class="tab-item" 
+          :class="{ active: activeTab === tab.value }"
+          @click="handleTabChange(tab.value)"
+        >
+          <text>{{ tab.label }}</text>
+        </view>
+      </view>
+      
+      <!-- 时间筛选 -->
+      <view class="time-filter">
+        <view 
+          v-for="filter in timeFilters" 
+          :key="filter.value"
+          class="time-filter-item" 
+          :class="{ active: activeTimeFilter === filter.value }"
+          @click="handleTimeFilterChange(filter.value)"
+        >
+          <text>{{ filter.label }}</text>
+        </view>
       </view>
     </view>
 
-    <view class="tabs">
-      <view 
-        v-for="tab in categoryTabs" 
-        :key="tab.value"
-        class="tab-item" 
-        :class="{ active: activeTab === tab.value }"
-        @click="handleTabChange(tab.value)"
-      >
-        <text>{{ tab.label }}</text>
-      </view>
-    </view>
-    
-    <!-- 时间筛选 -->
-    <view class="time-filter">
-      <view 
-        v-for="filter in timeFilters" 
-        :key="filter.value"
-        class="time-filter-item" 
-        :class="{ active: activeTimeFilter === filter.value }"
-        @click="handleTimeFilterChange(filter.value)"
-      >
-        <text>{{ filter.label }}</text>
-      </view>
-    </view>
-
-    <view class="content">
+    <view class="content" :style="{ marginTop: (statusBarHeight + 200) + 'px' }">
       <view v-if="items.length === 0" class="empty">
         <text class="empty-icon">📦</text>
         <text class="empty-text">暂无相关物品</text>
@@ -66,7 +69,7 @@
           </view>
           <!-- 没有图片时显示默认图 -->
           <view v-else class="image-wrapper">
-            <image :src="'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=lost%20and%20found%20item&image_size=square'" mode="aspectFill" class="item-image default-image" />
+            <image :src="'https://neeko-copilot.bytedance.net/api/text-to-image?prompt=lost%20and%20found%20item&image-size=square'" mode="aspectFill" class="item-image default-image" />
           </view>
           
           <!-- 信息区域 -->
@@ -85,7 +88,7 @@
     </view>
 
     <view v-if="showSearch" class="search-modal" @click="showSearch = false">
-      <view class="search-content" @click.stop>
+      <view class="search-content" :style="{ paddingTop: (statusBarHeight + 30) + 'px' }" @click.stop>
         <view class="search-input-wrap">
           <text class="search-icon">🔍</text>
           <input 
@@ -179,10 +182,12 @@ export default {
       ],
       currentTabBarIndex: 0,
       unreadTotal: 0,
-      pollTimer: null
+      pollTimer: null,
+      statusBarHeight: 0
     }
   },
   onLoad() {
+    this.getStatusBarHeight()
     this.loadItems()
   },
   onShow() {
@@ -198,6 +203,14 @@ export default {
     this.stopPoll()
   },
   methods: {
+    getStatusBarHeight() {
+      try {
+        const systemInfo = uni.getSystemInfoSync()
+        this.statusBarHeight = systemInfo.statusBarHeight || 0
+      } catch (e) {
+        this.statusBarHeight = 0
+      }
+    },
     getFullImageUrl(url) {
       if (!url) return ''
       // 如果已经是完整URL，直接返回
@@ -317,11 +330,23 @@ export default {
 .container {
   min-height: 100vh;
   background: #f5f5f5;
+  padding-top: 0;
+  /* 为固定的头部留出空间 */
+  padding-bottom: 120rpx;
+}
+
+/* 固定的头部区域 */
+.fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .header {
   padding: 20rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .search-bar {
@@ -342,6 +367,7 @@ export default {
   color: #999;
 }
 
+/* 分类tabs */
 .tabs {
   display: flex;
   background: #fff;
@@ -364,6 +390,7 @@ export default {
   color: #fff;
 }
 
+/* 时间筛选 */
 .time-filter {
   display: flex;
   background: #fff;
@@ -386,6 +413,7 @@ export default {
   color: #fff;
 }
 
+/* 内容区域 - 留出固定头部的空间 */
 .content {
   padding: 20rpx;
 }
@@ -619,6 +647,7 @@ export default {
   align-items: center;
   justify-content: center;
   height: 100%;
+  position: relative;
 }
 
 .tab-icon {
@@ -627,7 +656,7 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #999999;
+  color: #999;
   margin-top: 4rpx;
 }
 
@@ -639,8 +668,9 @@ export default {
 /* 消息角标 */
 .tab-badge {
   position: absolute;
-  top: 8rpx;
-  right: 20rpx;
+  top: -8rpx;
+  right: 50%;
+  transform: translateX(50rpx);
   min-width: 32rpx;
   height: 32rpx;
   padding: 0 8rpx;
@@ -649,10 +679,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
   
   text {
     font-size: 20rpx;
-    color: #ffffff;
+    color: #fff;
     line-height: 1;
   }
 }

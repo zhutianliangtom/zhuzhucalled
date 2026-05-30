@@ -251,6 +251,7 @@
       <li><a href="/admin/dashboard">数据概览</a></li>
       <li><a href="/admin/items">物品管理</a></li>
       <li><a href="/admin/users" class="active">用户管理</a></li>
+      <li><a href="/admin/versions">版本管理</a></li>
     </ul>
     <a href="/admin/logout" class="logout">退出登录</a>
   </div>
@@ -286,6 +287,7 @@
             <th>班级</th>
             <th>电话</th>
             <th>状态</th>
+            <th>角色</th>
             <th>注册时间</th>
             <th>操作</th>
           </tr>
@@ -293,7 +295,7 @@
         <tbody>
           <% if (users.length === 0) { %>
             <tr>
-              <td colspan="8" class="empty-state">暂无数据</td>
+              <td colspan="9" class="empty-state">暂无数据</td>
             </tr>
           <% } %>
           <% users.forEach(user => { %>
@@ -310,14 +312,28 @@
               <td><%= user.className %></td>
               <td><%= user.phone %></td>
               <td><span class="status <%= user.status %>"><%= user.status === 'pending' ? '待审核' : (user.status === 'approved' ? '已通过' : '已拒绝') %></span></td>
+              <td>
+                <% if (user.isAdmin) { %>
+                  <span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">管理员</span>
+                <% } else { %>
+                  <span style="background: #f0f0f0; color: #666; padding: 4px 12px; border-radius: 20px; font-size: 12px;">普通用户</span>
+                <% } %>
+              </td>
               <td><%= user.createdAt %></td>
               <td>
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <% if (user.status === 'pending') { %>
                     <button class="btn btn-success" onclick="approveUser('<%= user.id %>')">通过</button>
                     <button class="btn btn-warning" onclick="rejectUser('<%= user.id %>')">拒绝</button>
                   <% } %>
-                  <button class="btn btn-danger" onclick="deleteUser('<%= user.id %>')">删除</button>
+                  <% if (user.id !== currentAdminId) { %>
+                    <button class="btn btn-primary" onclick="toggleAdmin('<%= user.id %>', <%= user.isAdmin %>)">
+                      <%= user.isAdmin ? '取消管理员' : '设为管理员' %>
+                    </button>
+                  <% } %>
+                  <% if (user.id !== currentAdminId) { %>
+                    <button class="btn btn-danger" onclick="deleteUser('<%= user.id %>')">删除</button>
+                  <% } %>
                 </div>
               </td>
             </tr>
@@ -375,6 +391,23 @@
           .then(data => {
             if (data.success) {
               location.reload()
+            } else if (data.message) {
+              alert(data.message)
+            }
+          })
+      }
+    }
+    
+    function toggleAdmin(userId, isAdmin) {
+      const action = isAdmin ? '取消管理员' : '设为管理员'
+      if (confirm(`确定${action}吗？`)) {
+        fetch(`/admin/users/toggle-admin/${userId}`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              location.reload()
+            } else if (data.message) {
+              alert(data.message)
             }
           })
       }
