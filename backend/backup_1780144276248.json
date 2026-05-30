@@ -1,0 +1,31 @@
+{
+  "backupTime": "2026-05-30T12:31:16.234Z",
+  "users": [
+    {
+      "id": "8779017c-846f-44aa-8805-6679bb6e5283",
+      "studentId": "test001",
+      "name": "�����û�",
+      "phone": "13800138000",
+      "password": "$2a$10$/dkM6piQrxihSHLtvvuyA.dKLk5Eos4Qpt6rCQ.DBnCfEiZII1IKm",
+      "className": "�����1��",
+      "avatar": "",
+      "status": "pending",
+      "blockedUsers": [],
+      "createdAt": 1779997006
+    },
+    {
+      "id": "admin",
+      "studentId": "admin",
+      "name": "管理员",
+      "phone": "13800000000",
+      "password": "$2a$10$CvWwa8BlYAVAXmEwEKr.juYe/F7OHcu3oKgbDv010sN87cjhC5xpC",
+      "className": "管理员",
+      "avatar": null,
+      "status": "approved",
+      "blockedUsers": [],
+      "createdAt": 1779996866
+    }
+  ],
+  "items": [],
+  "messages": []
+}

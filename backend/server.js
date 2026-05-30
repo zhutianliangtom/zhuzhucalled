@@ -34,7 +34,7 @@ const pool = mysql.createPool({
   host: 'localhost',
   port: 3306,
   user: 'root',
-  password: process.env.MYSQL_PASSWORD || 'windows10',
+  password: '',
   database: 'lost_found',
   waitForConnections: true,
   connectionLimit: 10,
