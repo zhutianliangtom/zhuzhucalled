@@ -53,13 +53,21 @@
         >
           <!-- 图片区域 -->
           <view v-if="item.images && item.images.length > 0" class="image-wrapper">
-            <view class="image-container">
+            <!-- 单张图片 -->
+            <image 
+              v-if="item.images.length === 1"
+              :src="getFullImageUrl(item.images[0])" 
+              mode="aspectFill" 
+              class="item-image-single"
+            />
+            <!-- 多张图片 -->
+            <view v-else class="image-container-multiple">
               <image 
                 v-for="(img, idx) in item.images.slice(0, 3)" 
                 :key="idx" 
                 :src="getFullImageUrl(img)" 
                 mode="aspectFill" 
-                class="item-image"
+                class="item-image-multiple"
               />
               <!-- 如果超过3张，显示数量提示 -->
               <view v-if="item.images.length > 3" class="image-count">
@@ -458,8 +466,15 @@ export default {
   background: #f5f5f5;
 }
 
-/* 多图容器 */
-.image-container {
+/* 单张图片 */
+.item-image-single {
+  width: 100%;
+  height: 360rpx;
+  display: block;
+}
+
+/* 多张图片容器 */
+.image-container-multiple {
   position: relative;
   display: flex;
   flex-wrap: wrap;
@@ -467,7 +482,7 @@ export default {
   padding: 0;
 }
 
-.item-image {
+.item-image-multiple {
   flex: 1;
   min-width: 0;
   height: 360rpx;

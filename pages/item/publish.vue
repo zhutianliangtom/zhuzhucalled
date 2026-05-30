@@ -76,7 +76,15 @@
     </view>
     
     <view class="footer">
-      <button class="submit-btn" :disabled="!canSubmit" @click="handleSubmit">发布</button>
+      <button class="submit-btn" :disabled="!canSubmit || isPublishing" @click="handleSubmit">
+        <text v-if="!isPublishing">发布</text>
+        <view v-else class="publishing">
+          <text class="uploading-text">{{ uploadingText }}</text>
+          <view class="progress-bar">
+            <view class="progress-inner" :style="{width: uploadProgress + '%'}"></view>
+          </view>
+        </view>
+      </button>
     </view>
     
     <view class="tabbar-container">
@@ -116,6 +124,9 @@ export default {
         images: [],
         contact: ''
       },
+      isPublishing: false,
+      uploadProgress: 0,
+      uploadingText: '准备中...',
       tabBarItems: [
         { pagePath: '/pages/index/index', text: '首页', icon: '🏠' },
         { pagePath: '/pages/message/index', text: '消息', icon: '💬' },
@@ -227,14 +238,22 @@ export default {
         return
       }
       
-      if (!this.canSubmit) return
+      if (!this.canSubmit || this.isPublishing) return
       
-      uni.showLoading({ title: '发布中...' })
+      this.isPublishing = true
+      this.uploadProgress = 0
+      this.uploadingText = '准备中...'
+      
       try {
         const imageUrls = []
-        console.log('开始上传图片，数量:', this.form.images.length)
-        for (let i = 0; i < this.form.images.length; i++) {
+        const totalImages = this.form.images.length
+        console.log('开始上传图片，数量:', totalImages)
+        
+        for (let i = 0; i < totalImages; i++) {
           const filePath = this.form.images[i]
+          this.uploadingText = `上传图片 ${i + 1}/${totalImages}`
+          this.uploadProgress = Math.round((i / totalImages) * 70) // 前70%是上传图片
+          
           console.log(`上传第${i + 1}张图片:`, filePath)
           try {
             const res = await api.uploadImage(filePath)
@@ -247,6 +266,8 @@ export default {
         }
         
         console.log('所有图片上传完成，URL列表:', imageUrls)
+        this.uploadingText = '提交中...'
+        this.uploadProgress = 80
         
         const data = {
           type: this.form.type,
@@ -259,15 +280,17 @@ export default {
         console.log('提交物品数据:', data)
         
         await api.createItem(data)
+        this.uploadProgress = 100
+        this.uploadingText = '发布成功'
         
-        uni.hideLoading()
         uni.showToast({ title: '发布成功', icon: 'success' })
         
         setTimeout(() => {
+          this.isPublishing = false
           uni.reLaunch({ url: '/pages/index/index' })
-        }, 1500)
+        }, 1000)
       } catch (err) {
-        uni.hideLoading()
+        this.isPublishing = false
         console.error('发布失败:', err)
         uni.showToast({ title: err.message || '发布失败', icon: 'none' })
       }
@@ -450,6 +473,33 @@ export default {
 
 .submit-btn[disabled] {
   opacity: 0.5;
+}
+
+.publishing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  width: 100%;
+}
+
+.uploading-text {
+  font-size: 28rpx;
+}
+
+.progress-bar {
+  width: 80%;
+  height: 6rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3rpx;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  background: #fff;
+  border-radius: 3rpx;
+  transition: width 0.3s;
 }
 
 .tabbar-container {

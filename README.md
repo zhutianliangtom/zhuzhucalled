@@ -124,8 +124,8 @@
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/yourusername/campus-lostfound.git
-cd campus-lostfound
+git clone https://github.com/zhutianliangtom/zhuzhucalled.git
+cd zhuzhucalled
 ```
 
 #### 2. 安装前端依赖

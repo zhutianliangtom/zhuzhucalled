@@ -1,4 +1,6 @@
 const express = require('express')
+const http = require('http')
+const WebSocket = require('ws')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const multer = require('multer')
@@ -9,6 +11,7 @@ const cookieParser = require('cookie-parser')
 const fs = require('fs')
 const os = require('os')
 const mysql = require('mysql2/promise')
+require('dotenv').config()
 
 const app = express()
 const port = 5000
@@ -16,9 +19,71 @@ const port = 5000
 const JWT_SECRET = 'lost_found_secret_key'
 const UPLOAD_DIR = path.join(__dirname, 'uploads')
 const VIDEO_DIR = path.join(__dirname, 'uploads/videos')
+const BACKUP_DIR = path.join(__dirname, 'backups')
+
+// 创建 HTTP 服务器和 WebSocket 服务器
+const server = http.createServer(app)
+const wss = new WebSocket.Server({ server })
+
+// WebSocket 连接管理
+const adminClients = new Set()
+
+// WebSocket 连接处理
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket 新连接')
+
+  // 验证连接（检查 cookie 中的 token）
+  const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+    const [name, value] = cookie.trim().split('=')
+    acc[name] = value
+    return acc
+  }, {})
+
+  if (cookies?.token) {
+    try {
+      const decoded = jwt.verify(cookies.token, JWT_SECRET)
+      pool.execute('SELECT * FROM users WHERE id = ?', [decoded.id])
+        .then(([rows]) => {
+          if (rows.length > 0 && rows[0].isAdmin) {
+            // 是管理员，添加到客户端集合
+            adminClients.add(ws)
+            console.log('管理员 WebSocket 连接成功')
+            ws.send(JSON.stringify({ type: 'connected', message: '已连接到服务器' }))
+          } else {
+            ws.close(1008, '无权访问')
+          }
+        })
+        .catch(() => ws.close(1008, '认证失败'))
+    } catch (err) {
+      ws.close(1008, '认证失败')
+    }
+  } else {
+    ws.close(1008, '需要登录')
+  }
+
+  ws.on('close', () => {
+    adminClients.delete(ws)
+    console.log('WebSocket 连接关闭')
+  })
+
+  ws.on('error', (err) => {
+    console.error('WebSocket 错误:', err)
+    adminClients.delete(ws)
+  })
+})
+
+// 广播消息给所有管理员
+function broadcastToAdmins(message) {
+  adminClients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message))
+    }
+  })
+}
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true })
+if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true })
 
 // 处理头像URL，返回完整URL
 function getFullAvatarUrl(avatar) {
@@ -31,16 +96,95 @@ function getFullAvatarUrl(avatar) {
 
 // MySQL 连接池
 const pool = mysql.createPool({
-  host: 'localhost',
-  port: 3306,
-  user: 'root',
-  password: '',
-  database: 'lost_found',
+  host: process.env.MYSQL_HOST || 'localhost',
+  port: parseInt(process.env.MYSQL_PORT) || 3306,
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'lost_found',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true
 })
+
+// MySQL 数据库备份函数
+async function backupDatabase() {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const backupFile = path.join(BACKUP_DIR, `backup_${timestamp}.sql`)
+    
+    console.log(`\n[备份] 开始备份数据库...`)
+    
+    // 备份所有表
+    const tables = ['users', 'items', 'messages', 'versions']
+    let sqlContent = `-- 数据库备份: ${new Date().toLocaleString('zh-CN')}\n-- 数据库: lost_found\n\n`
+    sqlContent += `SET FOREIGN_KEY_CHECKS=0;\n\n`
+    
+    for (const table of tables) {
+      try {
+        // 表结构
+        const [createTable] = await pool.execute(`SHOW CREATE TABLE ${table}`)
+        sqlContent += `-- 表结构: ${table}\n`
+        sqlContent += `DROP TABLE IF EXISTS ${table};\n`
+        sqlContent += createTable[0]['Create Table'] + ';\n\n'
+        
+        // 表数据
+        const [rows] = await pool.execute(`SELECT * FROM ${table}`)
+        if (rows.length > 0) {
+          sqlContent += `-- 表数据: ${table}\n`
+          const columns = Object.keys(rows[0])
+          sqlContent += `INSERT INTO ${table} (${columns.join(', ')}) VALUES\n`
+          
+          const values = rows.map(row => {
+            return '(' + columns.map(col => {
+              const val = row[col]
+              if (val === null || val === undefined) return 'NULL'
+              if (typeof val === 'boolean') return val ? '1' : '0'
+              if (typeof val === 'object') {
+                try {
+                  return `'${JSON.stringify(val).replace(/'/g, "\\'")}'`
+                } catch {
+                  return `'${String(val).replace(/'/g, "\\'")}'`
+                }
+              }
+              return `'${String(val).replace(/'/g, "\\'")}'`
+            }).join(', ') + ')'
+          })
+          
+          sqlContent += values.join(',\n') + ';\n\n'
+        }
+      } catch (e) {
+        console.log(`[备份] 跳过表 ${table}: ${e.message}`)
+      }
+    }
+    
+    sqlContent += `SET FOREIGN_KEY_CHECKS=1;\n`
+    
+    fs.writeFileSync(backupFile, sqlContent)
+    console.log(`[备份] ✅ 备份成功: ${backupFile}`)
+    
+    // 保留最近7天的备份，删除旧的
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('backup_') && f.endsWith('.sql'))
+      .sort()
+      .reverse()
+    
+    if (files.length > 7) {
+      const toDelete = files.slice(7)
+      for (const f of toDelete) {
+        try {
+          fs.unlinkSync(path.join(BACKUP_DIR, f))
+          console.log(`[备份] 🗑️ 删除旧备份: ${f}`)
+        } catch {}
+      }
+    }
+    
+    return backupFile
+  } catch (e) {
+    console.error('[备份] ❌ 备份失败:', e)
+    return null
+  }
+}
 
 // 初始化数据库
 async function initDatabase() {
@@ -743,10 +887,13 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
     return res.status(400).json({ message: '参数错误' })
   }
 
-  const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [userId])
-  if (users.length === 0) return res.status(404).json({ message: '用户不存在' })
+  // 获取发送者信息
+  const [senderRows] = await pool.execute('SELECT * FROM users WHERE id = ?', [req.user.id])
+  const [receiverRows] = await pool.execute('SELECT * FROM users WHERE id = ?', [userId])
+  
+  if (receiverRows.length === 0) return res.status(404).json({ message: '用户不存在' })
 
-  const receiver = users[0]
+  const receiver = receiverRows[0]
   const blocked = JSON.parse(receiver.blockedUsers || '[]')
   if (blocked.includes(req.user.id)) {
     return res.status(403).json({ message: '对方已将你拉黑，无法发送消息' })
@@ -759,6 +906,24 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
     'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
     [id, req.user.id, userId, content || '', type, mediaUrl, false, createdAt]
   )
+
+  // 广播新消息通知给所有管理员
+  if (senderRows.length > 0) {
+    const sender = senderRows[0]
+    broadcastToAdmins({
+      type: 'new_message',
+      data: {
+        messageId: id,
+        senderId: req.user.id,
+        senderName: sender.name || sender.studentId || '未知用户',
+        receiverId: userId,
+        receiverName: receiver.name || receiver.studentId || '未知用户',
+        content: content || '',
+        type: type,
+        createdAt: new Date(createdAt * 1000).toLocaleString('zh-CN')
+      }
+    })
+  }
 
   res.json({ success: true, message: { id, senderId: req.user.id, receiverId: userId, content: content || '', type, mediaUrl, read: false, createdAt: createdAt * 1000 } })
 })
@@ -997,10 +1162,7 @@ const apkUpload = multer({
   })
 })
 
-app.post('/admin/version/publish', authenticateToken, apkUpload.single('apk'), async (req, res) => {
-  if (req.user.id !== 'admin') {
-    return res.status(403).json({ message: '无权操作' })
-  }
+app.post('/admin/version/publish', authMiddleware, apkUpload.single('apk'), async (req, res) => {
 
   const { version, versionCode, changelog, forceUpdate } = req.body
   if (!version || !versionCode) {
@@ -1038,12 +1200,65 @@ app.get('/version/list', async (req, res) => {
   res.json({ data: rows, total })
 })
 
-app.delete('/admin/version/:id', authenticateToken, async (req, res) => {
-  if (req.user.id !== 'admin') {
-    return res.status(403).json({ message: '无权操作' })
-  }
+app.delete('/admin/version/:id', authMiddleware, async (req, res) => {
   await pool.execute('DELETE FROM versions WHERE id = ?', [req.params.id])
   res.json({ success: true })
+})
+
+// ==================== 数据库备份管理 ====================
+
+// 手动触发备份
+app.post('/admin/backup', authMiddleware, async (req, res) => {
+  try {
+    const backupFile = await backupDatabase()
+    if (backupFile) {
+      res.json({ success: true, message: '备份成功', file: path.basename(backupFile) })
+    } else {
+      res.status(500).json({ success: false, message: '备份失败' })
+    }
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// 获取备份列表
+app.get('/admin/backups', authMiddleware, async (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('backup_') && f.endsWith('.sql'))
+      .sort()
+      .reverse()
+      .map(f => {
+        const filePath = path.join(BACKUP_DIR, f)
+        const stat = fs.statSync(filePath)
+        return {
+          name: f,
+          size: (stat.size / 1024).toFixed(2) + ' KB',
+          date: new Date(stat.mtime).toLocaleString('zh-CN')
+        }
+      })
+    res.json({ success: true, backups: files })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// 下载备份文件
+app.get('/admin/backups/:filename', authMiddleware, async (req, res) => {
+  try {
+    const filename = req.params.filename
+    if (!filename.startsWith('backup_') || !filename.endsWith('.sql')) {
+      return res.status(400).json({ success: false, message: '无效的文件名' })
+    }
+    const filePath = path.join(BACKUP_DIR, filename)
+    if (fs.existsSync(filePath)) {
+      res.download(filePath)
+    } else {
+      res.status(404).json({ success: false, message: '文件不存在' })
+    }
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
 })
 
 // ==================== 随机加密下载链接 ====================
@@ -1154,6 +1369,15 @@ const localIP = getLocalIP()
 // 启动
 ;(async () => {
   await initDatabase()
+  
+  // 立即备份一次
+  await backupDatabase()
+  
+  // 设置24小时自动备份
+  const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24小时
+  setInterval(backupDatabase, BACKUP_INTERVAL)
+  console.log(`[备份] ⏰ 已设置自动备份，每24小时执行一次`)
+  
   // 调试：显示环境变量是否加载成功（不暴露敏感信息）
   const adminUser = process.env.ADMIN_USER
   const adminPass = process.env.ADMIN_PASS
@@ -1162,10 +1386,11 @@ const localIP = getLocalIP()
     ADMIN_PASS: adminPass ? '***已设置***' : '(未设置)'
   })
   
-  app.listen(port, '0.0.0.0', () => {
+  server.listen(port, '0.0.0.0', () => {
     console.log(`服务器运行在 http://localhost:${port}`)
     console.log(`局域网访问: http://${localIP}:${port}`)
     console.log(`外网映射: http://183.66.27.20:41412 (端口映射)`)
     console.log(`Web管理后台: http://183.66.27.20:41412/admin/login`)
+    console.log(`WebSocket 服务已启动`)
   })
 })()

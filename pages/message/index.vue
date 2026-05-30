@@ -173,21 +173,12 @@ export default {
       })
     },
 
-    // Android 原生角标 + 本地通知
+    // Android 原生角标
     updateBadge() {
       const total = this.unreadTotal
       // HBuilderX plus API（只在 App 环境下可用）
       if (typeof plus !== 'undefined' && plus.runtime) {
         plus.runtime.setBadgeNumber(total)
-        // 有未读消息时发一个本地通知（仅 Android）
-        if (total > 0) {
-          this.showLocalNotification(total)
-        } else {
-          // 清除所有通知
-          if (typeof plus !== 'undefined' && plus.push) {
-            plus.push.clear()
-          }
-        }
       }
     },
 

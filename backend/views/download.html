@@ -146,8 +146,8 @@
     }
 
     .download-btn:hover { opacity: 0.92; }
-        .download-btn:active { transform: scale(0.97); }
-        .download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .download-btn:active { transform: scale(0.97); }
+    .download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .meta {
       text-align: center;
@@ -207,21 +207,18 @@
 </head>
 <body>
   <div class="card" id="app">
-    <!-- 顶部 Hero -->
     <div class="hero">
       <div class="app-icon">📦</div>
       <h1>校园失物招领</h1>
       <p>让失物不再迷路</p>
     </div>
 
-    <!-- 主体 -->
     <div class="body">
       <div v-if="loading" class="loading">正在获取最新版本...</div>
 
       <div v-else-if="error" class="error-msg">{{ error }}</div>
 
       <template v-else-if="latest">
-        <!-- 版本信息 -->
         <div class="version-info">
           <div>
             <div class="version-label">当前版本</div>
@@ -233,7 +230,6 @@
           </div>
         </div>
 
-        <!-- 功能亮点 -->
         <div class="features">
           <div class="feature-item">
             <div class="feature-icon">🔍</div>
@@ -253,7 +249,6 @@
           </div>
         </div>
 
-        <!-- 更新日志 -->
         <div class="changelog" v-if="changelogList.length">
           <h3>📝 更新日志</h3>
           <ul>
@@ -264,12 +259,11 @@
           </ul>
         </div>
 
-        <!-- 下载按钮 -->
         <button
           @click="handleDownload"
           :disabled="downloading"
           class="download-btn"
-          v-if="downloadUrl"
+          v-if="latest.apkUrl"
         >
           <span v-if="downloading">下载中...</span>
           <span v-else>⬇ 立即下载 v{{ latest.version }}</span>
@@ -283,24 +277,16 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
   <script>
-    // 直接写死后端 API 地址（5000 端口）,避免跨端口自动拼错
-    const API_BASE = 'http://183.66.27.20:41412'
-
-    // 从URL获取token参数
-    function getUrlParam(name) {
-      const urlParams = new URLSearchParams(window.location.search)
-      return urlParams.get(name)
-    }
+    const { createApp } = Vue
 
     const app = {
       data() {
         return {
-          apiBase: API_BASE,
           latest: null,
           loading: true,
           error: '',
-          encryptedToken: null,
           downloading: false
         }
       },
@@ -308,30 +294,22 @@
         changelogList() {
           if (!this.latest || !this.latest.changelog) return []
           return this.latest.changelog.split('\n').filter(l => l.trim())
-        },
-        downloadUrl() {
-          if (this.encryptedToken) {
-            return `${API_BASE}/download/encrypted/${this.encryptedToken}`
-          }
-          if (this.latest && this.latest.apkUrl) {
-            return API_BASE + this.latest.apkUrl
-          }
-          return null
         }
       },
       methods: {
-        formatDate(ts) {
-          if (!ts) return ''
-          const d = new Date(ts * 1000)
-          const mm = String(d.getMonth()+1).padStart(2,'0')
-          const dd = String(d.getDate()).padStart(2,'0')
-          return `${d.getFullYear()}-${mm}-${dd}`
+        formatDate(timestamp) {
+          if (!timestamp) return ''
+          const d = new Date(timestamp * 1000)
+          const y = d.getFullYear()
+          const m = String(d.getMonth() + 1).padStart(2, '0')
+          const day = String(d.getDate()).padStart(2, '0')
+          return `${y}-${m}-${day}`
         },
         async fetchLatest() {
           this.loading = true
           this.error = ''
           try {
-            const res = await fetch(`${API_BASE}/version/latest`)
+            const res = await fetch('/version/latest')
             const json = await res.json()
             if (json.data) {
               this.latest = json.data
@@ -339,76 +317,56 @@
               this.latest = null
             }
           } catch (e) {
+            console.error('获取版本信息失败:', e)
             this.error = '获取版本信息失败，请检查网络连接'
           } finally {
             this.loading = false
           }
         },
-        async getEncryptedDownloadUrl() {
-          if (!this.latest || !this.latest.id) return null
-          
-          try {
-            const res = await fetch(`${API_BASE}/version/${this.latest.id}/download-url`)
-            const json = await res.json()
-            if (json.data && json.data.url) {
-              return json.data.url
-            }
-          } catch (e) {
-            console.error('获取加密下载地址失败:', e)
-          }
-          return null
-        },
         async handleDownload() {
-          if (this.downloading) return
+          if (this.downloading || !this.latest || !this.latest.id) return
           
           this.downloading = true
           
           try {
-            // 尝试获取加密下载地址
-            const token = await this.getEncryptedDownloadUrl()
-            if (token) {
-              this.encryptedToken = token
-              // 延迟一点让UI更新后再触发下载
-              setTimeout(() => {
-                const downloadUrl = `${API_BASE}/download/encrypted/${token}`
-                window.location.href = downloadUrl
-                this.downloading = false
-              }, 100)
+            // 先获取加密下载链接
+            const urlRes = await fetch(`/version/${this.latest.id}/download-url`)
+            const urlJson = await urlRes.json()
+            
+            if (urlJson.data && urlJson.data.url) {
+              // 使用加密链接下载 - urlJson.data.url 是 token，需要拼接完整路径
+              const downloadUrl = `/download/encrypted/${urlJson.data.url}`
+              const a = document.createElement('a')
+              a.href = downloadUrl
+              a.style.display = 'none'
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+            } else if (this.latest.apkUrl) {
+              // 回退到直接下载
+              const a = document.createElement('a')
+              a.href = this.latest.apkUrl
+              a.style.display = 'none'
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
             } else {
-              // 回退到普通下载
-              const downloadUrl = this.downloadUrl
-              if (downloadUrl) {
-                window.location.href = downloadUrl
-              }
-              this.downloading = false
+              this.error = '暂无可用下载链接'
             }
           } catch (e) {
             console.error('下载失败:', e)
-            this.downloading = false
             this.error = '下载失败，请重试'
+          } finally {
+            this.downloading = false
           }
         }
       },
       async mounted() {
-        // 检查URL是否有token参数
-        const tokenFromUrl = getUrlParam('token')
-        if (tokenFromUrl) {
-          this.encryptedToken = tokenFromUrl
-          // 如果有token，自动获取版本信息并下载
-          await this.fetchLatest()
-          // 自动触发下载
-          setTimeout(() => {
-            this.handleDownload()
-          }, 500)
-        } else {
-          // 没有token，正常获取版本信息
-          await this.fetchLatest()
-        }
+        await this.fetchLatest()
       }
     }
 
-    Vue.createApp(app).mount('#app')
+    createApp(app).mount('#app')
   </script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </body>
 </html>

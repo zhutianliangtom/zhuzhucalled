@@ -56,6 +56,9 @@ export default {
     // 设置全局深色模式
     this.setGlobalDarkMode()
     
+    // 申请通知权限
+    this.requestNotificationPermission()
+    
     // App启动就启动心跳检测
     try {
       console.log('启动心跳检测')
@@ -140,6 +143,106 @@ export default {
     }
   },
   methods: {
+    // 申请通知权限
+    requestNotificationPermission() {
+      // #ifdef APP-PLUS
+      try {
+        if (typeof plus !== 'undefined' && plus) {
+          if (plus.android) {
+            // Android 平台
+            const main = plus.android.runtimeMainActivity()
+            const NotificationManager = plus.android.importClass('android.app.NotificationManager')
+            const Build = plus.android.importClass('android.os.Build')
+            
+            if (Build.VERSION.SDK_INT >= 26) {
+              // Android 8.0+ 申请通知渠道
+              try {
+                const NotificationChannel = plus.android.importClass('android.app.NotificationChannel')
+                const Importance = plus.android.importClass('android.app.NotificationManager')
+                const Context = plus.android.importClass('android.content.Context')
+                
+                const notificationManager = main.getSystemService(Context.NOTIFICATION_SERVICE)
+                const channelId = 'lost_found_channel'
+                const channelName = '失物招领通知'
+                
+                // 检查是否已创建渠道
+                const channel = notificationManager.getNotificationChannel(channelId)
+                if (!channel) {
+                  const notificationChannel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+                  notificationChannel.enableVibration(true)
+                  notificationChannel.enableLights(true)
+                  notificationManager.createNotificationChannel(notificationChannel)
+                }
+              } catch (e) {
+                console.log('创建通知渠道失败:', e)
+              }
+            }
+            
+            // 检查通知权限
+            const checkPermission = () => {
+              try {
+                const NotificationManagerCompat = plus.android.importClass('androidx.core.app.NotificationManagerCompat')
+                const compat = NotificationManagerCompat.from(main)
+                if (!compat.areNotificationsEnabled()) {
+                  // 没有通知权限，引导用户去设置
+                  uni.showModal({
+                    title: '提示',
+                    content: '请开启通知权限，以便接收新消息提醒',
+                    confirmText: '去开启',
+                    success: (res) => {
+                      if (res.confirm) {
+                        try {
+                          const Intent = plus.android.importClass('android.content.Intent')
+                          const Settings = plus.android.importClass('android.provider.Settings')
+                          const Uri = plus.android.importClass('android.net.Uri')
+                          
+                          const intent = new Intent()
+                          if (Build.VERSION.SDK_INT >= 26) {
+                            intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            intent.putExtra(Settings.EXTRA_APP_PACKAGE, main.getPackageName())
+                          } else {
+                            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                            intent.setData(Uri.parse('package:' + main.getPackageName()))
+                          }
+                          main.startActivity(intent)
+                        } catch (e2) {
+                          console.log('跳转到设置失败:', e2)
+                        }
+                      }
+                    }
+                  })
+                }
+              } catch (e) {
+                console.log('检查通知权限失败:', e)
+              }
+            }
+            
+            checkPermission()
+          } else if (plus.ios) {
+            // iOS 平台
+            try {
+              const UIApplication = plus.ios.import('UIApplication')
+              const app = UIApplication.sharedApplication()
+              const UNUserNotificationCenter = plus.ios.import('UNUserNotificationCenter')
+              const center = UNUserNotificationCenter.currentNotificationCenter()
+              
+              // 请求通知权限
+              center.requestAuthorizationWithOptionsCompletionHandler(
+                (1 << 0) | (1 << 1) | (1 << 2), // 徽章、声音、提醒
+                (granted, error) => {
+                  console.log('iOS 通知权限申请结果:', granted)
+                }
+              )
+            } catch (e) {
+              console.log('iOS 申请通知权限失败:', e)
+            }
+          }
+        }
+      } catch (e) {
+        console.error('申请通知权限失败:', e)
+      }
+      // #endif
+    },
     // 检测版本更新（仅 App 平台 - 强制检测）
     async checkUpdate() {
       // #ifdef APP-PLUS
@@ -153,42 +256,42 @@ export default {
 
         if (latest.versionCode > currentCode) {
           // 发现新版本，弹窗提示
-          const modalRes = await uni.showModal({
+          uni.showModal({
             title: `发现新版本 v${latest.version}`,
             content: latest.changelog || '点击确定前往下载页面',
             confirmText: '立即更新',
-            showCancel: !latest.forceUpdate
+            showCancel: !latest.forceUpdate,
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                // 获取加密下载地址并跳转到下载页面
+                api.getEncryptedDownloadUrl(latest.id).then(downloadRes => {
+                  const encryptedUrl = downloadRes?.data?.url || ''
+                  const downloadPageUrl = `${baseUrl}/download?token=${encodeURIComponent(encryptedUrl)}`
+                  
+                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                    plus.runtime.openURL(downloadPageUrl)
+                  }
+                }).catch(e => {
+                  // 如果获取加密地址失败，直接跳转到普通下载页
+                  console.error('获取加密下载地址失败，使用普通下载:', e)
+                  const downloadUrl = `${baseUrl}/download`
+                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                    plus.runtime.openURL(downloadUrl)
+                  }
+                })
+              }
+              // 强制更新且用户点了取消 → 退出 App
+              if (latest.forceUpdate && !modalRes.confirm) {
+                try {
+                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                    plus.runtime.quit()
+                  }
+                } catch (e) {
+                  console.error('退出App失败:', e)
+                }
+              }
+            }
           })
-
-          if (modalRes.confirm) {
-            // 获取加密下载地址并跳转到下载页面
-            try {
-              const downloadRes = await api.getEncryptedDownloadUrl(latest.id)
-              const encryptedUrl = downloadRes?.data?.url || ''
-              const downloadPageUrl = `${baseUrl}/download?token=${encodeURIComponent(encryptedUrl)}`
-              
-              if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                plus.runtime.openURL(downloadPageUrl)
-              }
-            } catch (e) {
-              // 如果获取加密地址失败，直接跳转到普通下载页
-              console.error('获取加密下载地址失败，使用普通下载:', e)
-              const downloadUrl = `${baseUrl}/download`
-              if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                plus.runtime.openURL(downloadUrl)
-              }
-            }
-          }
-          // 强制更新且用户点了取消 → 退出 App
-          if (latest.forceUpdate && !modalRes.confirm) {
-            try {
-              if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                plus.runtime.quit()
-              }
-            } catch (e) {
-              console.error('退出App失败:', e)
-            }
-          }
         }
       } catch (e) {
         console.error('版本检测失败', e)

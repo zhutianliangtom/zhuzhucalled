@@ -2,16 +2,16 @@
     "name" : "校园失物招领",
     "appid" : "__UNI__5AB411F",
     "description" : "校园失物招领App，帮助同学们快速找回丢失的物品",
-    "versionName" : "1.1.0",
-    "versionCode" : 200,
+    "versionName" : "1.1.1",
+    "versionCode" : 300,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
         "nvueCompiler" : "uni-app",
         "nvueStyleCompiler" : "uni-app",
         "splashscreen" : {
-            "alwaysShowBeforeRender" : true,
-            "waiting" : true,
+            "alwaysShowBeforeRender" : false,
+            "waiting" : false,
             "autoclose" : true,
             "delay" : 0
         },
