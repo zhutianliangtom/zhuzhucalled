@@ -26,6 +26,8 @@
       top: 0;
       padding: 30px 20px;
       color: #fff;
+      transition: transform 0.3s ease;
+      z-index: 1000;
     }
     
     .sidebar h1 {
@@ -64,9 +66,26 @@
       background: rgba(255, 255, 255, 0.1);
     }
     
+    /* 移动端菜单按钮 */
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    
     .main-content {
       margin-left: 240px;
       padding: 30px;
+      transition: margin-left 0.3s ease;
     }
     
     .header {
@@ -74,6 +93,8 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
     
     .header h2 {
@@ -95,6 +116,8 @@
       border-radius: 10px;
       font-size: 14px;
       width: 250px;
+      flex: 1;
+      min-width: 150px;
     }
     
     .search-bar select {
@@ -141,6 +164,12 @@
       font-size: 13px;
     }
     
+    .btn-secondary {
+      background: #fff;
+      color: #667eea;
+      border: 1px solid #667eea;
+    }
+    
     .btn:hover {
       opacity: 0.9;
     }
@@ -149,12 +178,13 @@
       background: #fff;
       border-radius: 15px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      overflow: hidden;
+      overflow-x: auto;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 800px;
     }
     
     th, td {
@@ -175,6 +205,39 @@
       color: #333;
     }
     
+    /* 复选框样式 */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    /* 批量操作栏 */
+    .batch-actions {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      background: #fff3e0;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .batch-actions.active {
+      display: flex;
+    }
+    
+    .batch-actions span {
+      font-size: 14px;
+      color: #666;
+    }
+    
     .avatar {
       width: 40px;
       height: 40px;
@@ -193,6 +256,7 @@
       border-radius: 20px;
       font-size: 12px;
       font-weight: 500;
+      white-space: nowrap;
     }
     
     .status.pending {
@@ -217,6 +281,7 @@
       gap: 10px;
       margin-top: 25px;
       padding: 20px;
+      flex-wrap: wrap;
     }
     
     .pagination button {
@@ -241,6 +306,56 @@
       text-align: center;
       padding: 60px;
       color: #999;
+    }
+
+    /* 移动端优化 */
+    @media (max-width: 768px) {
+      .menu-toggle {
+        display: block;
+      }
+      
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-left: 0;
+        padding: 70px 15px 15px 15px;
+      }
+      
+      .header {
+        padding-top: 0;
+      }
+      
+      .header h2 {
+        font-size: 20px;
+      }
+      
+      .search-bar {
+        gap: 10px;
+      }
+      
+      .search-bar input {
+        width: 100%;
+      }
+      
+      th, td {
+        padding: 12px 10px;
+        font-size: 12px;
+      }
+      
+      .btn {
+        padding: 10px 15px;
+        font-size: 12px;
+      }
+      
+      .batch-actions {
+        flex-wrap: wrap;
+      }
     }
 
     /* 通知样式 */
@@ -342,7 +457,10 @@
   <!-- 通知容器 -->
   <div class="notification-container" id="notificationContainer"></div>
 
-  <div class="sidebar">
+  <!-- 移动端菜单按钮 -->
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+  <div class="sidebar" id="sidebar">
     <h1>🔍 管理后台</h1>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
@@ -369,6 +487,13 @@
       <button class="btn btn-primary" onclick="document.getElementById('searchForm').submit();">搜索</button>
     </div>
     
+    <!-- 批量操作栏 -->
+    <div class="batch-actions" id="batchActions">
+      <span>已选择 <strong id="selectedCount">0</strong> 个用户</span>
+      <button class="btn btn-danger" onclick="batchDelete()">批量删除</button>
+      <button class="btn btn-secondary" onclick="clearSelection()">取消选择</button>
+    </div>
+    
     <form id="searchForm" action="/admin/users" method="GET" style="display: none;">
       <input type="hidden" name="keyword" value="<%= keyword || '' %>">
       <input type="hidden" name="status" value="<%= status || 'all' %>">
@@ -378,6 +503,11 @@
       <table>
         <thead>
           <tr>
+            <th style="width: 50px;">
+              <div class="checkbox-container">
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+              </div>
+            </th>
             <th>头像</th>
             <th>学号</th>
             <th>姓名</th>
@@ -392,11 +522,16 @@
         <tbody>
           <% if (users.length === 0) { %>
             <tr>
-              <td colspan="9" class="empty-state">暂无数据</td>
+              <td colspan="10" class="empty-state">暂无数据</td>
             </tr>
           <% } %>
           <% users.forEach(user => { %>
-            <tr>
+            <tr data-user-id="<%= user.id %>">
+              <td>
+                <div class="checkbox-container">
+                  <input type="checkbox" class="user-checkbox" value="<%= user.id %>" onchange="updateSelection()">
+                </div>
+              </td>
               <td>
                 <% if (user.avatar) { %>
                   <img src="<%= user.avatar.startsWith('http') ? user.avatar : '/uploads/' + user.avatar.split('/').pop() %>" class="avatar" alt="" style="object-fit: cover;">
@@ -447,6 +582,100 @@
   </div>
   
   <script>
+    const selectedUserIds = new Set();
+    
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('open');
+    }
+    
+    function toggleSelectAll() {
+      const selectAll = document.getElementById('selectAll');
+      const checkboxes = document.querySelectorAll('.user-checkbox');
+      
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        const userId = checkbox.value;
+        if (selectAll.checked) {
+          selectedUserIds.add(userId);
+        } else {
+          selectedUserIds.delete(userId);
+        }
+      });
+      
+      updateBatchActions();
+    }
+    
+    function updateSelection() {
+      const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+      selectedUserIds.clear();
+      
+      checkboxes.forEach(checkbox => {
+        selectedUserIds.add(checkbox.value);
+      });
+      
+      // 更新全选状态
+      const totalCheckboxes = document.querySelectorAll('.user-checkbox').length;
+      const selectAllCheckbox = document.getElementById('selectAll');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkboxes.length === totalCheckboxes && totalCheckboxes > 0;
+      }
+      
+      updateBatchActions();
+    }
+    
+    function updateBatchActions() {
+      const batchActions = document.getElementById('batchActions');
+      const selectedCount = document.getElementById('selectedCount');
+      
+      if (selectedUserIds.size > 0) {
+        batchActions.classList.add('active');
+        selectedCount.textContent = selectedUserIds.size;
+      } else {
+        batchActions.classList.remove('active');
+      }
+    }
+    
+    function clearSelection() {
+      selectedUserIds.clear();
+      const checkboxes = document.querySelectorAll('.user-checkbox');
+      checkboxes.forEach(checkbox => checkbox.checked = false);
+      document.getElementById('selectAll').checked = false;
+      updateBatchActions();
+    }
+    
+    function batchDelete() {
+      if (selectedUserIds.size === 0) {
+        alert('请先选择要删除的用户');
+        return;
+      }
+      
+      if (!confirm(`确定删除选中的 ${selectedUserIds.size} 个用户吗？此操作不可恢复。`)) {
+        return;
+      }
+      
+      const userIds = Array.from(selectedUserIds);
+      fetch('/admin/users/batch-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userIds })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else if (data.message) {
+          alert(data.message);
+        }
+      })
+      .catch(error => {
+        console.error('批量删除失败:', error);
+        alert('删除失败，请重试');
+      });
+    }
+    
     function goPage(page) {
       const form = document.getElementById('searchForm')
       const input = document.createElement('input')

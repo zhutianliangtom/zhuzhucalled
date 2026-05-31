@@ -610,9 +610,8 @@ git commit -m "fix: 修复消息已读未读状态更新问题"
 
 如有问题或建议，请通过以下方式联系：
 
-- 📧 Email: your-email@example.com
-- 💬 Issues: [GitHub Issues](https://github.com/yourusername/campus-lostfound/issues)
-- 📱 QQ群: 123456789
+- 📧 Email: 13239027385@163.com
+- 💬 Issues: [GitHub Issues](https://github.com/zhutianliangtom/zhuzhucalled/issues)
 
 ---
 

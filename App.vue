@@ -67,6 +67,9 @@ export default {
       console.error('启动心跳失败:', e)
     }
     
+    // 启动Android保活服务
+    this.startAndroidKeepAlive()
+    
     // 不管是否登录，都跳转到主页
     uni.reLaunch({ url: '/pages/index/index' })
     
@@ -143,6 +146,179 @@ export default {
     }
   },
   methods: {
+    // 启动Android保活服务
+    startAndroidKeepAlive() {
+      // #ifdef APP-PLUS
+      try {
+        if (typeof plus === 'undefined' || !plus.android) {
+          return
+        }
+        
+        console.log('开始初始化Android保活服务')
+        const main = plus.android.runtimeMainActivity()
+        const Build = plus.android.importClass('android.os.Build')
+        const Intent = plus.android.importClass('android.content.Intent')
+        const PendingIntent = plus.android.importClass('android.app.PendingIntent')
+        const PowerManager = plus.android.importClass('android.os.PowerManager')
+        const Context = plus.android.importClass('android.content.Context')
+        const Uri = plus.android.importClass('android.net.Uri')
+        const Settings = plus.android.importClass('android.provider.Settings')
+        
+        // 1. 申请忽略电池优化
+        try {
+          const powerManager = main.getSystemService(Context.POWER_SERVICE)
+          const packageName = main.getPackageName()
+          
+          // 检查是否已添加到白名单
+          if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            console.log('申请忽略电池优化权限')
+            const intent = new Intent()
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intent.setData(Uri.parse('package:' + packageName))
+            main.startActivity(intent)
+          }
+        } catch (e) {
+          console.log('申请忽略电池优化失败:', e)
+        }
+        
+        // 2. 创建前台通知（保活）
+        this.createForegroundNotification()
+        
+        // 3. 设置定时唤醒
+        this.setupWakeLock()
+        
+        // 4. 定时任务保持活跃
+        this.setupKeepAliveTasks()
+        
+        console.log('Android保活服务初始化完成')
+      } catch (e) {
+        console.error('Android保活服务初始化失败:', e)
+      }
+      // #endif
+    },
+    
+    // 创建前台通知
+    createForegroundNotification() {
+      // #ifdef APP-PLUS
+      try {
+        if (typeof plus === 'undefined' || !plus.android) {
+          return
+        }
+        
+        const main = plus.android.runtimeMainActivity()
+        const Build = plus.android.importClass('android.os.Build')
+        const NotificationManager = plus.android.importClass('android.app.NotificationManager')
+        const NotificationChannel = plus.android.importClass('android.app.NotificationChannel')
+        const NotificationCompat = plus.android.importClass('androidx.core.app.NotificationCompat')
+        const Context = plus.android.importClass('android.content.Context')
+        const Intent = plus.android.importClass('android.content.Intent')
+        const PendingIntent = plus.android.importClass('android.app.PendingIntent')
+        
+        // 创建通知渠道
+        const channelId = 'keep_alive_channel'
+        const channelName = '应用保活服务'
+        const notificationManager = main.getSystemService(Context.NOTIFICATION_SERVICE)
+        
+        if (Build.VERSION.SDK_INT >= 26) {
+          const channel = new NotificationChannel(
+            channelId,
+            channelName,
+            NotificationManager.IMPORTANCE_LOW
+          )
+          channel.setShowBadge(false)
+          channel.setSound(null, null)
+          notificationManager.createNotificationChannel(channel)
+        }
+        
+        // 创建启动Activity的Intent
+        const launchIntent = main.getPackageManager().getLaunchIntentForPackage(main.getPackageName())
+        const pendingIntent = PendingIntent.getActivity(
+          main,
+          0,
+          launchIntent,
+          PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        // 创建通知
+        const builder = new NotificationCompat.Builder(main, channelId)
+        builder.setContentTitle('校园失物招领正在运行')
+        builder.setContentText('保持后台运行，及时接收新消息')
+        builder.setSmallIcon(17301590) // 默认系统图标
+        builder.setContentIntent(pendingIntent)
+        builder.setOngoing(true)
+        builder.setAutoCancel(false)
+        builder.setPriority(NotificationCompat.PRIORITY_LOW)
+        builder.setCategory(NotificationCompat.CATEGORY_SERVICE)
+        
+        // 显示通知
+        notificationManager.notify(10001, builder.build())
+        
+        console.log('前台保活通知已创建')
+      } catch (e) {
+        console.log('创建前台通知失败:', e)
+      }
+      // #endif
+    },
+    
+    // 设置WakeLock
+    setupWakeLock() {
+      // #ifdef APP-PLUS
+      try {
+        if (typeof plus === 'undefined' || !plus.android) {
+          return
+        }
+        
+        const main = plus.android.runtimeMainActivity()
+        const PowerManager = plus.android.importClass('android.os.PowerManager')
+        const Context = plus.android.importClass('android.content.Context')
+        
+        const powerManager = main.getSystemService(Context.POWER_SERVICE)
+        const wakeLock = powerManager.newWakeLock(
+          PowerManager.PARTIAL_WAKE_LOCK,
+          'LostFound:KeepAlive'
+        )
+        
+        wakeLock.setReferenceCounted(false)
+        wakeLock.acquire(10 * 60 * 60 * 1000) // 10小时
+        
+        console.log('WakeLock已获取')
+      } catch (e) {
+        console.log('获取WakeLock失败:', e)
+      }
+      // #endif
+    },
+    
+    // 设置保活定时任务
+    setupKeepAliveTasks() {
+      // #ifdef APP-PLUS
+      try {
+        // 每30秒执行一次心跳
+        setInterval(() => {
+          try {
+            // 1. 发送网络心跳
+            if (api && api.checkHeartbeat) {
+              api.checkHeartbeat().catch(() => {})
+            }
+            
+            // 2. 重新获取WakeLock
+            this.setupWakeLock()
+            
+            // 3. 刷新前台通知（防止被系统杀掉）
+            this.createForegroundNotification()
+            
+            console.log('保活任务执行:', new Date().toISOString())
+          } catch (e) {
+            console.log('保活任务执行失败:', e)
+          }
+        }, 30000)
+        
+        console.log('保活定时任务已设置')
+      } catch (e) {
+        console.log('设置保活定时任务失败:', e)
+      }
+      // #endif
+    },
+    
     // 申请通知权限
     requestNotificationPermission() {
       // #ifdef APP-PLUS

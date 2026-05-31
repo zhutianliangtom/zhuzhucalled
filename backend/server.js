@@ -13,6 +13,87 @@ const os = require('os')
 const mysql = require('mysql2/promise')
 require('dotenv').config()
 
+// ==================== 实时日志功能 ====================
+const LOG_DIR = path.join(__dirname, 'server_log')
+
+// 创建日志目录
+if (!fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true })
+}
+
+// 获取当前日期的日志文件名
+function getLogFileName() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}.log`
+}
+
+// ANSI 颜色代码
+const COLORS = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',    // INFO - 绿色
+  yellow: '\x1b[33m',   // WARN - 黄色
+  red: '\x1b[31m',      // ERROR - 红色
+  cyan: '\x1b[36m'      // 时间戳 - 青色
+}
+
+// 先保存原始 console 方法
+const originalLog = console.log
+const originalError = console.error
+const originalWarn = console.warn
+
+// 日志记录函数 - 使用 appendFileSync 确保实时保存
+function log(level, ...args) {
+  const now = new Date()
+  const timestamp = now.toISOString().replace('T', ' ').replace('Z', '')
+  const levelStr = level.toUpperCase().padEnd(7)
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 0) : String(arg)
+  ).join(' ')
+  
+  const logLine = `[${timestamp}] [${levelStr}] ${message}\n`
+  
+  // 输出到控制台（带颜色）
+  let color = COLORS.green
+  if (level === 'error') color = COLORS.red
+  if (level === 'warn') color = COLORS.yellow
+  
+  const colorLine = `${COLORS.cyan}[${timestamp}]${COLORS.reset} ${color}[${levelStr}]${COLORS.reset} ${message}`
+  originalLog(colorLine)
+  
+  // 写入文件（实时，使用 appendFileSync 确保保存）
+  try {
+    const filePath = path.join(LOG_DIR, getLogFileName())
+    fs.appendFileSync(filePath, logLine, 'utf8')
+  } catch (err) {
+    originalError('[LOG] 写入日志失败:', err)
+  }
+}
+
+// 覆盖 console 方法，使其也记录到文件
+console.log = (...args) => {
+  log('info', ...args)
+}
+console.error = (...args) => {
+  log('error', ...args)
+}
+console.warn = (...args) => {
+  log('warn', ...args)
+}
+
+// 导入安全模块
+const {
+  rateLimitMiddleware,
+  registerLimit,
+  loginLimit,
+  xssProtection,
+  sqlInjectionProtection,
+  logUserAction,
+  logAdminAction
+} = require('./security')
+
 const app = express()
 const port = 5000
 
@@ -74,9 +155,15 @@ wss.on('connection', (ws, req) => {
 
 // 广播消息给所有管理员
 function broadcastToAdmins(message) {
+  const messageString = JSON.stringify(message)
   adminClients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message))
+      try {
+        client.send(messageString)
+      } catch (err) {
+        console.error('[WebSocket] 发送消息失败:', err)
+        adminClients.delete(client)
+      }
     }
   })
 }
@@ -94,7 +181,7 @@ function getFullAvatarUrl(avatar) {
   return avatar // 保持原样，前端会处理
 }
 
-// MySQL 连接池
+// MySQL 连接池 (兼容MySQL 9.7.0)
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || 'localhost',
   port: parseInt(process.env.MYSQL_PORT) || 3306,
@@ -104,7 +191,14 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  enableKeepAlive: true
+  enableKeepAlive: true,
+  charset: 'utf8mb4',
+  // MySQL 9.7.0 兼容配置
+  authPlugins: {
+    'mysql_native_password': true,
+    'caching_sha2_password': true
+  },
+  ssl: false
 })
 
 // MySQL 数据库备份函数
@@ -188,27 +282,130 @@ async function backupDatabase() {
 
 // 初始化数据库
 async function initDatabase() {
-  // 1. 添加 isAdmin 字段（如果不存在）
+  const dbName = process.env.MYSQL_DATABASE || 'lost_found'
+  
+  // 1. 先连接 MySQL (不指定数据库) 创建数据库
+  try {
+    const tempPool = mysql.createPool({
+      host: process.env.MYSQL_HOST || 'localhost',
+      port: parseInt(process.env.MYSQL_PORT) || 3306,
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || '',
+      charset: 'utf8mb4',
+      ssl: false
+    })
+    
+    await tempPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
+    console.log(`[数据库] 已确保数据库 ${dbName} 存在`)
+    await tempPool.end()
+  } catch (e) {
+    console.log('[数据库] 使用已存在的数据库连接')
+  }
+  
+  // 2. 创建所有表
+  console.log('[数据库] 开始检查表结构...')
+  
+  // 表结构定义
+  const tables = {
+    users: `CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(36) PRIMARY KEY,
+      studentId VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      phone VARCHAR(20),
+      password VARCHAR(255) NOT NULL,
+      avatar VARCHAR(500),
+      className VARCHAR(100),
+      status VARCHAR(20) DEFAULT 'pending',
+      blockedUsers JSON DEFAULT (JSON_ARRAY()),
+      isAdmin BOOLEAN DEFAULT FALSE,
+      createdAt INT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    
+    items: `CREATE TABLE IF NOT EXISTS items (
+      id VARCHAR(36) PRIMARY KEY,
+      type VARCHAR(20) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      images JSON DEFAULT (JSON_ARRAY()),
+      video VARCHAR(500),
+      lostDate VARCHAR(20),
+      lostLocation VARCHAR(200),
+      status VARCHAR(20) DEFAULT 'active',
+      userId VARCHAR(36) NOT NULL,
+      claimUserId VARCHAR(36),
+      claimNote TEXT,
+      claimTime INT,
+      createdAt INT,
+      updatedAt INT,
+      INDEX idx_userId (userId),
+      INDEX idx_status (status),
+      INDEX idx_type (type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    
+    messages: `CREATE TABLE IF NOT EXISTS messages (
+      id VARCHAR(36) PRIMARY KEY,
+      fromUserId VARCHAR(36) NOT NULL,
+      toUserId VARCHAR(36) NOT NULL,
+      itemId VARCHAR(36),
+      content TEXT NOT NULL,
+      type VARCHAR(20) DEFAULT 'text',
+      isRead BOOLEAN DEFAULT FALSE,
+      createdAt INT,
+      INDEX idx_fromUserId (fromUserId),
+      INDEX idx_toUserId (toUserId),
+      INDEX idx_itemId (itemId),
+      INDEX idx_isRead (isRead)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    
+    versions: `CREATE TABLE IF NOT EXISTS versions (
+      id VARCHAR(36) PRIMARY KEY,
+      version VARCHAR(20) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      apkUrl VARCHAR(500),
+      fileSize BIGINT,
+      forceUpdate BOOLEAN DEFAULT FALSE,
+      createdAt INT,
+      INDEX idx_version (version)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  }
+  
+  // 逐个创建表
+  for (const [tableName, sql] of Object.entries(tables)) {
+    try {
+      await pool.execute(sql)
+      console.log(`[数据库] 表 ${tableName} 已确保存在`)
+    } catch (e) {
+      console.error(`[数据库] 创建表 ${tableName} 失败:`, e.message)
+    }
+  }
+  
+  // 3. 添加 isAdmin 字段（如果不存在）
   try {
     await pool.execute('ALTER TABLE users ADD COLUMN isAdmin BOOLEAN DEFAULT FALSE')
+    console.log('[数据库] 已添加 isAdmin 字段')
   } catch (e) {
     // 字段已存在，忽略错误
   }
   
-  // 2. 创建或更新管理员账号
+  // 4. 创建或更新管理员账号
   const adminUserId = process.env.ADMIN_USER || 'admin'
   const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [adminUserId])
   if (rows.length === 0) {
     const adminPass = process.env.ADMIN_PASS || 'admin123'
     const hashedPassword = bcrypt.hashSync(adminPass, 10)
+    const adminId = uuidv4()
     await pool.execute(
       'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, isAdmin, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      [adminUserId, adminUserId, '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', true, Math.floor(Date.now() / 1000)]
+      [adminId, adminUserId, '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', true, Math.floor(Date.now() / 1000)]
     )
+    console.log(`[数据库] 已创建默认管理员账号: ${adminUserId} / ${adminPass}`)
   } else {
     // 确保管理员账号的 isAdmin 为 true
     await pool.execute('UPDATE users SET isAdmin = TRUE WHERE studentId = ?', [adminUserId])
   }
+  
+  console.log('[数据库] 初始化完成')
 }
 
 const imageStorage = multer.diskStorage({
@@ -255,6 +452,11 @@ app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
 app.use(express.static(path.join(__dirname, 'public')))
 
+// 应用安全中间件
+app.use(rateLimitMiddleware())
+app.use(xssProtection)
+app.use(sqlInjectionProtection)
+
 // 静态文件：图片和视频
 app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/uploads/videos', express.static(VIDEO_DIR))
@@ -293,16 +495,20 @@ app.post('/admin/login', async (req, res) => {
   const user = rows[0]
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
+    console.log(`[ADMIN LOGIN FAILED] 学号: ${studentId}, IP: ${req.ip}`)
     return res.render('login', { error: '用户名或密码错误' })
   }
 
   // 检查用户是否是管理员
   if (!user.isAdmin) {
+    console.log(`[ADMIN LOGIN FAILED] 非管理员尝试登录: ${studentId}, IP: ${req.ip}`)
     return res.render('login', { error: '请使用管理员账号登录' })
   }
 
   const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET)
   res.cookie('token', token, { httpOnly: true })
+  console.log(`[ADMIN LOGIN SUCCESS] 管理员: ${user.name} (${studentId}), IP: ${req.ip}`)
+  logAdminAction(user.id, 'ADMIN_LOGIN', { studentId, ip: req.ip })
   res.redirect('/admin/dashboard')
 })
 
@@ -449,12 +655,22 @@ app.get('/admin/users', authMiddleware, async (req, res) => {
 })
 
 app.post('/admin/users/approve/:id', authMiddleware, async (req, res) => {
+  // 先获取用户信息以便记录日志
+  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const user = rows[0]
   await pool.execute("UPDATE users SET status = 'approved' WHERE id = ?", [req.params.id])
+  console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已通过用户审核: ${user?.name} (${user?.studentId})`)
+  logAdminAction(req.user.id, 'APPROVE_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
 })
 
 app.post('/admin/users/reject/:id', authMiddleware, async (req, res) => {
+  // 先获取用户信息以便记录日志
+  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const user = rows[0]
   await pool.execute("UPDATE users SET status = 'rejected' WHERE id = ?", [req.params.id])
+  console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已拒绝用户审核: ${user?.name} (${user?.studentId})`)
+  logAdminAction(req.user.id, 'REJECT_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
 })
 
@@ -463,8 +679,39 @@ app.post('/admin/users/delete/:id', authMiddleware, async (req, res) => {
   if (req.params.id === req.user.id) {
     return res.status(400).json({ success: false, message: '不能删除自己的账号' })
   }
+  // 先获取用户信息以便记录日志
+  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const user = rows[0]
   await pool.execute('DELETE FROM users WHERE id = ?', [req.params.id])
+  console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已删除用户: ${user?.name} (${user?.studentId})`)
+  logAdminAction(req.user.id, 'DELETE_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
+})
+
+// 批量删除用户
+app.post('/admin/users/batch-delete', authMiddleware, async (req, res) => {
+  const { userIds } = req.body
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ success: false, message: '请选择要删除的用户' })
+  }
+
+  // 不能删除自己
+  const filteredIds = userIds.filter(id => id !== req.user.id)
+  
+  if (filteredIds.length === 0) {
+    return res.status(400).json({ success: false, message: '不能删除自己的账号' })
+  }
+
+  // 获取被删除用户的信息用于日志
+  const placeholders = filteredIds.map(() => '?').join(',')
+  const [userRows] = await pool.execute(`SELECT id, studentId, name FROM users WHERE id IN (${placeholders})`, filteredIds)
+  const deletedUsers = userRows.map(u => `${u.name} (${u.studentId})`).join(', ')
+  
+  await pool.execute(`DELETE FROM users WHERE id IN (${placeholders})`, filteredIds)
+  
+  console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已批量删除 ${filteredIds.length} 个用户: ${deletedUsers}`)
+  logAdminAction(req.user.id, 'BATCH_DELETE_USERS', { userIds: filteredIds, count: filteredIds.length })
+  res.json({ success: true, count: filteredIds.length })
 })
 
 // 设置/取消管理员
@@ -475,17 +722,22 @@ app.post('/admin/users/toggle-admin/:id', authMiddleware, async (req, res) => {
   }
   
   // 先获取当前用户的状态
-  const [rows] = await pool.execute('SELECT isAdmin FROM users WHERE id = ?', [req.params.id])
+  const [rows] = await pool.execute('SELECT studentId, name, isAdmin FROM users WHERE id = ?', [req.params.id])
   if (rows.length === 0) {
     return res.status(404).json({ success: false, message: '用户不存在' })
   }
   
-  const newStatus = !rows[0].isAdmin
+  const user = rows[0]
+  const newStatus = !user.isAdmin
+  const action = newStatus ? '设为管理员' : '取消管理员'
+  
   await pool.execute('UPDATE users SET isAdmin = ? WHERE id = ?', [newStatus, req.params.id])
+  console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已${action}用户: ${user.name} (${user.studentId})`)
+  logAdminAction(req.user.id, 'TOGGLE_ADMIN', { userId: req.params.id, studentId: user.studentId, name: user.name, newStatus })
   res.json({ success: true, isAdmin: newStatus })
 })
 
-app.post('/auth/register', async (req, res) => {
+app.post('/auth/register', registerLimit, async (req, res) => {
   const { studentId, name, phone, password, className, avatar } = req.body
 
   if (!studentId || !name || !phone || !password || !className) {
@@ -506,15 +758,17 @@ app.post('/auth/register', async (req, res) => {
     [id, studentId, name, phone, hashedPassword, avatar || '', className, 'pending', '[]', createdAt]
   )
 
+  logUserAction(id, 'USER_REGISTER', { studentId, name })
   res.json({ message: '注册成功，请等待管理员审核' })
 })
 
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login', loginLimit, async (req, res) => {
   const { studentId, password } = req.body
   const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [studentId])
   const user = rows[0]
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
+    if (req.onLoginFailure) req.onLoginFailure()
     return res.status(400).json({ message: '学号或密码错误' })
   }
 
@@ -539,6 +793,8 @@ app.post('/auth/login', async (req, res) => {
       } catch (e) {}
     }
   }
+  
+  logUserAction(user.id, 'USER_LOGIN', { studentId })
   res.json({
     token,
     user: {
@@ -1365,6 +1621,39 @@ function getLocalIP() {
 }
 
 const localIP = getLocalIP()
+
+// ==================== 进程保活和错误处理 ====================
+
+// 捕获未捕获的异常
+process.on('uncaughtException', (err) => {
+  console.error('[系统错误] 未捕获的异常:', err)
+  console.error(err.stack)
+})
+
+// 捕获未处理的Promise拒绝
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[系统错误] 未处理的 Promise 拒绝:', reason)
+})
+
+// 优雅退出
+function gracefulExit() {
+  console.log('[系统] 正在关闭...')
+  if (logStream) {
+    logStream.end()
+    console.log('[日志] 日志文件已保存')
+  }
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => {
+  console.log('[系统] 收到 SIGTERM 信号')
+  gracefulExit()
+})
+
+process.on('SIGINT', () => {
+  console.log('[系统] 收到 SIGINT 信号')
+  gracefulExit()
+})
 
 // 启动
 ;(async () => {
