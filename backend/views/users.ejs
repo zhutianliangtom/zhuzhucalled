@@ -308,54 +308,25 @@
       color: #999;
     }
 
+    .sidebar-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; z-index: 1001; }
+
     /* 移动端优化 */
     @media (max-width: 768px) {
-      .menu-toggle {
-        display: block;
-      }
-      
-      .sidebar {
-        transform: translateX(-100%);
-      }
-      
-      .sidebar.open {
-        transform: translateX(0);
-      }
-      
-      .main-content {
-        margin-left: 0;
-        padding: 70px 15px 15px 15px;
-      }
-      
-      .header {
-        padding-top: 0;
-      }
-      
-      .header h2 {
-        font-size: 20px;
-      }
-      
-      .search-bar {
-        gap: 10px;
-      }
-      
-      .search-bar input {
-        width: 100%;
-      }
-      
-      th, td {
-        padding: 12px 10px;
-        font-size: 12px;
-      }
-      
-      .btn {
-        padding: 10px 15px;
-        font-size: 12px;
-      }
-      
-      .batch-actions {
-        flex-wrap: wrap;
-      }
+      .menu-toggle { display: block; }
+      .sidebar-close { display: block; }
+      .sidebar { transform: translateX(-100%); padding-top: 60px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0 !important; padding: 60px 12px 12px 12px; }
+      .header { padding-top: 0; }
+      .header h2 { font-size: 20px; }
+      .search-bar { flex-direction: column; gap: 10px; }
+      .search-bar input, .search-bar select { width: 100% !important; }
+      .search-bar .btn { width: 100%; text-align: center; }
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      th, td { padding: 10px 6px; font-size: 11px; }
+      .btn { padding: 10px 12px; font-size: 12px; }
+      .batch-actions { flex-wrap: wrap; flex-direction: column; align-items: flex-start; }
+      .notification-container { left: auto; right: 10px; bottom: 20px; top: auto; max-width: 280px; }
     }
 
     /* 通知样式 */
@@ -461,6 +432,7 @@
   <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
   <div class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="toggleSidebar()" style="display:none;">✕</button>
     <h1>🔍 管理后台</h1>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
@@ -477,14 +449,14 @@
     </div>
     
     <div class="search-bar">
-      <select name="status" onchange="document.getElementById('searchForm').submit();">
+      <select name="status" onchange="syncSearchForm(); document.getElementById('searchForm').submit();">
         <option value="all" <%= status === 'all' || !status ? 'selected' : '' %>>全部状态</option>
         <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>待审核</option>
         <option value="approved" <%= status === 'approved' ? 'selected' : '' %>>已通过</option>
         <option value="rejected" <%= status === 'rejected' ? 'selected' : '' %>>已拒绝</option>
       </select>
-      <input type="text" placeholder="搜索学号或姓名" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { document.getElementById('searchForm').submit(); }">
-      <button class="btn btn-primary" onclick="document.getElementById('searchForm').submit();">搜索</button>
+      <input type="text" placeholder="搜索学号或姓名" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { syncSearchForm(); document.getElementById('searchForm').submit(); }">
+      <button class="btn btn-primary" onclick="syncSearchForm(); document.getElementById('searchForm').submit();">搜索</button>
     </div>
     
     <!-- 批量操作栏 -->
@@ -587,6 +559,9 @@
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('open');
+      let ov = document.getElementById('sidebar-overlay');
+      if (!ov) { ov = document.createElement('div'); ov.id = 'sidebar-overlay'; ov.onclick = toggleSidebar; ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;'; document.body.appendChild(ov); }
+      ov.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
     }
     
     function toggleSelectAll() {
@@ -646,33 +621,35 @@
     
     function batchDelete() {
       if (selectedUserIds.size === 0) {
-        alert('请先选择要删除的用户');
+        showNotification('提示', '请先选择要删除的用户', 'warning');
         return;
       }
-      
+
       if (!confirm(`确定删除选中的 ${selectedUserIds.size} 个用户吗？此操作不可恢复。`)) {
         return;
       }
-      
+
       const userIds = Array.from(selectedUserIds);
       fetch('/admin/users/batch-delete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userIds })
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.success) {
-          location.reload();
-        } else if (data.message) {
-          alert(data.message);
+          showNotification('删除成功', `已删除 ${data.count} 个用户`, 'success');
+          setTimeout(() => location.reload(), 800);
+        } else {
+          showNotification('删除失败', data.message || '操作失败', 'warning');
         }
       })
       .catch(error => {
         console.error('批量删除失败:', error);
-        alert('删除失败，请重试');
+        showNotification('请求失败', '网络错误或服务器异常，请重试', 'warning');
       });
     }
     
@@ -683,59 +660,109 @@
       input.name = 'page'
       input.value = page
       form.appendChild(input)
+      syncSearchForm()
       form.submit()
+    }
+
+    // 同步可见输入框的值到隐藏搜索表单
+    function syncSearchForm() {
+      const form = document.getElementById('searchForm')
+      const keywordInput = document.querySelector('.search-bar input[name="keyword"]')
+      const statusSelect = document.querySelector('.search-bar select[name="status"]')
+      if (keywordInput && form.querySelector('input[name="keyword"]')) {
+        form.querySelector('input[name="keyword"]').value = keywordInput.value
+      }
+      if (statusSelect && form.querySelector('input[name="status"]')) {
+        form.querySelector('input[name="status"]').value = statusSelect.value
+      }
     }
     
     function approveUser(userId) {
       if (confirm('确定通过该用户的注册申请吗？')) {
         fetch(`/admin/users/approve/${userId}`, { method: 'POST' })
-          .then(res => res.json())
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
           .then(data => {
             if (data.success) {
-              location.reload()
+              showNotification('审核通过', '已通过该用户的注册申请', 'success');
+              setTimeout(() => location.reload(), 800);
+            } else {
+              showNotification('操作失败', data.message || '未知错误', 'warning');
             }
           })
+          .catch(err => {
+            console.error('审核失败:', err);
+            showNotification('请求失败', '网络错误，请重试', 'warning');
+          });
       }
     }
-    
+
     function rejectUser(userId) {
       if (confirm('确定拒绝该用户的注册申请吗？')) {
         fetch(`/admin/users/reject/${userId}`, { method: 'POST' })
-          .then(res => res.json())
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
           .then(data => {
             if (data.success) {
-              location.reload()
+              showNotification('已拒绝', '已拒绝该用户的注册申请', 'success');
+              setTimeout(() => location.reload(), 800);
+            } else {
+              showNotification('操作失败', data.message || '未知错误', 'warning');
             }
           })
+          .catch(err => {
+            console.error('拒绝失败:', err);
+            showNotification('请求失败', '网络错误，请重试', 'warning');
+          });
       }
     }
-    
+
     function deleteUser(userId) {
       if (confirm('确定删除该用户吗？此操作不可恢复。')) {
         fetch(`/admin/users/delete/${userId}`, { method: 'POST' })
-          .then(res => res.json())
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
           .then(data => {
             if (data.success) {
-              location.reload()
-            } else if (data.message) {
-              alert(data.message)
+              showNotification('删除成功', '用户已删除', 'success');
+              setTimeout(() => location.reload(), 800);
+            } else {
+              showNotification('删除失败', data.message || '操作失败', 'warning');
             }
           })
+          .catch(err => {
+            console.error('删除失败:', err);
+            showNotification('请求失败', '网络错误，请重试', 'warning');
+          });
       }
     }
-    
+
     function toggleAdmin(userId, isAdmin) {
       const action = isAdmin ? '取消管理员' : '设为管理员'
       if (confirm(`确定${action}吗？`)) {
         fetch(`/admin/users/toggle-admin/${userId}`, { method: 'POST' })
-          .then(res => res.json())
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
           .then(data => {
             if (data.success) {
-              location.reload()
-            } else if (data.message) {
-              alert(data.message)
+              showNotification('操作成功', `已${action}`, 'success');
+              setTimeout(() => location.reload(), 800);
+            } else {
+              showNotification('操作失败', data.message || '未知错误', 'warning');
             }
           })
+          .catch(err => {
+            console.error('操作失败:', err);
+            showNotification('请求失败', '网络错误，请重试', 'warning');
+          });
       }
     }
 

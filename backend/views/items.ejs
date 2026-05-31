@@ -320,13 +320,52 @@
     .notification.hiding {
       animation: slideOut 0.3s ease-out forwards;
     }
+
+    /* ========== 移动端适配 ========== */
+    .hamburger {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1001;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .sidebar-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+      .sidebar-close { display: block; }
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; z-index: 1000; width: 260px; padding-top: 60px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0 !important; padding: 20px 12px; padding-top: 60px; }
+      .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .header h2 { font-size: 20px; }
+      .search-bar { flex-direction: column; }
+      .search-bar input, .search-bar select { width: 100% !important; }
+      .search-bar .btn { width: 100%; text-align: center; }
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 650px; }
+      th, td { padding: 10px 8px; font-size: 12px; }
+      .btn-danger { padding: 6px 10px; font-size: 12px; }
+      .pagination button { padding: 8px 14px; font-size: 13px; }
+      .notification-container { left: auto; right: 10px; bottom: 20px; top: auto; max-width: 280px; }
+    }
   </style>
 </head>
 <body>
   <!-- 通知容器 -->
   <div class="notification-container" id="notificationContainer"></div>
 
-  <div class="sidebar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
     <h1>🔍 管理后台</h1>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
@@ -340,6 +379,7 @@
   <div class="main-content">
     <div class="header">
       <h2>物品管理</h2>
+      <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑 批量删除 (<span id="selectedCount">0</span>)</button>
     </div>
     
     <div class="search-bar">
@@ -367,6 +407,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:40px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选"></th>
             <th>图片</th>
             <th>标题</th>
             <th>类型</th>
@@ -379,11 +420,12 @@
         <tbody>
           <% if (items.length === 0) { %>
             <tr>
-              <td colspan="7" class="empty-state">暂无数据</td>
+              <td colspan="8" class="empty-state">暂无数据</td>
             </tr>
           <% } %>
           <% items.forEach(item => { %>
             <tr>
+              <td><input type="checkbox" class="item-check" value="<%= item.id %>" onchange="updateSelection()"></td>
               <td>
                 <% if (item.images && item.images.length > 0) { %>
                   <img src="<%= item.images[0] %>" alt="">
@@ -413,20 +455,56 @@
   </div>
   
   <script>
+    // 全选/取消全选
+    function toggleSelectAll(cb) {
+      document.querySelectorAll('.item-check').forEach(el => el.checked = cb.checked)
+      updateSelection()
+    }
+
+    // 更新选中计数和按钮显隐
+    function updateSelection() {
+      const checked = document.querySelectorAll('.item-check:checked')
+      const count = checked.length
+      const total = document.querySelectorAll('.item-check').length
+      const selectAll = document.getElementById('selectAll')
+      document.getElementById('selectedCount').textContent = count
+      document.getElementById('batchDeleteBtn').style.display = count > 0 ? 'inline-block' : 'none'
+      selectAll.checked = count === total && total > 0
+    }
+
+    // 侧栏切换
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      let ov = document.querySelector('.sidebar-overlay');
+      if (!ov) { ov = document.createElement('div'); ov.className = 'sidebar-overlay'; ov.onclick = toggleSidebar; document.body.appendChild(ov); }
+      ov.style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+    }
+
+    // 批量删除
+    async function batchDelete() {
+      const checked = document.querySelectorAll('.item-check:checked')
+      if (!checked.length) return
+      if (!confirm('确定要删除选中的 ' + checked.length + ' 个物品吗？')) return
+      const ids = Array.from(checked).map(cb => cb.value)
+      const res = await fetch('/admin/items/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      })
+      const data = await res.json()
+      if (data.success) location.reload()
+      else alert('删除失败: ' + (data.message || '未知错误'))
+    }
+
     function deleteItem(id) {
       if (!confirm('确定要删除该物品吗？')) return
-      
-      fetch(`/admin/items/delete/${id}`, {
-        method: 'POST'
-      }).then(res => res.json()).then(data => {
-        if (data.success) {
-          location.reload()
-        } else {
-          alert('删除失败')
-        }
-      })
+      fetch('/admin/items/delete/' + id, { method: 'POST' })
+        .then(r => r.json()).then(data => {
+          if (data.success) location.reload()
+          else alert('删除失败')
+        })
     }
-    
+
     function goPage(page) {
       const form = document.getElementById('searchForm')
       const input = document.createElement('input')

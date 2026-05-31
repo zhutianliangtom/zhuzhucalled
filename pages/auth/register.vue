@@ -117,15 +117,24 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: async (res) => {
+          console.log('[注册] 选择图片成功:', res.tempFilePaths[0])
           const filePath = res.tempFilePaths[0]
           uni.showLoading({ title: '上传中...' })
           try {
-            const result = await api.uploadImage(filePath)
+            const result = await api.uploadAvatarImage(filePath)
+            console.log('[注册] 上传成功:', result.url)
             this.form.avatar = result.url
+            uni.hideLoading()
+            uni.showToast({ title: '头像已设置', icon: 'success' })
           } catch (err) {
-            uni.showToast({ title: '上传失败', icon: 'none' })
+            uni.hideLoading()
+            console.error('[注册] 上传失败:', err)
+            uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
           }
-          uni.hideLoading()
+        },
+        fail: (err) => {
+          console.error('[注册] 选择图片失败:', err)
+          uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
     },

@@ -58,6 +58,12 @@
     
     .empty { text-align:center; padding:50px 20px; color:#bbb; font-size:15px; }
 
+    /* 进度条 */
+    .progress-wrap { display:flex; align-items:center; gap:12px; }
+    .progress-bar { flex:1; height:10px; background:#e8e8e8; border-radius:5px; overflow:hidden; }
+    .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,#667eea,#764ba2); border-radius:5px; transition:width 0.2s; }
+    .progress-text { font-size:13px; color:#666; min-width:40px; text-align:right; }
+
     /* 通知样式 */
     .notification-container {
       position: fixed;
@@ -138,18 +144,30 @@
     }
 
     @keyframes slideOut {
-      from {
-        transform: translateX(0);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
-      }
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
     }
+    .notification.hiding { animation: slideOut 0.3s ease-out forwards; }
 
-    .notification.hiding {
-      animation: slideOut 0.3s ease-out forwards;
+    /* ========== 移动端适配 ========== */
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 1001; background: #667eea; color: #fff; border: none; width: 40px; height: 40px; border-radius: 10px; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .sidebar-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; z-index: 1001; }
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+      .sidebar-close { display: block; }
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; z-index: 1000; width: 260px; padding-top: 60px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0 !important; padding: 60px 12px 12px 12px; }
+      .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .header h2 { font-size: 20px; }
+      .toolbar { flex-direction: column; }
+      .toolbar .btn { width: 100%; text-align: center; padding: 14px; font-size: 15px; }
+      .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 600px; }
+      th, td { padding: 10px 6px; font-size: 11px; }
+      .modal { width: 96%; max-width: none; padding: 20px; margin: 10px; }
+      .form-group input, .form-group textarea { font-size: 16px; }
+      .notification-container { left: auto; right: 10px; bottom: 20px; top: auto; max-width: 280px; }
     }
   </style>
 </head>
@@ -157,7 +175,9 @@
   <!-- 通知容器 -->
   <div class="notification-container" id="notificationContainer"></div>
 
-  <div class="sidebar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
     <h1>管理后台</h1>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
@@ -241,7 +261,13 @@
         </div>
         <div class="form-group">
           <label>APK 文件</label>
-          <input type="file" name="apk" accept=".apk" required>
+          <input type="file" name="apk" id="apkFile" accept=".apk" required>
+          <div class="progress-wrap" id="progressWrap" style="display:none;margin-top:10px;">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">0%</span>
+          </div>
         </div>
         <div class="form-group">
           <label>
@@ -274,33 +300,89 @@
     function deleteVersion(id) {
       if (!confirm('确定删除该版本？')) return;
       fetch('/admin/version/' + id, { method:'DELETE', credentials:'same-origin' })
-      .then(r => r.json()).then(() => location.reload());
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (data.success) {
+          showNotification('删除成功', '版本已删除', 'success');
+          setTimeout(() => location.reload(), 800);
+        } else {
+          showNotification('删除失败', data.message || '操作失败', 'warning');
+        }
+      })
+      .catch(err => {
+        console.error('删除失败:', err);
+        showNotification('请求失败', '网络错误，请重试', 'warning');
+      });
     }
     
     document.getElementById('verForm').addEventListener('submit', function(e) {
       e.preventDefault();
       const submitBtn = this.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
-      submitBtn.textContent = '发布中...';
+      const progressWrap = document.getElementById('progressWrap');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      const apkFile = document.getElementById('apkFile');
+
+      if (!apkFile.files.length) {
+        alert('请选择 APK 文件');
+        return;
+      }
+
+      submitBtn.textContent = '正在上传...';
       submitBtn.disabled = true;
-      
+      progressWrap.style.display = 'flex';
+      progressFill.style.width = '0%';
+      progressText.textContent = '0%';
+
       const fd = new FormData(this);
-      fetch('/admin/version/publish', { method:'POST', body: fd, credentials:'same-origin' })
-      .then(r => r.json()).then(res => {
-        if (res.success) { 
-          alert('发布成功！'); 
-          closeVerModal(); 
-          location.reload(); 
-        } else {
-          alert('发布失败：' + (res.message || '未知错误'));
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', function(evt) {
+        if (evt.lengthComputable) {
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          progressFill.style.width = pct + '%';
+          progressText.textContent = pct + '%';
+          if (pct === 100) {
+            submitBtn.textContent = '正在处理...';
+            progressText.textContent = '处理中...';
+          }
+        }
+      });
+
+      xhr.addEventListener('load', function() {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (res.success) {
+            progressText.textContent = '✅ 完成';
+            showNotification('发布成功', '版本 v' + res.data.version + ' 已发布', 'success');
+            setTimeout(() => { closeVerModal(); location.reload(); }, 800);
+          } else {
+            showNotification('发布失败', res.message || '未知错误', 'warning');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            progressText.textContent = '失败';
+          }
+        } catch (err) {
+          showNotification('响应错误', '服务器返回异常', 'warning');
           submitBtn.textContent = originalText;
           submitBtn.disabled = false;
         }
-      }).catch(err => {
-        alert('发布失败：' + err.message);
+      });
+
+      xhr.addEventListener('error', function() {
+        showNotification('上传失败', '网络错误，请检查连接后重试', 'warning');
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
+        progressText.textContent = '网络错误';
       });
+
+      xhr.open('POST', '/admin/version/publish');
+      xhr.withCredentials = true;
+      xhr.send(fd);
     });
 
     // WebSocket 通知功能
@@ -410,6 +492,13 @@
       ws.onerror = function(error) {
         console.error('WebSocket 错误:', error);
       };
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      let ov = document.getElementById('sidebar-overlay');
+      if (!ov) { ov = document.createElement('div'); ov.id = 'sidebar-overlay'; ov.onclick = toggleSidebar; ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;'; document.body.appendChild(ov); }
+      ov.style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
     }
 
     document.addEventListener('DOMContentLoaded', function() {

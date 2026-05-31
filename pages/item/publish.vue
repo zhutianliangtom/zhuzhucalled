@@ -201,6 +201,12 @@ export default {
       }
     },
     chooseImage() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      
       uni.showActionSheet({
         itemList: ['拍照', '从相册选择'],
         success: (res) => {
@@ -210,12 +216,17 @@ export default {
             sizeType: ['compressed'],
             sourceType: sourceType,
             success: (res) => {
+              console.log('[发布] 选择图片成功，数量:', res.tempFilePaths.length)
               this.form.images = [...this.form.images, ...res.tempFilePaths]
             },
             fail: (err) => {
-              console.error(err)
+              console.error('[发布] 选择图片失败:', err)
+              uni.showToast({ title: '选择图片失败', icon: 'none' })
             }
           })
+        },
+        fail: (err) => {
+          console.log('[发布] 用户取消选择')
         }
       })
     },
@@ -247,25 +258,27 @@ export default {
       try {
         const imageUrls = []
         const totalImages = this.form.images.length
-        console.log('开始上传图片，数量:', totalImages)
+        console.log('[发布] 开始上传图片，数量:', totalImages)
         
         for (let i = 0; i < totalImages; i++) {
           const filePath = this.form.images[i]
           this.uploadingText = `上传图片 ${i + 1}/${totalImages}`
-          this.uploadProgress = Math.round((i / totalImages) * 70) // 前70%是上传图片
+          this.uploadProgress = Math.round((i / totalImages) * 70)
           
-          console.log(`上传第${i + 1}张图片:`, filePath)
+          console.log(`[发布] 上传第${i + 1}张图片:`, filePath)
           try {
             const res = await api.uploadImage(filePath)
-            console.log(`第${i + 1}张图片上传成功:`, res.url)
+            console.log(`[发布] 第${i + 1}张图片上传成功:`, res.url)
             imageUrls.push(res.url)
           } catch (uploadErr) {
-            console.error(`第${i + 1}张图片上传失败:`, uploadErr)
-            throw new Error(`第${i + 1}张图片上传失败`)
+            console.error(`[发布] 第${i + 1}张图片上传失败:`, uploadErr)
+            this.isPublishing = false
+            uni.showToast({ title: uploadErr.message || `第${i + 1}张图片上传失败`, icon: 'none', duration: 3000 })
+            return
           }
         }
         
-        console.log('所有图片上传完成，URL列表:', imageUrls)
+        console.log('[发布] 所有图片上传完成，URL列表:', imageUrls)
         this.uploadingText = '提交中...'
         this.uploadProgress = 80
         
@@ -277,7 +290,7 @@ export default {
           contact: this.form.contact
         }
         
-        console.log('提交物品数据:', data)
+        console.log('[发布] 提交物品数据:', data)
         
         await api.createItem(data)
         this.uploadProgress = 100
@@ -291,8 +304,8 @@ export default {
         }, 1000)
       } catch (err) {
         this.isPublishing = false
-        console.error('发布失败:', err)
-        uni.showToast({ title: err.message || '发布失败', icon: 'none' })
+        console.error('[发布] 发布失败:', err)
+        uni.showToast({ title: err.message || '发布失败', icon: 'none', duration: 3000 })
       }
     },
     switchTab(index) {

@@ -8,10 +8,17 @@ let isOnline = true
 let heartbeatFailCount = 0 // 连续失败次数
 const MAX_FAIL_COUNT = 3 // 最大允许连续失败次数（3次 = 45秒）
 let offlineBannerTimer = null // 断网提示定时器
+let offlineBannerShown = false // 标记断网提示是否已显示
 
 // 显示断网提示（持久化的顶部提示条）
 const showOfflineBanner = () => {
+  // 如果已经显示过，不再重复显示
+  if (offlineBannerShown) {
+    return
+  }
+  
   console.log('🔴 显示断网提示')
+  offlineBannerShown = true
   
   // 清除之前的定时器
   if (offlineBannerTimer) {
@@ -30,11 +37,6 @@ const showOfflineBanner = () => {
   } catch (e) {
     console.error('显示Toast失败:', e)
   }
-  
-  // 如果Toast没有显示，每5秒重试一次
-  offlineBannerTimer = setTimeout(() => {
-    showOfflineBanner()
-  }, 5000)
 }
 
 // 隐藏断网提示
@@ -46,6 +48,9 @@ const hideOfflineBanner = () => {
     clearTimeout(offlineBannerTimer)
     offlineBannerTimer = null
   }
+  
+  // 重置显示标记
+  offlineBannerShown = false
   
   try {
     uni.hideToast()
@@ -79,12 +84,18 @@ export const api = {
     
     console.log('启动15秒心跳检测...')
     
-    // 立即执行一次心跳检测
-    this.checkHeartbeat()
+    // 立即执行一次心跳检测（处理 Promise）
+    this.checkHeartbeat().catch(err => {
+      console.error('初始心跳检测失败:', err)
+    })
     
-    // 然后每15秒执行一次
-    heartbeatTimer = setInterval(() => {
-      this.checkHeartbeat()
+    // 然后每15秒执行一次（处理 Promise）
+    heartbeatTimer = setInterval(async () => {
+      try {
+        await this.checkHeartbeat()
+      } catch (err) {
+        console.error('心跳检测失败:', err)
+      }
     }, 15000) // 15秒间隔
   },
   
@@ -144,13 +155,17 @@ export const api = {
     this.startHeartbeat()
   },
   async request(url, method = 'GET', data = {}, header = {}) {
-    // 检查是否已有token
     const token = storage.getToken()
     
     const defaultHeader = {
       'Content-Type': 'application/json',
       'Authorization': token ? `Bearer ${token}` : ''
     }
+    
+    console.log('[API] 请求URL:', baseUrl + url)
+    console.log('[API] 请求方法:', method)
+    console.log('[API] 请求数据:', data)
+    console.log('[API] 请求头:', { ...defaultHeader, ...header })
     
     return new Promise((resolve, reject) => {
       uni.request({
@@ -159,15 +174,15 @@ export const api = {
         data,
         header: { ...defaultHeader, ...header },
         success: (res) => {
+          console.log('[API] 响应状态:', res.statusCode)
+          console.log('[API] 响应数据:', res.data)
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
-            // 如果是心跳请求401，不跳转登录页
             if (header['X-Heartbeat'] === 'true') {
               reject(new Error('心跳检测失败'))
               return
             }
-            // 其他请求401，跳转登录
             storage.clearUser()
             uni.reLaunch({ url: '/pages/auth/login' })
             reject(new Error('登录已过期'))
@@ -176,6 +191,7 @@ export const api = {
           }
         },
         fail: (err) => {
+          console.error('[API] 请求失败:', err)
           reject(err)
         }
       })
@@ -204,7 +220,7 @@ export const api = {
   
   async getItems(params = {}) {
     const query = Object.keys(params)
-      .filter(key => params[key])
+      .filter(key => params[key] !== undefined && params[key] !== null)
       .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
       .join('&')
     
@@ -282,29 +298,94 @@ export const api = {
   },
   
   async uploadImage(filePath) {
+    console.log('[上传图片] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
+      if (!token) {
+        console.error('[上传图片] 未登录，无法上传')
+        reject(new Error('请先登录'))
+        return
+      }
+      
       uni.uploadFile({
         url: baseUrl + '/upload/image',
         filePath,
         name: 'image',
         header: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         success: (res) => {
+          console.log('[上传图片] 响应状态码:', res.statusCode)
+          console.log('[上传图片] 响应数据:', res.data)
           if (res.statusCode === 200) {
-            resolve(JSON.parse(res.data))
+            try {
+              const data = JSON.parse(res.data)
+              console.log('[上传图片] 上传成功:', data.url)
+              resolve(data)
+            } catch (e) {
+              console.error('[上传图片] 解析响应失败:', e)
+              reject(new Error('服务器响应格式错误'))
+            }
+          } else if (res.statusCode === 401) {
+            console.error('[上传图片] token无效')
+            storage.clearUser()
+            uni.reLaunch({ url: '/pages/auth/login' })
+            reject(new Error('登录已过期，请重新登录'))
           } else {
-            reject(new Error('上传失败'))
+            try {
+              const errData = JSON.parse(res.data)
+              console.error('[上传图片] 上传失败:', errData.message)
+              reject(new Error(errData.message || '上传失败'))
+            } catch (e) {
+              console.error('[上传图片] 上传失败，状态码:', res.statusCode)
+              reject(new Error(`上传失败 (${res.statusCode})`))
+            }
           }
         },
         fail: (err) => {
-          reject(err)
+          console.error('[上传图片] 网络请求失败:', err.errMsg || err)
+          reject(new Error(err.errMsg || '网络请求失败'))
         }
       })
     })
   },
   
+  // 注册用头像上传（无需登录，调用 /upload/avatar）
+  async uploadAvatarImage(filePath) {
+    console.log('[上传头像] 开始上传:', filePath)
+    return await new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: baseUrl + '/upload/avatar',
+        filePath,
+        name: 'image',
+        success: (res) => {
+          console.log('[上传头像] 响应状态码:', res.statusCode)
+          if (res.statusCode === 200) {
+            try {
+              const data = JSON.parse(res.data)
+              console.log('[上传头像] 上传成功:', data.url)
+              resolve(data)
+            } catch (e) {
+              console.error('[上传头像] 解析响应失败:', e)
+              reject(new Error('服务器响应格式错误'))
+            }
+          } else {
+            try {
+              const errData = JSON.parse(res.data)
+              reject(new Error(errData.message || '上传失败'))
+            } catch (e) {
+              reject(new Error(`上传失败 (${res.statusCode})`))
+            }
+          }
+        },
+        fail: (err) => {
+          console.error('[上传头像] 网络请求失败:', err.errMsg || err)
+          reject(new Error(err.errMsg || '网络请求失败'))
+        }
+      })
+    })
+  },
+
   async uploadImages(filePaths) {
     const results = []
     for (let filePath of filePaths) {
@@ -319,27 +400,56 @@ export const api = {
   },
 
   async uploadVideo(filePath) {
+    console.log('[上传视频] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
+      if (!token) {
+        console.error('[上传视频] 未登录，无法上传')
+        reject(new Error('请先登录'))
+        return
+      }
+      
       uni.showLoading({ title: '上传中...' })
       uni.uploadFile({
         url: baseUrl + '/upload/video',
         filePath,
         name: 'video',
         header: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         success: (res) => {
           uni.hideLoading()
+          console.log('[上传视频] 响应状态码:', res.statusCode)
+          console.log('[上传视频] 响应数据:', res.data)
           if (res.statusCode === 200) {
-            resolve(JSON.parse(res.data))
+            try {
+              const data = JSON.parse(res.data)
+              console.log('[上传视频] 上传成功:', data.url)
+              resolve(data)
+            } catch (e) {
+              console.error('[上传视频] 解析响应失败:', e)
+              reject(new Error('服务器响应格式错误'))
+            }
+          } else if (res.statusCode === 401) {
+            console.error('[上传视频] token无效')
+            storage.clearUser()
+            uni.reLaunch({ url: '/pages/auth/login' })
+            reject(new Error('登录已过期，请重新登录'))
           } else {
-            reject(new Error('视频上传失败'))
+            try {
+              const errData = JSON.parse(res.data)
+              console.error('[上传视频] 上传失败:', errData.message)
+              reject(new Error(errData.message || '视频上传失败'))
+            } catch (e) {
+              console.error('[上传视频] 上传失败，状态码:', res.statusCode)
+              reject(new Error(`视频上传失败 (${res.statusCode})`))
+            }
           }
         },
         fail: (err) => {
           uni.hideLoading()
-          reject(err)
+          console.error('[上传视频] 网络请求失败:', err.errMsg || err)
+          reject(new Error(err.errMsg || '网络请求失败'))
         }
       })
     })

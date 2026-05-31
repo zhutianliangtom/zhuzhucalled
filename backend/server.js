@@ -1,3 +1,4 @@
+require('express-async-errors')
 const express = require('express')
 const http = require('http')
 const WebSocket = require('ws')
@@ -15,6 +16,7 @@ require('dotenv').config()
 
 // ==================== 实时日志功能 ====================
 const LOG_DIR = path.join(__dirname, 'server_log')
+const LOG_FLUSH_INTERVAL = 30000 // 30秒自动保存
 
 // 创建日志目录
 if (!fs.existsSync(LOG_DIR)) {
@@ -44,33 +46,67 @@ const originalLog = console.log
 const originalError = console.error
 const originalWarn = console.warn
 
-// 日志记录函数 - 使用 appendFileSync 确保实时保存
+// 日志缓冲区：{ '2026-05-31.log': '...lines...', ... }
+const logBuffer = {}
+
+// 日志记录函数 - 写入缓冲区，定时批量刷盘
 function log(level, ...args) {
   const now = new Date()
   const timestamp = now.toISOString().replace('T', ' ').replace('Z', '')
   const levelStr = level.toUpperCase().padEnd(7)
-  const message = args.map(arg => 
+  const message = args.map(arg =>
     typeof arg === 'object' ? JSON.stringify(arg, null, 0) : String(arg)
   ).join(' ')
-  
+
   const logLine = `[${timestamp}] [${levelStr}] ${message}\n`
-  
+
   // 输出到控制台（带颜色）
   let color = COLORS.green
   if (level === 'error') color = COLORS.red
   if (level === 'warn') color = COLORS.yellow
-  
+
   const colorLine = `${COLORS.cyan}[${timestamp}]${COLORS.reset} ${color}[${levelStr}]${COLORS.reset} ${message}`
   originalLog(colorLine)
-  
-  // 写入文件（实时，使用 appendFileSync 确保保存）
-  try {
-    const filePath = path.join(LOG_DIR, getLogFileName())
-    fs.appendFileSync(filePath, logLine, 'utf8')
-  } catch (err) {
-    originalError('[LOG] 写入日志失败:', err)
+
+  // 写入缓冲区
+  const fileName = getLogFileName()
+  if (!logBuffer[fileName]) {
+    logBuffer[fileName] = ''
+  }
+  logBuffer[fileName] += logLine
+}
+
+// 刷盘：将缓冲区内容写入磁盘
+function flushLogs() {
+  const fileNames = Object.keys(logBuffer)
+  for (const fileName of fileNames) {
+    if (logBuffer[fileName].length > 0) {
+      try {
+        const filePath = path.join(LOG_DIR, fileName)
+        fs.appendFileSync(filePath, logBuffer[fileName], 'utf8')
+        logBuffer[fileName] = ''
+      } catch (err) {
+        originalError('[LOG] 刷盘失败:', err)
+      }
+    }
   }
 }
+
+// 清理旧日期的缓冲区（跨天后旧 key 不再有写入，刷盘后清理）
+function cleanBuffer() {
+  const today = getLogFileName()
+  for (const fileName of Object.keys(logBuffer)) {
+    if (fileName !== today && logBuffer[fileName].length === 0) {
+      delete logBuffer[fileName]
+    }
+  }
+}
+
+// 定时刷盘
+const flushTimer = setInterval(() => {
+  flushLogs()
+  cleanBuffer()
+}, LOG_FLUSH_INTERVAL)
 
 // 覆盖 console 方法，使其也记录到文件
 console.log = (...args) => {
@@ -97,13 +133,39 @@ const {
 const app = express()
 const port = 5000
 
-const JWT_SECRET = 'lost_found_secret_key'
+// JWT 密钥从环境变量读取，生产环境必须配置强随机字符串
+const JWT_SECRET = process.env.JWT_SECRET || 'lost_found_secret_key'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
+const PUBLIC_HOST = process.env.PUBLIC_HOST || '183.66.27.20:41412'
+// HTTPS 支持：设置 SSL_CERT 和 SSL_KEY 环境变量启用
+const USE_HTTPS = !!(process.env.SSL_CERT && process.env.SSL_KEY)
+const PUBLIC_PROTO = USE_HTTPS ? 'https' : 'http'
+const PUBLIC_BASE = `${PUBLIC_PROTO}://${PUBLIC_HOST}`
+
 const UPLOAD_DIR = path.join(__dirname, 'uploads')
 const VIDEO_DIR = path.join(__dirname, 'uploads/videos')
 const BACKUP_DIR = path.join(__dirname, 'backups')
 
-// 创建 HTTP 服务器和 WebSocket 服务器
-const server = http.createServer(app)
+// 创建服务器和 WebSocket
+let server
+if (USE_HTTPS) {
+  const https = require('https')
+  server = https.createServer({
+    cert: fs.readFileSync(process.env.SSL_CERT),
+    key: fs.readFileSync(process.env.SSL_KEY)
+  }, app)
+  // HTTP → HTTPS 重定向
+  const redirectServer = http.createServer((req, res) => {
+    res.writeHead(301, { Location: `${PUBLIC_BASE}${req.url}` })
+    res.end()
+  })
+  redirectServer.listen(process.env.HTTP_REDIRECT_PORT || 80)
+  console.log(`[HTTPS] 已启用 HTTPS，HTTP 重定向监听端口 ${process.env.HTTP_REDIRECT_PORT || 80}`)
+} else {
+  server = http.createServer(app)
+  console.log('[HTTPS] 未配置证书，使用 HTTP 模式')
+}
+
 const wss = new WebSocket.Server({ server })
 
 // WebSocket 连接管理
@@ -123,11 +185,15 @@ wss.on('connection', (ws, req) => {
   if (cookies?.token) {
     try {
       const decoded = jwt.verify(cookies.token, JWT_SECRET)
-      pool.execute('SELECT * FROM users WHERE id = ?', [decoded.id])
+      pool.query('SELECT * FROM users WHERE id = ?', [decoded.id])
         .then(([rows]) => {
           if (rows.length > 0 && rows[0].isAdmin) {
-            // 是管理员，添加到客户端集合
+            // 是管理员，绑定用户信息到 WebSocket 连接
+            ws.userId = decoded.id
+            ws.studentId = rows[0].studentId
+            ws.isAdmin = true
             adminClients.add(ws)
+            console.log(`WebSocket 管理员连接: ${rows[0].studentId}`)
             console.log('管理员 WebSocket 连接成功')
             ws.send(JSON.stringify({ type: 'connected', message: '已连接到服务器' }))
           } else {
@@ -172,32 +238,71 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true })
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true })
 
-// 处理头像URL，返回完整URL
-function getFullAvatarUrl(avatar) {
-  if (!avatar) return ''
-  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar
+// 检查上传目录是否可写
+try {
+  const testFile = path.join(UPLOAD_DIR, '.write_test')
+  fs.writeFileSync(testFile, 'test')
+  fs.unlinkSync(testFile)
+} catch (e) {
+  console.error(`[启动检查] 上传目录不可写: ${UPLOAD_DIR}`, e.message)
+}
+
+// 将相对路径/旧URL统一转换为外网完整URL
+function getPublicUrl(url) {
+  if (!url) return ''
+  const publicBase = PUBLIC_BASE
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // 如果已经包含正确的外网地址，直接返回
+    if (url.includes(PUBLIC_HOST)) return url
+    try {
+      const urlObj = new URL(url)
+      urlObj.host = PUBLIC_HOST
+      return urlObj.toString()
+    } catch (e) { return url }
   }
-  return avatar // 保持原样，前端会处理
+  return publicBase + url
+}
+
+// 安全解析 JSON，兼容旧数据中非标准格式（如单 URL 字符串而非数组）
+// pool.query() 文本协议会自动解析 MySQL JSON 列为 JS 对象，需兼容
+function safeJSONParse(str, fallback = []) {
+  // 已经被驱动自动解析为数组/对象，直接返回
+  if (Array.isArray(str)) return str
+  if (str && typeof str === 'object') return str
+  // 空值返回默认值
+  if (!str || typeof str !== 'string') return fallback
+  try { return JSON.parse(str) } catch (e) {
+    if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('/')) {
+      return [str]
+    }
+    return fallback
+  }
 }
 
 // MySQL 连接池 (兼容MySQL 9.7.0)
+
+// 调试：打印环境变量加载情况
+console.log('[调试] 环境变量检查:')
+console.log('[调试] MYSQL_HOST:', process.env.MYSQL_HOST || '(未设置，使用默认localhost)')
+console.log('[调试] MYSQL_PORT:', process.env.MYSQL_PORT || '(未设置，使用默认3306)')
+console.log('[调试] MYSQL_USER:', process.env.MYSQL_USER || '(未设置，使用默认root)')
+console.log('[调试] MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '***已设置***' : '(未设置，将使用默认windows10)')
+console.log('[调试] MYSQL_PASSWORD长度:', process.env.MYSQL_PASSWORD ? process.env.MYSQL_PASSWORD.length : 0)
+console.log('[调试] MYSQL_PASSWORD实际值(脱敏):', process.env.MYSQL_PASSWORD ? 'w' + '*'.repeat(process.env.MYSQL_PASSWORD.length - 1) : '(空)')
+console.log('[调试] MYSQL_DATABASE:', process.env.MYSQL_DATABASE || '(未设置，使用默认lost_found)')
+console.log('[调试] 最终使用的密码:', (process.env.MYSQL_PASSWORD || 'windows10').substring(0, 2) + '***')
+
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || 'localhost',
   port: parseInt(process.env.MYSQL_PORT) || 3306,
   user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
+  password: process.env.MYSQL_PASSWORD || 'windows10',
   database: process.env.MYSQL_DATABASE || 'lost_found',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
   charset: 'utf8mb4',
-  // MySQL 9.7.0 兼容配置
-  authPlugins: {
-    'mysql_native_password': true,
-    'caching_sha2_password': true
-  },
   ssl: false
 })
 
@@ -217,13 +322,13 @@ async function backupDatabase() {
     for (const table of tables) {
       try {
         // 表结构
-        const [createTable] = await pool.execute(`SHOW CREATE TABLE ${table}`)
+        const [createTable] = await pool.query(`SHOW CREATE TABLE ${table}`)
         sqlContent += `-- 表结构: ${table}\n`
         sqlContent += `DROP TABLE IF EXISTS ${table};\n`
         sqlContent += createTable[0]['Create Table'] + ';\n\n'
         
         // 表数据
-        const [rows] = await pool.execute(`SELECT * FROM ${table}`)
+        const [rows] = await pool.query(`SELECT * FROM ${table}`)
         if (rows.length > 0) {
           sqlContent += `-- 表数据: ${table}\n`
           const columns = Object.keys(rows[0])
@@ -286,14 +391,20 @@ async function initDatabase() {
   
   // 1. 先连接 MySQL (不指定数据库) 创建数据库
   try {
+    console.log('[initDatabase] 准备创建临时连接池')
+    console.log('[initDatabase] process.env.MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '已设置(长度:' + process.env.MYSQL_PASSWORD.length + ')' : '未设置')
+    console.log('[initDatabase] 使用的密码:', process.env.MYSQL_PASSWORD || 'windows10', '(长度:', (process.env.MYSQL_PASSWORD || 'windows10').length, ')')
+    
     const tempPool = mysql.createPool({
       host: process.env.MYSQL_HOST || 'localhost',
       port: parseInt(process.env.MYSQL_PORT) || 3306,
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || '',
+      password: process.env.MYSQL_PASSWORD || 'windows10',
       charset: 'utf8mb4',
       ssl: false
     })
+    
+    console.log('[initDatabase] 临时连接池创建成功，尝试执行 CREATE DATABASE...')
     
     await tempPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
     console.log(`[数据库] 已确保数据库 ${dbName} 存在`)
@@ -304,6 +415,25 @@ async function initDatabase() {
   
   // 2. 创建所有表
   console.log('[数据库] 开始检查表结构...')
+  
+  // 检查 users 表的 id 字段类型是否正确
+  try {
+    const [columns] = await pool.query(
+      "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'id'",
+      [dbName]
+    )
+    
+    if (columns.length > 0 && columns[0].DATA_TYPE !== 'varchar') {
+      console.log('[数据库] 检测到 users 表结构不兼容，正在重建...')
+      await pool.query('DROP TABLE IF EXISTS users')
+      await pool.query('DROP TABLE IF EXISTS items')
+      await pool.query('DROP TABLE IF EXISTS messages')
+      await pool.query('DROP TABLE IF EXISTS versions')
+      console.log('[数据库] 已删除旧表')
+    }
+  } catch (e) {
+    console.log('[数据库] 无法检查表结构，将尝试直接创建')
+  }
   
   // 表结构定义
   const tables = {
@@ -316,27 +446,22 @@ async function initDatabase() {
       avatar VARCHAR(500),
       className VARCHAR(100),
       status VARCHAR(20) DEFAULT 'pending',
-      blockedUsers JSON DEFAULT (JSON_ARRAY()),
+      blockedUsers JSON,
       isAdmin BOOLEAN DEFAULT FALSE,
       createdAt INT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     
     items: `CREATE TABLE IF NOT EXISTS items (
       id VARCHAR(36) PRIMARY KEY,
-      type VARCHAR(20) NOT NULL,
+      userId VARCHAR(36) NOT NULL,
       title VARCHAR(200) NOT NULL,
       description TEXT,
-      images JSON DEFAULT (JSON_ARRAY()),
-      video VARCHAR(500),
-      lostDate VARCHAR(20),
-      lostLocation VARCHAR(200),
+      type VARCHAR(20) NOT NULL,
       status VARCHAR(20) DEFAULT 'active',
-      userId VARCHAR(36) NOT NULL,
-      claimUserId VARCHAR(36),
-      claimNote TEXT,
-      claimTime INT,
+      images JSON,
+      contact VARCHAR(100),
+      location VARCHAR(200),
       createdAt INT,
-      updatedAt INT,
       INDEX idx_userId (userId),
       INDEX idx_status (status),
       INDEX idx_type (type)
@@ -344,36 +469,37 @@ async function initDatabase() {
     
     messages: `CREATE TABLE IF NOT EXISTS messages (
       id VARCHAR(36) PRIMARY KEY,
-      fromUserId VARCHAR(36) NOT NULL,
-      toUserId VARCHAR(36) NOT NULL,
-      itemId VARCHAR(36),
-      content TEXT NOT NULL,
+      senderId VARCHAR(36) NOT NULL,
+      receiverId VARCHAR(36) NOT NULL,
+      content TEXT,
       type VARCHAR(20) DEFAULT 'text',
-      isRead BOOLEAN DEFAULT FALSE,
+      mediaUrl TEXT,
+      \`read\` BOOLEAN DEFAULT FALSE,
       createdAt INT,
-      INDEX idx_fromUserId (fromUserId),
-      INDEX idx_toUserId (toUserId),
-      INDEX idx_itemId (itemId),
-      INDEX idx_isRead (isRead)
+      INDEX idx_senderId (senderId),
+      INDEX idx_receiverId (receiverId),
+      INDEX idx_read (\`read\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     
     versions: `CREATE TABLE IF NOT EXISTS versions (
       id VARCHAR(36) PRIMARY KEY,
       version VARCHAR(20) NOT NULL,
+      versionCode INT DEFAULT 0,
       title VARCHAR(200) NOT NULL,
       description TEXT,
       apkUrl VARCHAR(500),
       fileSize BIGINT,
       forceUpdate BOOLEAN DEFAULT FALSE,
       createdAt INT,
-      INDEX idx_version (version)
+      INDEX idx_version (version),
+      INDEX idx_versionCode (versionCode)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
   }
   
   // 逐个创建表
   for (const [tableName, sql] of Object.entries(tables)) {
     try {
-      await pool.execute(sql)
+      await pool.query(sql)
       console.log(`[数据库] 表 ${tableName} 已确保存在`)
     } catch (e) {
       console.error(`[数据库] 创建表 ${tableName} 失败:`, e.message)
@@ -382,27 +508,137 @@ async function initDatabase() {
   
   // 3. 添加 isAdmin 字段（如果不存在）
   try {
-    await pool.execute('ALTER TABLE users ADD COLUMN isAdmin BOOLEAN DEFAULT FALSE')
+    await pool.query('ALTER TABLE users ADD COLUMN isAdmin BOOLEAN DEFAULT FALSE')
     console.log('[数据库] 已添加 isAdmin 字段')
   } catch (e) {
     // 字段已存在，忽略错误
   }
   
+  // 3.1 添加 className 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN className VARCHAR(100)')
+    console.log('[数据库] 已添加 className 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.2 添加 blockedUsers 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN blockedUsers JSON')
+    console.log('[数据库] 已添加 blockedUsers 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.3 添加 avatar 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN avatar VARCHAR(500)')
+    console.log('[数据库] 已添加 avatar 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.4 添加 status 字段（如果不存在）
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'pending'")
+    console.log('[数据库] 已添加 status 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.5 添加 phone 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN phone VARCHAR(20)')
+    console.log('[数据库] 已添加 phone 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.6 添加 createdAt 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN createdAt INT')
+    console.log('[数据库] 已添加 createdAt 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+  
+  // 3.7 添加 versions 表的 versionCode 字段（如果不存在）
+  try {
+    await pool.query('ALTER TABLE versions ADD COLUMN versionCode INT DEFAULT 0')
+    console.log('[数据库] 已添加 versionCode 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+
+  // 3.7.1 添加 versions 表的 changelog 字段（兼容 initDatabase 中旧名 description）
+  try {
+    await pool.query('ALTER TABLE versions ADD COLUMN changelog TEXT')
+    console.log('[数据库] 已添加 changelog 字段')
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+
+  // 3.7.2 复制 description -> changelog（迁移旧数据）
+  try {
+    const [result] = await pool.query("UPDATE versions SET changelog = description WHERE changelog IS NULL AND description IS NOT NULL")
+    if (result.affectedRows > 0) {
+      console.log(`[数据库] 已迁移 ${result.affectedRows} 条版本的 description -> changelog`)
+    }
+  } catch (e) {
+    // description 列不存在则忽略
+  }
+
+  // 3.7.3 确保 title 列可空（旧 initDatabase 定义 NOT NULL 但接口未传）
+  try {
+    await pool.query('ALTER TABLE versions MODIFY COLUMN title VARCHAR(200) NULL')
+    console.log('[数据库] versions.title 已设为可空')
+  } catch (e) { /* 忽略 */ }
+  
+  // 3.8 迁移 messages 表：重命名 fromUserId -> senderId（修复旧表列名）
+  try {
+    await pool.query('ALTER TABLE messages RENAME COLUMN fromUserId TO senderId')
+    console.log('[数据库] messages 表已迁移: fromUserId -> senderId')
+  } catch (e) { /* 列不存在或已迁移，忽略 */ }
+  try {
+    await pool.query('ALTER TABLE messages RENAME COLUMN toUserId TO receiverId')
+    console.log('[数据库] messages 表已迁移: toUserId -> receiverId')
+  } catch (e) { /* 列不存在或已迁移，忽略 */ }
+  try {
+    await pool.query('ALTER TABLE messages RENAME COLUMN isRead TO `read`')
+    console.log('[数据库] messages 表已迁移: isRead -> read')
+  } catch (e) { /* 列不存在或已迁移，忽略 */ }
+
+  // 3.9 添加 messages 表缺少的 mediaUrl 列
+  try {
+    await pool.query('ALTER TABLE messages ADD COLUMN mediaUrl TEXT')
+    console.log('[数据库] messages 表已添加 mediaUrl 列')
+  } catch (e) { /* 列已存在，忽略 */ }
+
+  // 3.10 添加 items 表缺少的 contact 和 location 列
+  try {
+    await pool.query('ALTER TABLE items ADD COLUMN contact VARCHAR(100)')
+    console.log('[数据库] items 表已添加 contact 列')
+  } catch (e) { /* 列已存在，忽略 */ }
+  try {
+    await pool.query('ALTER TABLE items ADD COLUMN location VARCHAR(200)')
+    console.log('[数据库] items 表已添加 location 列')
+  } catch (e) { /* 列已存在，忽略 */ }
+
   // 4. 创建或更新管理员账号
   const adminUserId = process.env.ADMIN_USER || 'admin'
-  const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [adminUserId])
+  const [rows] = await pool.query('SELECT * FROM users WHERE studentId = ?', [adminUserId])
   if (rows.length === 0) {
     const adminPass = process.env.ADMIN_PASS || 'admin123'
     const hashedPassword = bcrypt.hashSync(adminPass, 10)
     const adminId = uuidv4()
-    await pool.execute(
+    await pool.query(
       'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, isAdmin, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [adminId, adminUserId, '管理员', '13800000000', hashedPassword, '管理员', 'approved', '[]', true, Math.floor(Date.now() / 1000)]
     )
     console.log(`[数据库] 已创建默认管理员账号: ${adminUserId} / ${adminPass}`)
   } else {
     // 确保管理员账号的 isAdmin 为 true
-    await pool.execute('UPDATE users SET isAdmin = TRUE WHERE studentId = ?', [adminUserId])
+    await pool.query('UPDATE users SET isAdmin = TRUE WHERE studentId = ?', [adminUserId])
   }
   
   console.log('[数据库] 初始化完成')
@@ -418,14 +654,17 @@ const videoStorage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, `video_${uuidv4()}${path.extname(file.originalname)}`)
 })
 
+const ALLOWED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif']
+
 const imageUpload = multer({
   storage: imageStorage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase()
-    if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
+    if (ALLOWED_IMAGE_EXT.includes(ext)) {
       cb(null, true)
     } else {
+      console.warn(`[Upload] 拒绝的图片格式: "${ext}", 原始文件名: ${file.originalname}`)
       cb(new Error('只支持图片格式'), false)
     }
   }
@@ -453,9 +692,22 @@ app.set('views', path.join(__dirname, 'views'))
 app.use(express.static(path.join(__dirname, 'public')))
 
 // 应用安全中间件
-app.use(rateLimitMiddleware())
+// 全局限流：每分钟200次（外网映射共用IP场景），排除心跳、轮询和管理后台
+app.use(rateLimitMiddleware({
+  windowMs: 60000,
+  max: 200,
+  message: '请求过于频繁，请稍后再试',
+  skipPaths: ['/api/heartbeat', '/messages/unread', '/admin']
+}))
 app.use(xssProtection)
 app.use(sqlInjectionProtection)
+
+// 管理员接口额外速率限制（每分钟300次，处理批量审核）
+app.use('/admin', rateLimitMiddleware({
+  windowMs: 60000,
+  max: 300,
+  message: '管理员操作过于频繁，请稍后再试'
+}))
 
 // 静态文件：图片和视频
 app.use('/uploads', express.static(UPLOAD_DIR))
@@ -469,7 +721,7 @@ async function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     // 验证用户是否存在
-    const [rows] = await pool.execute('SELECT id, studentId FROM users WHERE id = ?', [decoded.id])
+    const [rows] = await pool.query('SELECT id, studentId FROM users WHERE id = ?', [decoded.id])
     if (rows.length === 0) {
       return res.status(401).json({ message: '用户不存在，请重新登录' })
     }
@@ -491,7 +743,7 @@ app.get('/admin/login', (req, res) => res.render('login', { error: null }))
 
 app.post('/admin/login', async (req, res) => {
   const { studentId, password } = req.body
-  const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [studentId])
+  const [rows] = await pool.query('SELECT * FROM users WHERE studentId = ?', [studentId])
   const user = rows[0]
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -505,7 +757,7 @@ app.post('/admin/login', async (req, res) => {
     return res.render('login', { error: '请使用管理员账号登录' })
   }
 
-  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET)
+  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
   res.cookie('token', token, { httpOnly: true })
   console.log(`[ADMIN LOGIN SUCCESS] 管理员: ${user.name} (${studentId}), IP: ${req.ip}`)
   logAdminAction(user.id, 'ADMIN_LOGIN', { studentId, ip: req.ip })
@@ -524,7 +776,7 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     // 验证用户是否存在且是管理员
-    pool.execute('SELECT * FROM users WHERE id = ?', [decoded.id])
+    pool.query('SELECT * FROM users WHERE id = ?', [decoded.id])
       .then(([rows]) => {
         if (rows.length === 0 || !rows[0].isAdmin) {
           return res.redirect('/admin/login')
@@ -539,15 +791,15 @@ function authMiddleware(req, res, next) {
 }
 
 app.get('/admin/dashboard', authMiddleware, async (req, res) => {
-  const [[{ totalItems }]] = await pool.execute('SELECT COUNT(*) AS totalItems FROM items')
-  const [[{ activeItems }]] = await pool.execute("SELECT COUNT(*) AS activeItems FROM items WHERE status = 'active'")
-  const [[{ solvedItems }]] = await pool.execute("SELECT COUNT(*) AS solvedItems FROM items WHERE status = 'solved'")
-  const [[{ lostItems }]] = await pool.execute("SELECT COUNT(*) AS lostItems FROM items WHERE type = 'lost' AND status = 'active'")
-  const [[{ foundItems }]] = await pool.execute("SELECT COUNT(*) AS foundItems FROM items WHERE type = 'found' AND status = 'active'")
-  const [[{ lostSolved }]] = await pool.execute("SELECT COUNT(*) AS lostSolved FROM items WHERE type = 'lost' AND status = 'solved'")
-  const [[{ foundSolved }]] = await pool.execute("SELECT COUNT(*) AS foundSolved FROM items WHERE type = 'found' AND status = 'solved'")
-  const [[{ totalUsers }]] = await pool.execute(`SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'approved' AND isAdmin = FALSE`)
-  const [[{ pendingUsers }]] = await pool.execute("SELECT COUNT(*) AS pendingUsers FROM users WHERE status = 'pending'")
+  const [[{ totalItems }]] = await pool.query('SELECT COUNT(*) AS totalItems FROM items')
+  const [[{ activeItems }]] = await pool.query("SELECT COUNT(*) AS activeItems FROM items WHERE status = 'active'")
+  const [[{ solvedItems }]] = await pool.query("SELECT COUNT(*) AS solvedItems FROM items WHERE status = 'solved'")
+  const [[{ lostItems }]] = await pool.query("SELECT COUNT(*) AS lostItems FROM items WHERE type = 'lost' AND status = 'active'")
+  const [[{ foundItems }]] = await pool.query("SELECT COUNT(*) AS foundItems FROM items WHERE type = 'found' AND status = 'active'")
+  const [[{ lostSolved }]] = await pool.query("SELECT COUNT(*) AS lostSolved FROM items WHERE type = 'lost' AND status = 'solved'")
+  const [[{ foundSolved }]] = await pool.query("SELECT COUNT(*) AS foundSolved FROM items WHERE type = 'found' AND status = 'solved'")
+  const [[{ totalUsers }]] = await pool.query(`SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'approved' AND isAdmin = FALSE`)
+  const [[{ pendingUsers }]] = await pool.query("SELECT COUNT(*) AS pendingUsers FROM users WHERE status = 'pending'")
 
   // 获取服务器时间和问候语
   const now = new Date()
@@ -580,25 +832,36 @@ app.get('/admin/items', authMiddleware, async (req, res) => {
   const limit = parseInt(pageSize)
   const offsetVal = parseInt(offset)
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT i.*, u.name AS userName, u.phone AS userPhone FROM items i LEFT JOIN users u ON i.userId = u.id WHERE ${where} ORDER BY i.createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
     params
   )
 
-  const [[{ total }]] = await pool.execute(`SELECT COUNT(*) AS total FROM items i WHERE ${where}`, params)
+  const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM items i WHERE ${where}`, params)
   const totalPages = Math.ceil(total / pageSize)
 
-  const items = rows.map(item => ({ ...item, createdAt: formatTime(item.createdAt), images: JSON.parse(item.images || '[]') }))
+  const items = rows.map(item => ({ ...item, createdAt: formatTime(item.createdAt), images: safeJSONParse(item.images) }))
   res.render('items', { items, totalPages, currentPage: parseInt(page), type, status, keyword })
 })
 
 app.post('/admin/items/delete/:id', authMiddleware, async (req, res) => {
-  await pool.execute('DELETE FROM items WHERE id = ?', [req.params.id])
+  await pool.query('DELETE FROM items WHERE id = ?', [req.params.id])
   res.json({ success: true })
 })
 
+// 批量删除物品
+app.post('/admin/items/batch-delete', authMiddleware, async (req, res) => {
+  const { ids } = req.body
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, message: '请选择要删除的物品' })
+  }
+  const placeholders = ids.map(() => '?').join(',')
+  await pool.query(`DELETE FROM items WHERE id IN (${placeholders})`, ids)
+  res.json({ success: true, count: ids.length })
+})
+
 app.get('/admin/versions', authMiddleware, async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM versions ORDER BY createdAt DESC')
+  const [rows] = await pool.query('SELECT * FROM versions ORDER BY createdAt DESC')
   const versions = rows.map(v => ({ ...v, createdAt: formatTime(v.createdAt) }))
   res.render('versions', { versions })
 })
@@ -617,48 +880,27 @@ app.get('/admin/users', authMiddleware, async (req, res) => {
   const limit = parseInt(pageSize)
   const offsetVal = parseInt(offset)
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT * FROM users WHERE ${where} ORDER BY isAdmin DESC, createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
     params
   )
 
-  const [[{ total }]] = await pool.execute(`SELECT COUNT(*) AS total FROM users WHERE ${where}`, params)
+  const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE ${where}`, params)
   const totalPages = Math.ceil(total / pageSize)
 
-  const users = rows.map(u => {
-    let avatarUrl = u.avatar
-    // 统一转换为外网端口URL
-    const publicHost = '183.66.27.20:41412'
-    if (avatarUrl) {
-      // 如果是旧的内网端口5000，替换为外网端口
-      if (avatarUrl.includes(':5000')) {
-        avatarUrl = avatarUrl.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-      }
-      // 如果是相对路径，添加完整URL
-      else if (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {
-        avatarUrl = `http://${publicHost}${avatarUrl}`
-      }
-      // 如果已经是外网URL，直接返回
-      else if (!avatarUrl.includes('183.66.27.20:41412')) {
-        try {
-          const urlObj = new URL(avatarUrl)
-          urlObj.host = publicHost
-          avatarUrl = urlObj.toString()
-        } catch (e) {
-          // 保持原样
-        }
-      }
-    }
-    return { ...u, createdAt: formatTime(u.createdAt), avatar: avatarUrl }
-  })
+  const users = rows.map(u => ({
+    ...u,
+    createdAt: formatTime(u.createdAt),
+    avatar: getPublicUrl(u.avatar)
+  }))
   res.render('users', { users, totalPages, currentPage: parseInt(page), keyword, status, currentAdminId: req.user.id })
 })
 
 app.post('/admin/users/approve/:id', authMiddleware, async (req, res) => {
   // 先获取用户信息以便记录日志
-  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
   const user = rows[0]
-  await pool.execute("UPDATE users SET status = 'approved' WHERE id = ?", [req.params.id])
+  await pool.query("UPDATE users SET status = 'approved' WHERE id = ?", [req.params.id])
   console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已通过用户审核: ${user?.name} (${user?.studentId})`)
   logAdminAction(req.user.id, 'APPROVE_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
@@ -666,9 +908,9 @@ app.post('/admin/users/approve/:id', authMiddleware, async (req, res) => {
 
 app.post('/admin/users/reject/:id', authMiddleware, async (req, res) => {
   // 先获取用户信息以便记录日志
-  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
   const user = rows[0]
-  await pool.execute("UPDATE users SET status = 'rejected' WHERE id = ?", [req.params.id])
+  await pool.query("UPDATE users SET status = 'rejected' WHERE id = ?", [req.params.id])
   console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已拒绝用户审核: ${user?.name} (${user?.studentId})`)
   logAdminAction(req.user.id, 'REJECT_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
@@ -680,9 +922,9 @@ app.post('/admin/users/delete/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ success: false, message: '不能删除自己的账号' })
   }
   // 先获取用户信息以便记录日志
-  const [rows] = await pool.execute('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT studentId, name FROM users WHERE id = ?', [req.params.id])
   const user = rows[0]
-  await pool.execute('DELETE FROM users WHERE id = ?', [req.params.id])
+  await pool.query('DELETE FROM users WHERE id = ?', [req.params.id])
   console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已删除用户: ${user?.name} (${user?.studentId})`)
   logAdminAction(req.user.id, 'DELETE_USER', { userId: req.params.id, studentId: user?.studentId, name: user?.name })
   res.json({ success: true })
@@ -704,10 +946,10 @@ app.post('/admin/users/batch-delete', authMiddleware, async (req, res) => {
 
   // 获取被删除用户的信息用于日志
   const placeholders = filteredIds.map(() => '?').join(',')
-  const [userRows] = await pool.execute(`SELECT id, studentId, name FROM users WHERE id IN (${placeholders})`, filteredIds)
+  const [userRows] = await pool.query(`SELECT id, studentId, name FROM users WHERE id IN (${placeholders})`, filteredIds)
   const deletedUsers = userRows.map(u => `${u.name} (${u.studentId})`).join(', ')
   
-  await pool.execute(`DELETE FROM users WHERE id IN (${placeholders})`, filteredIds)
+  await pool.query(`DELETE FROM users WHERE id IN (${placeholders})`, filteredIds)
   
   console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已批量删除 ${filteredIds.length} 个用户: ${deletedUsers}`)
   logAdminAction(req.user.id, 'BATCH_DELETE_USERS', { userIds: filteredIds, count: filteredIds.length })
@@ -722,7 +964,7 @@ app.post('/admin/users/toggle-admin/:id', authMiddleware, async (req, res) => {
   }
   
   // 先获取当前用户的状态
-  const [rows] = await pool.execute('SELECT studentId, name, isAdmin FROM users WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT studentId, name, isAdmin FROM users WHERE id = ?', [req.params.id])
   if (rows.length === 0) {
     return res.status(404).json({ success: false, message: '用户不存在' })
   }
@@ -731,10 +973,51 @@ app.post('/admin/users/toggle-admin/:id', authMiddleware, async (req, res) => {
   const newStatus = !user.isAdmin
   const action = newStatus ? '设为管理员' : '取消管理员'
   
-  await pool.execute('UPDATE users SET isAdmin = ? WHERE id = ?', [newStatus, req.params.id])
+  await pool.query('UPDATE users SET isAdmin = ? WHERE id = ?', [newStatus, req.params.id])
   console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 已${action}用户: ${user.name} (${user.studentId})`)
   logAdminAction(req.user.id, 'TOGGLE_ADMIN', { userId: req.params.id, studentId: user.studentId, name: user.name, newStatus })
   res.json({ success: true, isAdmin: newStatus })
+})
+
+// 管理员创建新用户
+app.post('/admin/users/create', authMiddleware, async (req, res) => {
+  try {
+    const { studentId, name, password, className, phone } = req.body
+    
+    // 验证必填字段
+    if (!studentId || !name || !password) {
+      return res.status(400).json({ success: false, message: '学号、姓名和密码为必填项' })
+    }
+    
+    // 检查学号是否已存在
+    const [existing] = await pool.query('SELECT id FROM users WHERE studentId = ?', [studentId])
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: '该学号已被注册' })
+    }
+    
+    // 密码哈希处理
+    const hashedPassword = bcrypt.hashSync(password, 10)
+    const userId = uuidv4()
+    const createdAt = Math.floor(Date.now() / 1000)
+    
+    // 插入新用户（默认状态为 approved）
+    await pool.query(
+      'INSERT INTO users (id, studentId, name, phone, password, className, status, blockedUsers, isAdmin, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [userId, studentId, name, phone || '', hashedPassword, className || '', 'approved', '[]', false, createdAt]
+    )
+    
+    console.log(`[ADMIN ACTION] 管理员 ${req.user.name} 创建新用户: ${name} (${studentId})`)
+    logAdminAction(req.user.id, 'CREATE_USER', { userId, studentId, name })
+    
+    res.json({ 
+      success: true, 
+      message: '用户创建成功',
+      data: { id: userId, studentId, name, className, phone, status: 'approved' }
+    })
+  } catch (error) {
+    console.error('[ERROR] 创建用户失败:', error)
+    res.status(500).json({ success: false, message: '创建用户失败，请稍后重试' })
+  }
 })
 
 app.post('/auth/register', registerLimit, async (req, res) => {
@@ -744,7 +1027,7 @@ app.post('/auth/register', registerLimit, async (req, res) => {
     return res.status(400).json({ message: '请填写完整信息' })
   }
 
-  const [existing] = await pool.execute('SELECT 1 FROM users WHERE studentId = ?', [studentId])
+  const [existing] = await pool.query('SELECT 1 FROM users WHERE studentId = ?', [studentId])
   if (existing.length > 0) {
     return res.status(400).json({ message: '该学号已被注册' })
   }
@@ -753,7 +1036,7 @@ app.post('/auth/register', registerLimit, async (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10)
   const createdAt = Math.floor(Date.now() / 1000)
 
-  await pool.execute(
+  await pool.query(
     'INSERT INTO users (id, studentId, name, phone, password, avatar, className, status, blockedUsers, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
     [id, studentId, name, phone, hashedPassword, avatar || '', className, 'pending', '[]', createdAt]
   )
@@ -764,7 +1047,7 @@ app.post('/auth/register', registerLimit, async (req, res) => {
 
 app.post('/auth/login', loginLimit, async (req, res) => {
   const { studentId, password } = req.body
-  const [rows] = await pool.execute('SELECT * FROM users WHERE studentId = ?', [studentId])
+  const [rows] = await pool.query('SELECT * FROM users WHERE studentId = ?', [studentId])
   const user = rows[0]
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -776,23 +1059,8 @@ app.post('/auth/login', loginLimit, async (req, res) => {
     return res.status(400).json({ message: '账号待审核或已被拒绝，请联系管理员' })
   }
 
-  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET)
-  // 统一转换为外网端口URL
-  const publicHost = '183.66.27.20:41412'
-  let avatarUrl = user.avatar
-  if (avatarUrl) {
-    if (avatarUrl.includes(':5000')) {
-      avatarUrl = avatarUrl.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-    } else if (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {
-      avatarUrl = `http://${publicHost}${avatarUrl}`
-    } else if (!avatarUrl.includes('183.66.27.20:41412')) {
-      try {
-        const urlObj = new URL(avatarUrl)
-        urlObj.host = publicHost
-        avatarUrl = urlObj.toString()
-      } catch (e) {}
-    }
-  }
+  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  const avatarUrl = getPublicUrl(user.avatar)
   
   logUserAction(user.id, 'USER_LOGIN', { studentId })
   res.json({
@@ -809,56 +1077,40 @@ app.post('/auth/login', loginLimit, async (req, res) => {
 })
 
 app.get('/auth/me', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT id, studentId, name, phone, avatar, className FROM users WHERE id = ?', [req.user.id])
+  const [rows] = await pool.query('SELECT id, studentId, name, phone, avatar, className FROM users WHERE id = ?', [req.user.id])
   if (rows.length === 0) return res.status(404).json({ message: '用户不存在' })
   const user = rows[0]
-  // 统一转换为外网端口URL
-  const publicHost = '183.66.27.20:41412'
-  if (user.avatar) {
-    if (user.avatar.includes(':5000')) {
-      user.avatar = user.avatar.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-    } else if (!user.avatar.startsWith('http://') && !user.avatar.startsWith('https://')) {
-      user.avatar = `http://${publicHost}${user.avatar}`
-    } else if (!user.avatar.includes('183.66.27.20:41412')) {
-      try {
-        const urlObj = new URL(user.avatar)
-        urlObj.host = publicHost
-        user.avatar = urlObj.toString()
-      } catch (e) {}
-    }
-  }
+  user.avatar = getPublicUrl(user.avatar)
   res.json({ data: user })
 })
 
 // 兼容前端 /user/info 接口
 app.get('/user/info', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT id, studentId, name, phone, avatar, className FROM users WHERE id = ?', [req.user.id])
+  const [rows] = await pool.query('SELECT id, studentId, name, phone, avatar, className FROM users WHERE id = ?', [req.user.id])
   if (rows.length === 0) return res.status(404).json({ message: '用户不存在' })
   const user = rows[0]
-  // 统一转换为外网端口URL
-  const publicHost = '183.66.27.20:41412'
-  if (user.avatar) {
-    if (user.avatar.includes(':5000')) {
-      user.avatar = user.avatar.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-    } else if (!user.avatar.startsWith('http://') && !user.avatar.startsWith('https://')) {
-      user.avatar = `http://${publicHost}${user.avatar}`
-    } else if (!user.avatar.includes('183.66.27.20:41412')) {
-      try {
-        const urlObj = new URL(user.avatar)
-        urlObj.host = publicHost
-        user.avatar = urlObj.toString()
-      } catch (e) {}
-    }
-  }
+  user.avatar = getPublicUrl(user.avatar)
   res.json({ data: user })
 })
 
 app.put('/user/info', authenticateToken, async (req, res) => {
-  const { name, phone, avatar, className } = req.body
-  await pool.execute(
-    'UPDATE users SET name = ?, phone = ?, avatar = ?, className = ? WHERE id = ?',
-    [name || '', phone || '', avatar || '', className || '', req.user.id]
-  )
+  const allowedFields = ['name', 'phone', 'avatar', 'className']
+  const setClauses = []
+  const values = []
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      setClauses.push(`${field} = ?`)
+      values.push(req.body[field])
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return res.status(400).json({ success: false, message: '没有要更新的字段' })
+  }
+
+  values.push(req.user.id)
+  await pool.query(`UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`, values)
   res.json({ success: true, message: '更新成功' })
 })
 
@@ -866,22 +1118,20 @@ app.post('/items', authenticateToken, imageUpload.array('images', 5), async (req
   const { title, description, type, contact, location, images: imageUrls } = req.body
   
   // 先验证用户是否存在
-  const [userRows] = await pool.execute('SELECT id FROM users WHERE id = ?', [req.user.id])
+  const [userRows] = await pool.query('SELECT id FROM users WHERE id = ?', [req.user.id])
   if (userRows.length === 0) {
     return res.status(401).json({ message: '用户不存在，请重新登录' })
   }
   
-  // 使用外网端口生成完整URL
-  const publicHost = '183.66.27.20:41412'
   let images = []
-  
+
   // 优先使用前端传来的图片URL（已上传的情况）
   if (imageUrls && Array.isArray(imageUrls)) {
     images = imageUrls
-  } 
+  }
   // 否则使用multer上传的文件
   else if (req.files && req.files.length > 0) {
-    images = req.files.map(f => `http://${publicHost}/uploads/${f.filename}`)
+    images = req.files.map(f => `${PUBLIC_BASE}/uploads/${f.filename}`)
   }
 
   if (!title || !type) {
@@ -891,7 +1141,7 @@ app.post('/items', authenticateToken, imageUpload.array('images', 5), async (req
   const id = uuidv4()
   const createdAt = Math.floor(Date.now() / 1000)
 
-  await pool.execute(
+  await pool.query(
     'INSERT INTO items (id, userId, title, description, type, status, images, contact, location, createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)',
     [id, req.user.id, title, description || '', type, 'active', JSON.stringify(images), contact || '', location || '', createdAt]
   )
@@ -900,120 +1150,65 @@ app.post('/items', authenticateToken, imageUpload.array('images', 5), async (req
 })
 
 app.get('/items', async (req, res) => {
-  const { page = 1, type = 'all', keyword = '', timeRange = 'all' } = req.query
-  const pageSize = 10
-  const offset = (page - 1) * pageSize
+  try {
+    const { page = 1, type = 'all', keyword = '', timeRange = 'all' } = req.query
+    const pageSize = 10
+    const offset = (page - 1) * pageSize
 
-  let where = "i.status = 'active'"
-  const params = []
-  if (type !== 'all') { where += ' AND i.type = ?'; params.push(type) }
-  if (keyword) { where += ' AND (i.title LIKE ? OR i.description LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`) }
-  
-  // 时间筛选
-  const now = Math.floor(Date.now() / 1000)
-  if (timeRange === 'day') {
-    where += ' AND i.createdAt >= ?'
-    params.push(now - 86400) // 24小时
-  } else if (timeRange === 'week') {
-    where += ' AND i.createdAt >= ?'
-    params.push(now - 604800) // 7天
-  } else if (timeRange === 'month') {
-    where += ' AND i.createdAt >= ?'
-    params.push(now - 2592000) // 30天
-  }
+    let where = "i.status = 'active'"
+    const params = []
+    if (type !== 'all') { where += ' AND i.type = ?'; params.push(type) }
+    if (keyword) { where += ' AND (i.title LIKE ? OR i.description LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`) }
 
-  const limit = parseInt(pageSize)
-  const offsetVal = parseInt(offset)
+    // 时间筛选
+    const now = Math.floor(Date.now() / 1000)
+    if (timeRange === 'day') {
+      where += ' AND i.createdAt >= ?'
+      params.push(now - 86400) // 24小时
+    } else if (timeRange === 'week') {
+      where += ' AND i.createdAt >= ?'
+      params.push(now - 604800) // 7天
+    } else if (timeRange === 'month') {
+      where += ' AND i.createdAt >= ?'
+      params.push(now - 2592000) // 30天
+    }
 
-  const [rows] = await pool.execute(
-    `SELECT i.*, u.name AS userName, u.phone AS userPhone FROM items i LEFT JOIN users u ON i.userId = u.id WHERE ${where} ORDER BY i.createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
-    params
-  )
+    const limit = parseInt(pageSize)
+    const offsetVal = parseInt(offset)
 
-  const [[{ total }]] = await pool.execute(`SELECT COUNT(*) AS total FROM items i WHERE ${where}`, params)
+    const [rows] = await pool.query(
+      `SELECT i.*, u.name AS userName, u.phone AS userPhone FROM items i LEFT JOIN users u ON i.userId = u.id WHERE ${where} ORDER BY i.createdAt DESC LIMIT ${limit} OFFSET ${offsetVal}`,
+      params
+    )
 
-  const items = rows.map(item => {
-    let images = JSON.parse(item.images || '[]')
-    // 统一转换为外网端口URL
-    const publicHost = '183.66.27.20:41412'
-    images = images.map(img => {
-      if (!img) return img
-      // 如果是旧的内网端口5000，替换为外网端口
-      if (img.includes(':5000')) {
-        return img.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-      }
-      // 如果是相对路径，添加完整URL
-      if (!img.startsWith('http://') && !img.startsWith('https://')) {
-        return `http://${publicHost}${img}`
-      }
-      // 如果已经是外网URL，直接返回
-      if (img.includes('183.66.27.20:41412')) {
-        return img
-      }
-      // 其他http/https URL，也替换为主机地址
-      try {
-        const urlObj = new URL(img)
-        urlObj.host = publicHost
-        return urlObj.toString()
-      } catch (e) {
-        return img
-      }
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM items i WHERE ${where}`, params)
+
+    const items = rows.map(item => {
+      const images = safeJSONParse(item.images).map(getPublicUrl)
+      item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '未知用户'
+      return { ...item, images }
     })
-    console.log('物品ID:', item.id, '图片URL:', images)
-    // 处理用户名空值
-    item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '未知用户'
-    return { ...item, images }
-  })
-  res.json({ data: items, total, page: parseInt(page), pageSize })
+    res.json({ data: items, total, page: parseInt(page), pageSize })
+  } catch (err) {
+    console.error('[API] /items 查询失败:', err.message || err, err.stack)
+    console.error('[API] 请求参数:', req.query)
+    res.status(500).json({ message: '服务器错误，请稍后重试' })
+  }
 })
 
 app.get('/items/:id', async (req, res) => {
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     'SELECT i.*, u.name AS userName, u.phone AS userPhone, u.avatar AS userAvatar, u.className AS userClassName FROM items i LEFT JOIN users u ON i.userId = u.id WHERE i.id = ?',
     [req.params.id]
   )
   if (rows.length === 0) return res.status(404).json({ message: '物品不存在' })
 
   const item = rows[0]
-  console.log('物品详情 - 发布者信息:', { userName: item.userName, userId: item.userId, userAvatar: item.userAvatar })
-  
-  let images = JSON.parse(item.images || '[]')
-  // 统一转换为外网端口URL
-  const publicHost = '183.66.27.20:41412'
-  images = images.map(img => {
-    if (!img) return img
-    // 如果是旧的内网端口5000，替换为外网端口
-    if (img.includes(':5000')) {
-      return img.replace(':5000', ':41412').replace('localhost', '183.66.27.20').replace('172.16.30.55', '183.66.27.20')
-    }
-    // 如果是相对路径，添加完整URL
-    if (!img.startsWith('http://') && !img.startsWith('https://')) {
-      return `http://${publicHost}${img}`
-    }
-    // 如果已经是外网URL，直接返回
-    if (img.includes('183.66.27.20:41412')) {
-      return img
-    }
-    // 其他http/https URL，也替换为主机地址
-    try {
-      const urlObj = new URL(img)
-      urlObj.host = publicHost
-      return urlObj.toString()
-    } catch (e) {
-      return img
-    }
-  })
-  item.images = images
-  
-  // 处理用户信息 - 空字符串转为null
+  item.images = safeJSONParse(item.images).map(getPublicUrl)
   item.userName = item.userName && item.userName.trim() !== '' ? item.userName : '未知用户'
   item.userPhone = item.userPhone || null
   item.userClassName = item.userClassName || null
-  
-  // 处理用户头像URL
-  if (item.userAvatar && !item.userAvatar.startsWith('http://') && !item.userAvatar.startsWith('https://')) {
-    item.userAvatar = `http://${publicHost}${item.userAvatar}`
-  }
+  item.userAvatar = getPublicUrl(item.userAvatar)
   
   console.log('物品详情 - 发布者信息:', { userName: item.userName, userId: item.userId, userAvatar: item.userAvatar })
   
@@ -1021,7 +1216,7 @@ app.get('/items/:id', async (req, res) => {
 })
 
 app.post('/items/:id/solve', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM items WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT * FROM items WHERE id = ?', [req.params.id])
   if (rows.length === 0) return res.status(404).json({ message: '物品不存在' })
 
   const item = rows[0]
@@ -1029,12 +1224,12 @@ app.post('/items/:id/solve', authenticateToken, async (req, res) => {
     return res.status(403).json({ message: '无权操作' })
   }
 
-  await pool.execute("UPDATE items SET status = 'solved' WHERE id = ?", [req.params.id])
+  await pool.query("UPDATE items SET status = 'solved' WHERE id = ?", [req.params.id])
   res.json({ success: true, message: '已标记为已解决' })
 })
 
 app.put('/items/:id', authenticateToken, imageUpload.array('images', 5), async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM items WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT * FROM items WHERE id = ?', [req.params.id])
   if (rows.length === 0) return res.status(404).json({ message: '物品不存在' })
 
   const item = rows[0]
@@ -1043,16 +1238,15 @@ app.put('/items/:id', authenticateToken, imageUpload.array('images', 5), async (
   }
 
   const { title, description, type, contact, location } = req.body
-  let images = JSON.parse(item.images || '[]')
+  let images = safeJSONParse(item.images)
   
-  // 如果有新上传的图片，添加到列表（使用外网端口）
+  // 如果有新上传的图片，添加到列表
   if (req.files && req.files.length > 0) {
-    const publicHost = '183.66.27.20:41412'
-    const newImages = req.files.map(f => `http://${publicHost}/uploads/${f.filename}`)
+    const newImages = req.files.map(f => `${PUBLIC_BASE}/uploads/${f.filename}`)
     images = [...images, ...newImages]
   }
 
-  await pool.execute(
+  await pool.query(
     'UPDATE items SET title = ?, description = ?, type = ?, contact = ?, location = ?, images = ? WHERE id = ?',
     [title || item.title, description || item.description, type || item.type, contact || item.contact, location || item.location, JSON.stringify(images), req.params.id]
   )
@@ -1061,7 +1255,7 @@ app.put('/items/:id', authenticateToken, imageUpload.array('images', 5), async (
 })
 
 app.delete('/items/:id', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM items WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT * FROM items WHERE id = ?', [req.params.id])
   if (rows.length === 0) return res.status(404).json({ message: '物品不存在' })
 
   const item = rows[0]
@@ -1069,55 +1263,67 @@ app.delete('/items/:id', authenticateToken, async (req, res) => {
     return res.status(403).json({ message: '无权操作' })
   }
 
-  await pool.execute('DELETE FROM items WHERE id = ?', [req.params.id])
+  await pool.query('DELETE FROM items WHERE id = ?', [req.params.id])
   res.json({ success: true, message: '删除成功' })
 })
 
 app.post('/upload/image', authenticateToken, imageUpload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: '请上传图片' })
-  // 使用外网端口返回完整URL
-  const publicHost = '183.66.27.20:41412'
-  const fullUrl = `http://${publicHost}/uploads/${req.file.filename}`
-  res.json({ url: fullUrl })
+  if (!req.file) {
+    console.warn('[Upload] 图片上传失败: 未收到文件, Content-Type:', req.headers['content-type'])
+    return res.status(400).json({ message: '请上传图片' })
+  }
+  console.log(`[Upload] 图片上传成功: ${req.file.filename} (${(req.file.size / 1024).toFixed(1)}KB)`)
+  res.json({ url: `${PUBLIC_BASE}/uploads/${req.file.filename}` })
+})
+
+// 注册用头像上传（无需登录，受注册频率限制保护）
+const avatarUpload = multer({
+  storage: imageStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 头像限2MB
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    if (ALLOWED_IMAGE_EXT.includes(ext)) {
+      cb(null, true)
+    } else {
+      cb(new Error('只支持图片格式'), false)
+    }
+  }
+})
+app.post('/upload/avatar', avatarUpload.single('image'), (req, res) => {
+  if (!req.file) {
+    console.warn('[Upload] 头像上传失败: 未收到文件, Content-Type:', req.headers['content-type'])
+    return res.status(400).json({ message: '请上传图片' })
+  }
+  console.log(`[Upload] 头像上传成功: ${req.file.filename} (${(req.file.size / 1024).toFixed(1)}KB)`)
+  res.json({ url: `${PUBLIC_BASE}/uploads/${req.file.filename}` })
 })
 
 app.post('/upload/video', authenticateToken, videoUpload.single('video'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: '请上传视频' })
-  // 使用外网端口返回完整URL
-  const publicHost = '183.66.27.20:41412'
-  const fullUrl = `http://${publicHost}/uploads/videos/${req.file.filename}`
-  res.json({ url: fullUrl })
+  if (!req.file) {
+    console.warn('[Upload] 视频上传失败: 未收到文件, Content-Type:', req.headers['content-type'])
+    return res.status(400).json({ message: '请上传视频' })
+  }
+  console.log(`[Upload] 视频上传成功: ${req.file.filename} (${(req.file.size / (1024*1024)).toFixed(1)}MB)`)
+  res.json({ url: `${PUBLIC_BASE}/uploads/videos/${req.file.filename}` })
 })
 
 app.get('/messages/unread/count', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT COUNT(*) AS count FROM messages WHERE receiverId = ? AND `read` = FALSE', [req.user.id])
+  const [rows] = await pool.query('SELECT COUNT(*) AS count FROM messages WHERE receiverId = ? AND `read` = FALSE', [req.user.id])
   res.json({ data: { count: rows[0].count } })
 })
 
 app.get('/messages/conversation/:userId', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     'SELECT m.*, u.name AS senderName, u.avatar AS senderAvatar FROM messages m LEFT JOIN users u ON m.senderId = u.id WHERE (m.senderId = ? AND m.receiverId = ?) OR (m.senderId = ? AND m.receiverId = ?) ORDER BY m.createdAt ASC',
     [req.user.id, req.params.userId, req.params.userId, req.user.id]
   )
 
-  const publicHost = '183.66.27.20:41412'
-  const messages = rows.map(m => {
-    // 转换时间戳为毫秒
-    const createdAt = m.createdAt * 1000
-    
-    // 处理头像URL
-    let senderAvatar = m.senderAvatar
-    if (senderAvatar && !senderAvatar.startsWith('http://') && !senderAvatar.startsWith('https://')) {
-      senderAvatar = `http://${publicHost}${senderAvatar}`
-    }
-    
-    return { 
-      ...m, 
-      createdAt,
-      senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '未知用户',
-      senderAvatar: senderAvatar || ''
-    }
-  })
+  const messages = rows.map(m => ({
+    ...m,
+    createdAt: m.createdAt * 1000,
+    senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '未知用户',
+    senderAvatar: getPublicUrl(m.senderAvatar)
+  }))
   res.json({ data: messages })
 })
 
@@ -1125,7 +1331,7 @@ app.get('/messages/conversation/:userId', authenticateToken, async (req, res) =>
 app.post('/messages/conversation/:userId/read', authenticateToken, async (req, res) => {
   try {
     // 将该用户发送给我且未读的消息标记为已读
-    await pool.execute(
+    await pool.query(
       'UPDATE messages SET `read` = TRUE WHERE senderId = ? AND receiverId = ? AND `read` = FALSE',
       [req.params.userId, req.user.id]
     )
@@ -1144,13 +1350,13 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
   }
 
   // 获取发送者信息
-  const [senderRows] = await pool.execute('SELECT * FROM users WHERE id = ?', [req.user.id])
-  const [receiverRows] = await pool.execute('SELECT * FROM users WHERE id = ?', [userId])
+  const [senderRows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.user.id])
+  const [receiverRows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId])
   
   if (receiverRows.length === 0) return res.status(404).json({ message: '用户不存在' })
 
   const receiver = receiverRows[0]
-  const blocked = JSON.parse(receiver.blockedUsers || '[]')
+  const blocked = safeJSONParse(receiver.blockedUsers)
   if (blocked.includes(req.user.id)) {
     return res.status(403).json({ message: '对方已将你拉黑，无法发送消息' })
   }
@@ -1158,7 +1364,7 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
   const id = uuidv4()
   const createdAt = Math.floor(Date.now() / 1000)
 
-  await pool.execute(
+  await pool.query(
     'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
     [id, req.user.id, userId, content || '', type, mediaUrl, false, createdAt]
   )
@@ -1185,7 +1391,7 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
 })
 
 app.post('/messages/:id/recall', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM messages WHERE id = ?', [req.params.id])
+  const [rows] = await pool.query('SELECT * FROM messages WHERE id = ?', [req.params.id])
   if (rows.length === 0) return res.status(404).json({ message: '消息不存在' })
 
   const msg = rows[0]
@@ -1202,7 +1408,7 @@ app.post('/messages/:id/recall', authenticateToken, async (req, res) => {
     return res.status(403).json({ message: '超过2分钟，无法撤回' })
   }
 
-  await pool.execute("UPDATE messages SET type = 'recalled', content = '', mediaUrl = '' WHERE id = ?", [req.params.id])
+  await pool.query("UPDATE messages SET type = 'recalled', content = '', mediaUrl = '' WHERE id = ?", [req.params.id])
   res.json({ success: true, message: '撤回成功' })
 })
 
@@ -1210,16 +1416,16 @@ app.post('/user/block', authenticateToken, async (req, res) => {
   const { userId } = req.body
   if (!userId) return res.status(400).json({ message: '参数错误' })
 
-  const [rows] = await pool.execute('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
+  const [rows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
   if (rows.length === 0) return res.status(404).json({ message: '用户不存在' })
 
-  let blocked = JSON.parse(rows[0].blockedUsers || '[]')
+  let blocked = safeJSONParse(rows[0]?.blockedUsers)
   if (!blocked.includes(userId)) {
     blocked.push(userId)
-    await pool.execute('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
+    await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
     
     // 拉黑后删除所有与该用户的对话消息
-    await pool.execute(
+    await pool.query(
       'DELETE FROM messages WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)',
       [req.user.id, userId, userId, req.user.id]
     )
@@ -1229,8 +1435,8 @@ app.post('/user/block', authenticateToken, async (req, res) => {
 })
 
 app.get('/user/blocked', authenticateToken, async (req, res) => {
-  const [rows] = await pool.execute('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
-  const blockedIds = JSON.parse(rows[0]?.blockedUsers || '[]')
+  const [rows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
+  const blockedIds = safeJSONParse(rows[0]?.blockedUsers)
   
   if (blockedIds.length === 0) {
     return res.json({ data: [] })
@@ -1238,23 +1444,16 @@ app.get('/user/blocked', authenticateToken, async (req, res) => {
   
   // 获取被拉黑用户的详细信息
   const placeholders = blockedIds.map(() => '?').join(',')
-  const [users] = await pool.execute(
+  const [users] = await pool.query(
     `SELECT id, name, avatar FROM users WHERE id IN (${placeholders})`,
     blockedIds
   )
   
-  const publicHost = '183.66.27.20:41412'
-  const blockedUsers = users.map(user => {
-    let avatar = user.avatar
-    if (avatar && !avatar.startsWith('http://') && !avatar.startsWith('https://')) {
-      avatar = `http://${publicHost}${avatar}`
-    }
-    return {
-      id: user.id,
-      name: user.name && user.name.trim() !== '' ? user.name : '未知用户',
-      avatar: avatar || ''
-    }
-  })
+  const blockedUsers = users.map(user => ({
+    id: user.id,
+    name: user.name && user.name.trim() !== '' ? user.name : '未知用户',
+    avatar: getPublicUrl(user.avatar)
+  }))
   
   res.json({ data: blockedUsers })
 })
@@ -1263,12 +1462,12 @@ app.post('/user/unblock', authenticateToken, async (req, res) => {
   const { userId } = req.body
   if (!userId) return res.status(400).json({ message: '参数错误' })
 
-  const [rows] = await pool.execute('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
+  const [rows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
   if (rows.length === 0) return res.status(404).json({ message: '用户不存在' })
 
-  let blocked = JSON.parse(rows[0].blockedUsers || '[]')
+  let blocked = safeJSONParse(rows[0]?.blockedUsers)
   blocked = blocked.filter(id => id !== userId)
-  await pool.execute('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
+  await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
 
   res.json({ success: true, message: '解除拉黑成功' })
 })
@@ -1277,7 +1476,7 @@ app.get('/user/search', authenticateToken, async (req, res) => {
   const { keyword } = req.query
   if (!keyword) return res.json({ data: [] })
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     "SELECT id, name, avatar, className FROM users WHERE status = 'approved' AND id != ? AND (name LIKE ? OR studentId LIKE ?)",
     [req.user.id, `%${keyword}%`, `%${keyword}%`]
   )
@@ -1287,19 +1486,19 @@ app.get('/user/search', authenticateToken, async (req, res) => {
 
 // 用户统计
 app.get('/user/stats', authenticateToken, async (req, res) => {
-  const [[{ lostActive }]] = await pool.execute(
+  const [[{ lostActive }]] = await pool.query(
     "SELECT COUNT(*) AS lostActive FROM items WHERE userId = ? AND type = 'lost' AND status = 'active'",
     [req.user.id]
   )
-  const [[{ foundActive }]] = await pool.execute(
+  const [[{ foundActive }]] = await pool.query(
     "SELECT COUNT(*) AS foundActive FROM items WHERE userId = ? AND type = 'found' AND status = 'active'",
     [req.user.id]
   )
-  const [[{ solved }]] = await pool.execute(
+  const [[{ solved }]] = await pool.query(
     "SELECT COUNT(*) AS solved FROM items WHERE userId = ? AND status = 'solved'",
     [req.user.id]
   )
-  const [[{ total }]] = await pool.execute(
+  const [[{ total }]] = await pool.query(
     "SELECT COUNT(*) AS total FROM items WHERE userId = ?",
     [req.user.id]
   )
@@ -1319,9 +1518,9 @@ app.get('/user/stats', authenticateToken, async (req, res) => {
 
 // 全局统计
 app.get('/stats', async (req, res) => {
-  const [[{ totalItems }]] = await pool.execute("SELECT COUNT(*) AS totalItems FROM items")
-  const [[{ activeItems }]] = await pool.execute("SELECT COUNT(*) AS activeItems FROM items WHERE status = 'active'")
-  const [[{ solvedItems }]] = await pool.execute("SELECT COUNT(*) AS solvedItems FROM items WHERE status = 'solved'")
+  const [[{ totalItems }]] = await pool.query("SELECT COUNT(*) AS totalItems FROM items")
+  const [[{ activeItems }]] = await pool.query("SELECT COUNT(*) AS activeItems FROM items WHERE status = 'active'")
+  const [[{ solvedItems }]] = await pool.query("SELECT COUNT(*) AS solvedItems FROM items WHERE status = 'solved'")
   res.json({ data: { totalItems, activeItems, solvedItems } })
 })
 
@@ -1339,20 +1538,20 @@ app.get('/user/items', authenticateToken, async (req, res) => {
   const limitVal = parseInt(pageSize)
   const offsetVal = parseInt(offset)
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT * FROM items WHERE ${where} ORDER BY createdAt DESC LIMIT ${limitVal} OFFSET ${offsetVal}`,
     params
   )
 
-  const [[{ total }]] = await pool.execute(`SELECT COUNT(*) AS total FROM items WHERE ${where}`, params)
-  const items = rows.map(item => ({ ...item, images: JSON.parse(item.images || '[]') }))
+  const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM items WHERE ${where}`, params)
+  const items = rows.map(item => ({ ...item, images: safeJSONParse(item.images) }))
   res.json({ data: items, total, page: parseInt(page), pageSize })
 })
 
 // 消息列表（最近联系人）
 app.get('/messages', authenticateToken, async (req, res) => {
   // 获取与当前用户有对话的所有用户
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT 
        CASE 
          WHEN m.senderId = ? THEN m.receiverId 
@@ -1382,23 +1581,14 @@ app.get('/messages', authenticateToken, async (req, res) => {
     [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]
   )
   
-  const publicHost = '183.66.27.20:41412'
-  const conversations = rows.map(row => {
-    // 处理头像URL
-    let userAvatar = row.userAvatar
-    if (userAvatar && !userAvatar.startsWith('http://') && !userAvatar.startsWith('https://')) {
-      userAvatar = `http://${publicHost}${userAvatar}`
-    }
-    
-    return {
-      userId: row.userId,
-      userName: row.userName && row.userName.trim() !== '' ? row.userName : '未知用户',
-      userAvatar: userAvatar || '',
-      lastTime: row.lastTime * 1000, // 转换为毫秒
-      unread: row.unread || 0,
-      lastMessage: row.lastMessage || ''
-    }
-  })
+  const conversations = rows.map(row => ({
+    userId: row.userId,
+    userName: row.userName && row.userName.trim() !== '' ? row.userName : '未知用户',
+    userAvatar: getPublicUrl(row.userAvatar),
+    lastTime: row.lastTime * 1000,
+    unread: row.unread || 0,
+    lastMessage: row.lastMessage || ''
+  }))
   
   res.json({ data: conversations })
 })
@@ -1433,16 +1623,16 @@ app.post('/admin/version/publish', authMiddleware, apkUpload.single('apk'), asyn
   const id = uuidv4()
   const createdAt = Math.floor(Date.now() / 1000)
 
-  await pool.execute(
-    'INSERT INTO versions (id, version, versionCode, changelog, apkUrl, forceUpdate, createdAt) VALUES (?,?,?,?,?,?,?)',
-    [id, version, parseInt(versionCode), changelog || '', apkUrl, forceUpdate === 'true' || forceUpdate === true, createdAt]
+  await pool.query(
+    'INSERT INTO versions (id, version, versionCode, title, changelog, apkUrl, forceUpdate, createdAt) VALUES (?,?,?,?,?,?,?,?)',
+    [id, version, parseInt(versionCode), version, changelog || '', apkUrl, forceUpdate === 'true' || forceUpdate === true, createdAt]
   )
 
   res.json({ success: true, data: { id, version, versionCode: parseInt(versionCode), changelog: changelog || '', apkUrl, forceUpdate: forceUpdate === 'true' || forceUpdate === true, createdAt } })
 })
 
 app.get('/version/latest', async (req, res) => {
-  const [rows] = await pool.execute('SELECT * FROM versions ORDER BY versionCode DESC LIMIT 1')
+  const [rows] = await pool.query('SELECT * FROM versions ORDER BY versionCode DESC LIMIT 1')
   res.json({ data: rows[0] || null })
 })
 
@@ -1451,14 +1641,20 @@ app.get('/version/list', async (req, res) => {
   const start = (page - 1) * pageSize
   const limitVal = parseInt(pageSize)
   const startVal = parseInt(start)
-  const [rows] = await pool.execute(`SELECT * FROM versions ORDER BY versionCode DESC LIMIT ${limitVal} OFFSET ${startVal}`)
-  const [[{ total }]] = await pool.execute('SELECT COUNT(*) AS total FROM versions')
+  const [rows] = await pool.query(`SELECT * FROM versions ORDER BY versionCode DESC LIMIT ${limitVal} OFFSET ${startVal}`)
+  const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM versions')
   res.json({ data: rows, total })
 })
 
 app.delete('/admin/version/:id', authMiddleware, async (req, res) => {
-  await pool.execute('DELETE FROM versions WHERE id = ?', [req.params.id])
-  res.json({ success: true })
+  try {
+    await pool.query('DELETE FROM versions WHERE id = ?', [req.params.id])
+    console.log(`[ADMIN] 版本已删除: ${req.params.id}`)
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[ADMIN] 删除版本失败:', err.message || err)
+    res.status(500).json({ success: false, message: '删除失败，请重试' })
+  }
 })
 
 // ==================== 数据库备份管理 ====================
@@ -1532,7 +1728,7 @@ function generateToken() {
 // 获取加密的下载地址（临时token）
 app.get('/version/:id/download-url', async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM versions WHERE id = ?', [req.params.id])
+    const [rows] = await pool.query('SELECT * FROM versions WHERE id = ?', [req.params.id])
     if (rows.length === 0) {
       return res.status(404).json({ message: '版本不存在' })
     }
@@ -1608,6 +1804,24 @@ app.get('/api/heartbeat', (req, res) => {
   })
 })
 
+// 全局错误处理（捕获 async handler 和 multer 的错误）
+app.use((err, req, res, next) => {
+  console.error('[Express 错误]', err.message || err)
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: '文件大小超出限制' })
+    }
+    return res.status(400).json({ message: `上传错误: ${err.message}` })
+  }
+  if (err.message === '只支持图片格式') {
+    return res.status(400).json({ message: '不支持的图片格式，请选择 JPG/PNG/GIF/WebP' })
+  }
+  if (err.message === '只支持视频格式') {
+    return res.status(400).json({ message: '不支持的视频格式，请选择 MP4/MOV/AVI/WMV' })
+  }
+  res.status(500).json({ message: '服务器内部错误' })
+})
+
 function getLocalIP() {
   const interfaces = os.networkInterfaces()
   for (const name of Object.keys(interfaces)) {
@@ -1626,22 +1840,30 @@ const localIP = getLocalIP()
 
 // 捕获未捕获的异常
 process.on('uncaughtException', (err) => {
-  console.error('[系统错误] 未捕获的异常:', err)
-  console.error(err.stack)
+  console.error('[系统错误] 未捕获的异常:', err.message || err, err.stack)
 })
 
 // 捕获未处理的Promise拒绝
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[系统错误] 未处理的 Promise 拒绝:', reason)
+  // 尝试获取完整错误信息
+  const msg = reason?.message || reason?.sqlMessage || reason?.code || JSON.stringify(reason)
+  console.error('[系统错误] 未处理的 Promise 拒绝:', msg)
+  if (reason?.stack) {
+    console.error('[系统错误] 调用堆栈:', reason.stack)
+  } else {
+    // 没有 stack 时，打印完整错误对象和生成新堆栈
+    console.error('[系统错误] 完整错误对象:', reason)
+    console.error('[系统错误] 错误类型:', typeof reason, reason?.constructor?.name)
+    try { console.error('[系统错误] 当前堆栈:', new Error('追踪未处理拒绝位置').stack) } catch (_) {}
+  }
 })
 
 // 优雅退出
 function gracefulExit() {
   console.log('[系统] 正在关闭...')
-  if (logStream) {
-    logStream.end()
-    console.log('[日志] 日志文件已保存')
-  }
+  clearInterval(flushTimer)
+  flushLogs()
+  console.log('[日志] 日志缓冲区已刷盘')
   process.exit(0)
 }
 
@@ -1657,29 +1879,36 @@ process.on('SIGINT', () => {
 
 // 启动
 ;(async () => {
-  await initDatabase()
-  
-  // 立即备份一次
-  await backupDatabase()
-  
-  // 设置24小时自动备份
-  const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24小时
-  setInterval(backupDatabase, BACKUP_INTERVAL)
-  console.log(`[备份] ⏰ 已设置自动备份，每24小时执行一次`)
-  
-  // 调试：显示环境变量是否加载成功（不暴露敏感信息）
-  const adminUser = process.env.ADMIN_USER
-  const adminPass = process.env.ADMIN_PASS
-  console.log('环境变量配置:', {
-    ADMIN_USER: adminUser ? '***已设置***' : '(未设置)',
-    ADMIN_PASS: adminPass ? '***已设置***' : '(未设置)'
-  })
-  
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`服务器运行在 http://localhost:${port}`)
-    console.log(`局域网访问: http://${localIP}:${port}`)
-    console.log(`外网映射: http://183.66.27.20:41412 (端口映射)`)
-    console.log(`Web管理后台: http://183.66.27.20:41412/admin/login`)
-    console.log(`WebSocket 服务已启动`)
-  })
+  try {
+    await initDatabase()
+
+    // 立即备份一次
+    await backupDatabase()
+
+    // 设置24小时自动备份
+    const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24小时
+    setInterval(backupDatabase, BACKUP_INTERVAL)
+    console.log(`[备份] ⏰ 已设置自动备份，每24小时执行一次`)
+
+    // 调试：显示环境变量是否加载成功（不暴露敏感信息）
+    const adminUser = process.env.ADMIN_USER
+    const adminPass = process.env.ADMIN_PASS
+    const jwtSecret = process.env.JWT_SECRET
+    console.log('环境变量配置:', {
+      ADMIN_USER: adminUser ? '***已设置***' : '(未设置)',
+      ADMIN_PASS: adminPass ? '***已设置***' : '(未设置)',
+      JWT_SECRET: jwtSecret ? '***已设置(长度:' + jwtSecret.length + ')***' : '(未设置，使用默认值)'
+    })
+
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`服务器运行在 http://localhost:${port}`)
+      console.log(`局域网访问: http://${localIP}:${port}`)
+      console.log(`外网映射: ${PUBLIC_BASE} (端口映射)`)
+      console.log(`Web管理后台: ${PUBLIC_BASE}/admin/login`)
+      console.log(`WebSocket 服务已启动`)
+    })
+  } catch (e) {
+    console.error('[启动失败]', e.message || e, e.stack)
+    process.exit(1)
+  }
 })()

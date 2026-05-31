@@ -257,10 +257,12 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: async (res) => {
+          console.log('[用户中心] 选择图片成功:', res.tempFilePaths[0])
           const filePath = res.tempFilePaths[0]
           uni.showLoading({ title: '上传中...' })
           try {
             const result = await api.uploadImage(filePath)
+            console.log('[用户中心] 上传成功:', result.url)
             
             await api.updateUserInfo({ avatar: result.url })
             
@@ -271,8 +273,13 @@ export default {
             uni.showToast({ title: '头像更新成功', icon: 'success' })
           } catch (err) {
             uni.hideLoading()
-            uni.showToast({ title: '上传失败', icon: 'none' })
+            console.error('[用户中心] 上传失败:', err)
+            uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
           }
+        },
+        fail: (err) => {
+          console.error('[用户中心] 选择图片失败:', err)
+          uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
     },

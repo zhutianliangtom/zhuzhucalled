@@ -16,12 +16,6 @@ const loginFailures = new Map();
 // 注册限制存储
 const registerAttempts = new Map();
 
-// 每分钟注册统计
-const registrationStats = {
-  count: 0,
-  startTime: Date.now()
-};
-
 // 清理过期项
 function cleanupRateLimits() {
   const now = Date.now();
@@ -50,10 +44,16 @@ function rateLimitMiddleware(options = {}) {
   const {
     windowMs = 60000,
     max = 100,
-    message = '请求过于频繁，请稍后再试'
+    message = '请求过于频繁，请稍后再试',
+    skipPaths = [] // 排除的路径列表
   } = options;
 
   return (req, res, next) => {
+    // 对心跳、未读数等轮询接口排除速率限制
+    if (skipPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+
     const key = req.ip || req.socket.remoteAddress;
     const now = Date.now();
     
@@ -87,25 +87,6 @@ function rateLimitMiddleware(options = {}) {
 function registerLimit(req, res, next) {
   const key = req.ip || req.socket.remoteAddress;
   const now = Date.now();
-
-  // 更新注册统计
-  if (now - registrationStats.startTime > 60000) {
-    registrationStats.count = 0;
-    registrationStats.startTime = now;
-  }
-  registrationStats.count++;
-
-  // 1分钟超过100次注册，直接拒绝
-  if (registrationStats.count > 100) {
-    logSecurityEvent('MASS_REGISTRATION_ATTACK', {
-      ip: key,
-      count: registrationStats.count,
-      timeWindow: '1分钟'
-    });
-    return res.status(429).json({ 
-      message: '检测到异常注册行为，请稍后再试' 
-    });
-  }
 
   // 单个IP 10分钟内只能注册1次
   const attempt = registerAttempts.get(key);
@@ -169,7 +150,7 @@ function loginLimit(req, res, next) {
   next();
 }
 
-// XSS防护 - 转义HTML
+// XSS防护 - 转义HTML特殊字符（用于查询参数渲染）
 function sanitizeXSS(str) {
   if (typeof str !== 'string') return str;
   return str
@@ -177,19 +158,12 @@ function sanitizeXSS(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+    .replace(/'/g, '&#x27;');
 }
 
-// XSS防护中间件
+// XSS防护中间件 - 仅清理查询参数（用于HTML渲染）
+// req.body 不做修改：数据库操作由参数化查询保护，JSON输出由res.json保护，HTML输出由EJS自动转义
 function xssProtection(req, res, next) {
-  if (req.body && typeof req.body === 'object') {
-    for (const key in req.body) {
-      if (typeof req.body[key] === 'string') {
-        req.body[key] = sanitizeXSS(req.body[key]);
-      }
-    }
-  }
   if (req.query && typeof req.query === 'object') {
     for (const key in req.query) {
       if (typeof req.query[key] === 'string') {
@@ -200,15 +174,19 @@ function xssProtection(req, res, next) {
   next();
 }
 
-// SQL注入检测
+// SQL注入检测 - 仅检测真正的注入攻击模式
+// 参数化查询已由 mysql2 驱动处理，此层作为额外防线
 function detectSQLInjection(str) {
   if (typeof str !== 'string') return false;
+  const len = str.length;
+  if (len === 0) return false;
   const patterns = [
-    /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
-    /\b(AND|OR)\b\s+\d+\s*=\s*\d+/i,
-    /\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b/i,
-    /\b(EXEC|EXECUTE)\b/i,
-    /\b(DECLARE|SET)\b/i
+    /;\s*(DROP|DELETE|TRUNCATE|ALTER|CREATE|EXEC)\b/i,  // 堆叠查询
+    /\bUNION\s+(ALL\s+)?SELECT\b/i,                      // UNION注入
+    /\b(OR|AND)\s+\d+\s*=\s*\d+\s*--/i,                  // 数字比较注入
+    /\bWAITFOR\s+DELAY\b/i,                                // 时间盲注
+    /\bBENCHMARK\s*\(/i,                                    // 基准测试注入
+    /\bSLEEP\s*\(/i,                                       // 睡眠注入
   ];
   return patterns.some(p => p.test(str));
 }

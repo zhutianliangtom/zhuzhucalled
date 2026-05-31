@@ -90,29 +90,42 @@ export default {
       uni.navigateBack()
     },
     chooseAvatar() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      
       uni.chooseImage({
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
+          console.log('[头像] 选择图片成功:', res.tempFilePaths[0])
           const filePath = res.tempFilePaths[0]
-          // 跳转到裁剪页面
           uni.navigateTo({
             url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(filePath)}`
           })
+        },
+        fail: (err) => {
+          console.error('[头像] 选择图片失败:', err)
+          uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
     },
-    // 处理裁剪结果
     async handleCropResult(imagePath) {
+      console.log('[头像] 裁剪完成，准备上传:', imagePath)
       uni.showLoading({ title: '上传中...' })
       try {
         const result = await api.uploadImage(imagePath)
+        console.log('[头像] 上传成功:', result.url)
         this.formData.avatar = result.url
         uni.hideLoading()
+        uni.showToast({ title: '头像已更新', icon: 'success' })
       } catch (err) {
         uni.hideLoading()
-        uni.showToast({ title: '上传失败', icon: 'none' })
+        console.error('[头像] 上传失败:', err)
+        uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
       }
     },
     async submitForm() {

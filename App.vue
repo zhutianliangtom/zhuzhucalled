@@ -11,6 +11,9 @@ let globalNetworkStatus = {
 // 基础API地址
 const baseUrl = 'http://183.66.27.20:41412'
 
+// 保活定时器引用
+let keepAliveTimer = null
+
 // 设置网络状态
 export function setNetworkStatus(isOffline) {
   globalNetworkStatus.isOffline = isOffline
@@ -143,6 +146,13 @@ export default {
       }
     } catch (e) {
       console.error('停止心跳失败:', e)
+    }
+    
+    // 清理保活定时器
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer)
+      keepAliveTimer = null
+      console.log('保活定时器已清理')
     }
   },
   methods: {
@@ -293,7 +303,7 @@ export default {
       // #ifdef APP-PLUS
       try {
         // 每30秒执行一次心跳
-        setInterval(() => {
+        keepAliveTimer = setInterval(() => {
           try {
             // 1. 发送网络心跳
             if (api && api.checkHeartbeat) {

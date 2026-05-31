@@ -2,6 +2,9 @@
   <view class="container">
     <!-- 断网提示条 -->
     <offline-banner />
+
+    <!-- 首次使用引导 -->
+    <guide-modal ref="guideModal" />
     
     <!-- 固定的头部区域 -->
     <view class="fixed-header" :style="{ paddingTop: statusBarHeight + 'px' }">
@@ -153,10 +156,12 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import OfflineBanner from '@/components/OfflineBanner.vue'
+import GuideModal from '@/components/GuideModal.vue'
 
 export default {
   components: {
-    OfflineBanner
+    OfflineBanner,
+    GuideModal
   },
   data() {
     return {
@@ -197,11 +202,11 @@ export default {
   onLoad() {
     this.getStatusBarHeight()
     this.loadItems()
+    this.$nextTick(() => {
+      this.checkShowGuide()
+    })
   },
   onShow() {
-    if (this.items.length === 0) {
-      this.loadItems()
-    }
     this.currentTabBarIndex = 0
     // 只有登录状态下才加载未读数
     this.checkLoginAndLoadUnread()
@@ -211,6 +216,12 @@ export default {
     this.stopPoll()
   },
   methods: {
+    checkShowGuide() {
+      const settings = storage.getSettings() || {}
+      if (!settings.guide_shown) {
+        this.$refs.guideModal.show()
+      }
+    },
     getStatusBarHeight() {
       try {
         const systemInfo = uni.getSystemInfoSync()
@@ -232,24 +243,35 @@ export default {
     async loadItems() {
       if (this.loading) return
       this.loading = true
-      
+
       try {
         const params = {
           page: this.page,
-          pageSize: this.pageSize,
-          type: this.activeTab === 'all' ? '' : this.activeTab,
-          keyword: this.searchKeyword,
-          timeRange: this.activeTimeFilter
+          pageSize: this.pageSize
         }
-        
+        // 传递分类筛选参数
+        if (this.activeTab && this.activeTab !== 'all') {
+          params.type = this.activeTab
+        }
+        // 传递时间筛选参数
+        if (this.activeTimeFilter && this.activeTimeFilter !== 'all') {
+          params.timeRange = this.activeTimeFilter
+        }
+        // 传递搜索关键词
+        if (this.searchKeyword && this.searchKeyword.trim()) {
+          params.keyword = this.searchKeyword.trim()
+        }
+
         const res = await api.getItems(params)
-        if (this.page === 1) {
+
+        if (res && res.data && res.data.length > 0) {
           this.items = res.data
         } else {
-          this.items = [...this.items, ...res.data]
+          this.items = []
         }
       } catch (err) {
-        console.error(err)
+        console.error('[首页] 加载失败:', err)
+        this.items = []
       } finally {
         this.loading = false
       }
@@ -322,7 +344,7 @@ export default {
         if (token) {
           this.loadUnreadCount()
         }
-      }, 3000)
+      }, 15000) // 15秒轮询一次，避免请求过于频繁
     },
     stopPoll() {
       if (this.pollTimer) {

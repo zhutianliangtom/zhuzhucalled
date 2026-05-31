@@ -356,36 +356,58 @@ export default {
       }
     },
     chooseImage() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      
       uni.chooseImage({
         count: 9,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: async (res) => {
           const filePaths = res.tempFilePaths
+          console.log('[聊天] 选择图片成功，数量:', filePaths.length)
           uni.showLoading({ title: '上传中...' })
           
           try {
             for (let filePath of filePaths) {
+              console.log('[聊天] 上传图片:', filePath)
               const result = await api.uploadImage(filePath)
+              console.log('[聊天] 图片上传成功:', result.url)
               await api.sendMessage(this.userId, '', 'image', result.url)
             }
             uni.hideLoading()
+            uni.showToast({ title: '发送成功', icon: 'success' })
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
-            uni.showToast({ title: '图片发送失败', icon: 'none' })
+            console.error('[聊天] 图片发送失败:', err)
+            uni.showToast({ title: err.message || '图片发送失败', icon: 'none', duration: 3000 })
           }
+        },
+        fail: (err) => {
+          console.error('[聊天] 选择图片失败:', err)
+          uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
     },
     chooseVideo() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      
       uni.chooseVideo({
         sourceType: ['album', 'camera'],
         maxDuration: 60,
         camera: 'back',
-        compressed: false, // 不压缩视频，保持原始质量
+        compressed: false,
         success: async (res) => {
           const { tempFilePath, size } = res
+          console.log('[聊天] 选择视频成功:', tempFilePath, '大小:', size)
           
           if (size > 1024 * 1024 * 1024) {
             uni.showToast({ title: '视频大小不能超过1GB', icon: 'none' })
@@ -395,17 +417,22 @@ export default {
           uni.showLoading({ title: '上传视频中...' })
           
           try {
+            console.log('[聊天] 开始上传视频')
             const result = await api.uploadVideo(tempFilePath)
+            console.log('[聊天] 视频上传成功:', result.url)
             await api.sendMessage(this.userId, '', 'video', result.url)
             uni.hideLoading()
+            uni.showToast({ title: '发送成功', icon: 'success' })
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
-            uni.showToast({ title: '视频发送失败', icon: 'none' })
+            console.error('[聊天] 视频发送失败:', err)
+            uni.showToast({ title: err.message || '视频发送失败', icon: 'none', duration: 3000 })
           }
         },
-        fail: () => {
-          uni.showToast({ title: '取消选择', icon: 'none' })
+        fail: (err) => {
+          console.error('[聊天] 选择视频失败:', err)
+          uni.showToast({ title: '选择视频失败', icon: 'none' })
         }
       })
     },
