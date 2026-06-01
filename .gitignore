@@ -38,3 +38,5 @@ yarn-error.log*
 *.temp
 *.zip
 .workbuddy/
+*.crt
+*.key
