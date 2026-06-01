@@ -281,16 +281,9 @@ function safeJSONParse(str, fallback = []) {
 
 // MySQL 连接池 (兼容MySQL 9.7.0)
 
-// 调试：打印环境变量加载情况
-console.log('[调试] 环境变量检查:')
-console.log('[调试] MYSQL_HOST:', process.env.MYSQL_HOST || '(未设置，使用默认localhost)')
-console.log('[调试] MYSQL_PORT:', process.env.MYSQL_PORT || '(未设置，使用默认3306)')
-console.log('[调试] MYSQL_USER:', process.env.MYSQL_USER || '(未设置，使用默认root)')
-console.log('[调试] MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '***已设置***' : '(未设置，将使用默认windows10)')
-console.log('[调试] MYSQL_PASSWORD长度:', process.env.MYSQL_PASSWORD ? process.env.MYSQL_PASSWORD.length : 0)
-console.log('[调试] MYSQL_PASSWORD实际值(脱敏):', process.env.MYSQL_PASSWORD ? 'w' + '*'.repeat(process.env.MYSQL_PASSWORD.length - 1) : '(空)')
-console.log('[调试] MYSQL_DATABASE:', process.env.MYSQL_DATABASE || '(未设置，使用默认lost_found)')
-console.log('[调试] 最终使用的密码:', (process.env.MYSQL_PASSWORD || 'windows10').substring(0, 2) + '***')
+// 调试：打印环境变量加载情况（已脱敏）
+console.log('[配置] MySQL:', process.env.MYSQL_HOST || 'localhost', ':', process.env.MYSQL_PORT || 3306, '/', process.env.MYSQL_DATABASE || 'lost_found')
+console.log('[配置] MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '已设置' : '(未设置)')
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || 'localhost',
@@ -392,8 +385,7 @@ async function initDatabase() {
   // 1. 先连接 MySQL (不指定数据库) 创建数据库
   try {
     console.log('[initDatabase] 准备创建临时连接池')
-    console.log('[initDatabase] process.env.MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '已设置(长度:' + process.env.MYSQL_PASSWORD.length + ')' : '未设置')
-    console.log('[initDatabase] 使用的密码:', process.env.MYSQL_PASSWORD || 'windows10', '(长度:', (process.env.MYSQL_PASSWORD || 'windows10').length, ')')
+    console.log('[initDatabase] MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? '已设置' : '未设置')
     
     const tempPool = mysql.createPool({
       host: process.env.MYSQL_HOST || 'localhost',
@@ -720,10 +712,16 @@ async function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-    // 验证用户是否存在
-    const [rows] = await pool.query('SELECT id, studentId FROM users WHERE id = ?', [decoded.id])
+    // 验证用户是否存在且状态正常
+    const [rows] = await pool.query(
+      'SELECT id, studentId, status FROM users WHERE id = ?',
+      [decoded.id]
+    )
     if (rows.length === 0) {
       return res.status(401).json({ message: '用户不存在，请重新登录' })
+    }
+    if (rows[0].status !== 'approved') {
+      return res.status(403).json({ message: '账号待审核或已被拒绝，请联系管理员' })
     }
     req.user = decoded
     next()
@@ -1544,7 +1542,7 @@ app.get('/user/items', authenticateToken, async (req, res) => {
   )
 
   const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM items WHERE ${where}`, params)
-  const items = rows.map(item => ({ ...item, images: safeJSONParse(item.images) }))
+  const items = rows.map(item => ({ ...item, images: safeJSONParse(item.images).map(getPublicUrl) }))
   res.json({ data: items, total, page: parseInt(page), pageSize })
 })
 
@@ -1698,8 +1696,10 @@ app.get('/admin/backups', authMiddleware, async (req, res) => {
 // 下载备份文件
 app.get('/admin/backups/:filename', authMiddleware, async (req, res) => {
   try {
-    const filename = req.params.filename
-    if (!filename.startsWith('backup_') || !filename.endsWith('.sql')) {
+    const raw = req.params.filename
+    // 防止路径遍历：只取文件名，拒绝含目录字符的输入
+    const filename = path.basename(raw)
+    if (raw !== filename || !filename.startsWith('backup_') || !filename.endsWith('.sql')) {
       return res.status(400).json({ success: false, message: '无效的文件名' })
     }
     const filePath = path.join(BACKUP_DIR, filename)
