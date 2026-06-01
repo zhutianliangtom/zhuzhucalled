@@ -1778,10 +1778,7 @@ app.get('/download/encrypted/:token', async (req, res) => {
     return res.status(404).json({ message: '下载链接已过期，请重新获取' })
   }
 
-  // 一次性使用，下载后删除token
-  downloadTokens.delete(token)
-
-  // 下载文件
+  // 下载文件（token 在有效期内可重复使用，防止下载失败后无法重试）
   const filePath = path.join(__dirname, tokenData.apkUrl)
   res.download(filePath, `campus-lostfound-v${tokenData.version}.apk`)
 })
