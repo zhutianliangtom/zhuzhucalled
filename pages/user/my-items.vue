@@ -104,7 +104,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .header {
@@ -112,7 +112,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 60rpx 30rpx 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
 }
 
 .back-btn {
@@ -122,13 +122,13 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 48rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .title {
   font-size: 32rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .placeholder {
@@ -137,9 +137,9 @@ export default {
 
 .tabs {
   display: flex;
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 0 20rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
 }
 
 .tab-item {
@@ -147,7 +147,7 @@ export default {
   padding: 25rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   position: relative;
 }
 
@@ -187,7 +187,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
 }
 
 .items-list {
@@ -198,7 +198,7 @@ export default {
 
 .item-card {
   display: flex;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
@@ -231,7 +231,7 @@ export default {
 }
 
 .tag-lost {
-  background: #1a1a2e3e0;
+  background: #ffffff3e0;
   color: #ff9800;
 }
 
@@ -242,19 +242,19 @@ export default {
 
 .item-time {
   font-size: 22rpx;
-  color: #777;
+  color: #999;
 }
 
 .item-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   margin-bottom: 10rpx;
 }
 
 .item-desc {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;

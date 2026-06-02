@@ -134,7 +134,7 @@ export default {
 }
 
 .form {
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 20rpx;
   padding: 40rpx;
   box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.1);
@@ -146,7 +146,7 @@ export default {
 
 .label {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   margin-bottom: 10rpx;
   display: block;
 }
@@ -154,7 +154,7 @@ export default {
 .input {
   width: 100%;
   height: 80rpx;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
   border-radius: 10rpx;
   padding: 0 20rpx;
   font-size: 28rpx;
@@ -182,7 +182,7 @@ export default {
 
 .checkbox-text {
   font-size: 26rpx;
-  color: #777;
+  color: #999;
 }
 
 .submit-btn {

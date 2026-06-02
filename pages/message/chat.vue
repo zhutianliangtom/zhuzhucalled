@@ -575,8 +575,8 @@ export default {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #1a1a2e;
-  border-bottom: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-bottom: 1rpx solid #eee;
 }
 
 .back-btn {
@@ -586,7 +586,7 @@ export default {
   align-items: center;
   justify-content: center;
   margin-right: 20rpx;
-  text { font-size: 48rpx; color: #e0e0e0; }
+  text { font-size: 48rpx; color: #333; }
 }
 
 .more-btn {
@@ -596,7 +596,7 @@ export default {
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  text { font-size: 40rpx; color: #777; }
+  text { font-size: 40rpx; color: #999; }
 }
 
 .user-info {
@@ -629,7 +629,7 @@ export default {
 .user-name {
   font-size: 32rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   margin-left: 16rpx;
 }
 
@@ -709,8 +709,8 @@ export default {
 }
 
 .message-item.other .text-message {
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: #ffffff;
+  color: #333;
   border-radius: 8rpx 24rpx 24rpx 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
@@ -823,7 +823,7 @@ export default {
   border-radius: 20rpx;
   text {
     font-size: 24rpx;
-    color: #777;
+    color: #999;
     font-style: italic;
   }
 }
@@ -841,9 +841,9 @@ export default {
 
 /* ─── Input Area ─── */
 .input-area {
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 20rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #2a2a3e;
+  border-top: 1rpx solid #eee;
   flex-shrink: 0;
 }
 
@@ -865,7 +865,7 @@ export default {
 .input-wrapper {
   display: flex;
   align-items: center;
-  background: #0f0f1a;
+  background: #f5f5f5;
   border-radius: 40rpx;
   padding: 0 20rpx;
 }
@@ -895,7 +895,7 @@ export default {
 
 .context-menu {
   position: absolute;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 16rpx;
   box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.18);
   overflow: hidden;
@@ -913,9 +913,9 @@ export default {
   display: flex;
   align-items: center;
   padding: 28rpx 36rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
   &:last-child { border-bottom: none; }
-  &:active { background: #0f0f1a; }
+  &:active { background: #f5f5f5; }
 
   .menu-icon {
     font-size: 32rpx;
@@ -923,7 +923,7 @@ export default {
   }
   .menu-label {
     font-size: 28rpx;
-    color: #e0e0e0;
+    color: #333;
   }
 
   &.danger .menu-label {
@@ -938,7 +938,7 @@ export default {
   bottom: 260rpx;
   width: 80rpx;
   height: 80rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 50%;
   box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.15);
   display: flex;

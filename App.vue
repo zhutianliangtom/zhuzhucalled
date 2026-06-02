@@ -55,10 +55,20 @@ function getAppVersion() {
 export default {
   onLaunch: function() {
     console.log('App Launch')
-    
-    // 设置全局深色模式
-    this.setGlobalDarkMode()
-    
+
+    // 应用主题设置
+    this.applyTheme()
+
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      const pages = getCurrentPages()
+      const page = pages[pages.length - 1]
+      if (page && page.$el && page.$el.classList) {
+        if (isDark) page.$el.classList.add('theme-dark')
+        else page.$el.classList.remove('theme-dark')
+      }
+    })
+
     // 申请通知权限
     this.requestNotificationPermission()
     
@@ -484,24 +494,39 @@ export default {
       }
       // #endif
     },
-    // 设置全局深色模式
-    setGlobalDarkMode() {
+    // 根据设置应用主题（浅色/深色）
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      const isDark = settings.theme === 'dark'
       // #ifdef APP-PLUS
       try {
         if (typeof plus !== 'undefined' && plus.navigator) {
-          // 设置状态栏为深色背景，白色文字
-          plus.navigator.setStatusBarStyle('light')
-          plus.navigator.setStatusBarBackground('#1a1a1a')
-          
-          // 设置系统导航栏为深色
-          if (plus.navigator.setNavigationBarColor) {
-            plus.navigator.setNavigationBarColor('#1a1a1a')
+          if (isDark) {
+            plus.navigator.setStatusBarStyle('light')
+            plus.navigator.setStatusBarBackground('#1a1a2e')
+            if (plus.navigator.setNavigationBarColor) {
+              plus.navigator.setNavigationBarColor('#1a1a2e')
+            }
+          } else {
+            plus.navigator.setStatusBarStyle('dark')
+            plus.navigator.setStatusBarBackground('#ffffff')
+            if (plus.navigator.setNavigationBarColor) {
+              plus.navigator.setNavigationBarColor('#ffffff')
+            }
           }
         }
-      } catch (e) {
-        console.error('设置深色模式失败:', e)
-      }
+      } catch (e) {}
       // #endif
+
+      // 延迟给当前页面加主题类（等页面渲染完成）
+      setTimeout(() => {
+        const pages = getCurrentPages()
+        const page = pages[pages.length - 1]
+        if (page && page.$el && page.$el.classList) {
+          if (isDark) page.$el.classList.add('theme-dark')
+          else page.$el.classList.remove('theme-dark')
+        }
+      }, 300)
     }
   }
 }
@@ -513,20 +538,51 @@ export default {
   /* #ifndef APP-NVUE */
   @import '@/static/customicons.css';
 
-  // 全局深色模式
-  page {
-    background-color: #0f0f1a;
-  }
-
-  // 修复底部导航栏白边 - 覆盖所有层级
+  // 默认浅色模式
+  page { background-color: #f5f5f5; }
   /* #ifdef APP-PLUS */
   .uni-app--showleftwindow,
-  .uni-page-body,
-  .uni-app,
-  uni-page-wrapper,
-  uni-page-body {
-    background-color: #0f0f1a !important;
-  }
+  .uni-page-body, .uni-app,
+  uni-page-wrapper, uni-page-body { background-color: #f5f5f5 !important; }
   /* #endif */
+
+  // ========== 深色模式全局覆盖 ==========
+  page.theme-dark {
+    background-color: #0f0f1a;
+    /* #ifdef APP-PLUS */
+    .uni-app--showleftwindow, .uni-page-body, .uni-app,
+    uni-page-wrapper, uni-page-body { background-color: #0f0f1a !important; }
+    /* #endif */
+
+    // 容器
+    .container { background-color: #0f0f1a; }
+    // 卡片
+    .item-card, .form, .menu-list, .menu-item, .conversation-item,
+    .settings-list, .settings-item, .stats-section, .guest-card,
+    .user-header, .detail-card, .publish-form { background-color: #1a1a2e; }
+    // 头部
+    .header, .fixed-header { background: #1a1a2e; }
+    // 分隔
+    .stat-divider { background: #2a2a3e; }
+    .tabbar-container .custom-tabbar { background: #1a1a2e; border-top-color: #2a2a3e; }
+    // 文字
+    .item-title, .title, .user-name, .label, .menu-text, .conv-name,
+    .settings-text, .header-title, .detail-title, .guest-title { color: #e0e0e0; }
+    .item-desc, .item-time, .tab-text, .user-class, .menu-count,
+    .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
+    .settings-arrow, .version-text, .search-placeholder { color: #999; }
+    // 边框
+    .input, .search-bar, .form-item input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
+    // 搜索
+    .search-bar { background: rgba(26, 26, 46, 0.95); }
+    // 标签/筛选
+    .tabs, .time-filter { background: #1a1a2e; border-bottom-color: #2a2a3e; }
+    .tab-item { color: #999; }
+    .time-filter-item { background: #2a2a3e; color: #999; }
+    // 导航栏
+    .tab-text { color: #666; }
+    // 空状态
+    .empty-icon { opacity: 0.6; }
+  }
   /* #endif */
 </style>

@@ -55,39 +55,40 @@ export default {
   methods: {
     loadSettings() {
       const settings = storage.getSettings() || {}
-      this.darkMode = settings.darkMode !== undefined ? settings.darkMode : false
+      this.darkMode = settings.theme === 'dark'
     },
     goBack() {
       uni.navigateBack()
     },
     toggleNotifications(e) {
       this.notifications = e.detail.value
-      uni.showToast({ 
-        title: this.notifications ? '已开启通知' : '已关闭通知', 
-        icon: 'none' 
+      uni.showToast({
+        title: this.notifications ? '已开启通知' : '已关闭通知',
+        icon: 'none'
       })
     },
     toggleDarkMode(e) {
       this.darkMode = e.detail.value
       const settings = storage.getSettings() || {}
-      settings.darkMode = this.darkMode
+      settings.theme = this.darkMode ? 'dark' : 'light'
       storage.setSettings(settings)
-      
-      if (this.darkMode) {
-        uni.setNavigationBarColor({
-          frontColor: '#e0e0e0',
-          backgroundColor: '#1a1a1a'
-        })
-      } else {
-        uni.setNavigationBarColor({
-          frontColor: '#000000',
-          backgroundColor: '#1a1a2e'
-        })
-      }
-      
-      uni.showToast({ 
-        title: this.darkMode ? '深色模式已开启' : '深色模式已关闭', 
-        icon: 'none' 
+
+      // 通知 App.vue 切换主题
+      uni.$emit('theme-change', { isDark: this.darkMode })
+
+      // 需要重启才能完全生效
+      uni.showModal({
+        title: '提示',
+        content: '主题切换需要重启应用才能完全生效',
+        confirmText: '立即重启',
+        cancelText: '稍后再说',
+        success: (res) => {
+          if (res.confirm) {
+            // #ifdef APP-PLUS
+            plus.runtime.restart()
+            // #endif
+          }
+        }
       })
     },
     clearCache() {
@@ -120,7 +121,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .container.dark {
@@ -131,7 +132,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #1a1a2e;
+  background: #ffffff;
 }
 
 .container.dark .header {
@@ -149,7 +150,7 @@ export default {
 
 .back-btn text {
   font-size: 48rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .container.dark .back-btn text {
@@ -159,7 +160,7 @@ export default {
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .container.dark .header-title {
@@ -168,7 +169,7 @@ export default {
 
 .settings-list {
   margin: 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   overflow: hidden;
 }
@@ -181,7 +182,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 30rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
 }
 
 .container.dark .settings-item {
@@ -200,7 +201,7 @@ export default {
 .settings-text {
   flex: 1;
   font-size: 30rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .container.dark .settings-text {
@@ -213,7 +214,7 @@ export default {
 }
 
 .container.dark .settings-arrow {
-  color: #777;
+  color: #999;
 }
 
 .version-info {
@@ -223,10 +224,10 @@ export default {
 
 .version-text {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
 }
 
 .container.dark .version-text {
-  color: #777;
+  color: #999;
 }
 </style>

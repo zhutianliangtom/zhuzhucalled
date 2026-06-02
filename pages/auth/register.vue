@@ -181,7 +181,7 @@ export default {
 .container {
   min-height: 100vh;
   padding: 40rpx;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .header {
@@ -192,11 +192,11 @@ export default {
 .title {
   font-size: 40rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .form {
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 20rpx;
   padding: 40rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
@@ -216,14 +216,14 @@ export default {
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
 }
 
 .avatar-placeholder {
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  border: 2rpx dashed #555;
+  border: 2rpx dashed #ddd;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,14 +231,14 @@ export default {
 
 .avatar-icon {
   font-size: 48rpx;
-  color: #777;
+  color: #999;
 }
 
 .avatar-tip {
   display: block;
   text-align: center;
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-top: 10rpx;
 }
 
@@ -248,7 +248,7 @@ export default {
 
 .label {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   margin-bottom: 10rpx;
   display: block;
 }
@@ -256,7 +256,7 @@ export default {
 .input {
   width: 100%;
   height: 80rpx;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
   border-radius: 10rpx;
   padding: 0 20rpx;
   font-size: 28rpx;

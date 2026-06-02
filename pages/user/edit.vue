@@ -163,14 +163,14 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .header {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #1a1a2e;
+  background: #ffffff;
 }
 
 .back-btn {
@@ -184,13 +184,13 @@ export default {
 
 .back-btn text {
   font-size: 48rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .form-container {
@@ -198,7 +198,7 @@ export default {
 }
 
 .form-item {
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 30rpx;
   margin-bottom: 20rpx;
   border-radius: 15rpx;
@@ -206,20 +206,20 @@ export default {
 
 .form-label {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   margin-bottom: 15rpx;
   display: block;
 }
 
 .form-input {
   font-size: 32rpx;
-  color: #e0e0e0;
+  color: #333;
   padding: 15rpx 0;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
 }
 
 .form-input:disabled {
-  color: #777;
+  color: #999;
 }
 
 .avatar-wrapper {
@@ -255,7 +255,7 @@ export default {
   right: 0;
   width: 40rpx;
   height: 40rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;

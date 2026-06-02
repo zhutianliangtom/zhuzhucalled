@@ -222,19 +222,19 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .header {
   padding: 30rpx;
-  background: #1a1a2e;
-  border-bottom: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-bottom: 1rpx solid #eee;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .empty {
@@ -251,7 +251,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
 }
 
 .conversation-list {
@@ -260,7 +260,7 @@ export default {
 
 .conversation-item {
   display: flex;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 20rpx;
   margin-bottom: 15rpx;
@@ -323,17 +323,17 @@ export default {
 .conv-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .conv-time {
   font-size: 22rpx;
-  color: #777;
+  color: #999;
 }
 
 .conv-preview {
   font-size: 26rpx;
-  color: #777;
+  color: #999;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -351,8 +351,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #1a1a2efff;
-  border-top: 1rpx solid #2a2a3e;
+  background: #fffffffff;
+  border-top: 1rpx solid #eee;
 }
 
 .tab-container {
@@ -396,7 +396,7 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-top: 4rpx;
 }
 

@@ -328,7 +328,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .user-header {
@@ -372,7 +372,7 @@ export default {
   right: 0;
   width: 40rpx;
   height: 40rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -417,7 +417,7 @@ export default {
   justify-content: space-around;
   align-items: center;
   margin: -30rpx 20rpx 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 30rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
@@ -437,19 +437,19 @@ export default {
 
 .stat-label {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-top: 8rpx;
 }
 
 .stat-divider {
   width: 1rpx;
   height: 60rpx;
-  background: #2a2a3e;
+  background: #f0f0f0;
 }
 
 .menu-list {
   margin: 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   overflow: hidden;
 }
@@ -458,7 +458,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 30rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
 }
 
 .menu-item:last-child {
@@ -477,14 +477,14 @@ export default {
 .menu-text {
   flex: 1;
   font-size: 30rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .menu-count {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-right: 15rpx;
-  background: #0f0f1a;
+  background: #f5f5f5;
   padding: 5rpx 15rpx;
   border-radius: 20rpx;
 }
@@ -503,7 +503,7 @@ export default {
 }
 
 .guest-card {
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 40rpx;
   text-align: center;
@@ -512,14 +512,14 @@ export default {
 .guest-title {
   font-size: 32rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   display: block;
   margin-bottom: 15rpx;
 }
 
 .guest-desc {
   font-size: 26rpx;
-  color: #777;
+  color: #999;
   display: block;
   margin-bottom: 30rpx;
 }
@@ -544,8 +544,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #1a1a2efff;
-  border-top: 1rpx solid #2a2a3e;
+  background: #fffffffff;
+  border-top: 1rpx solid #eee;
 }
 
 .tab-container {
@@ -570,7 +570,7 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #999999;
+  color: #666999;
   margin-top: 4rpx;
 }
 

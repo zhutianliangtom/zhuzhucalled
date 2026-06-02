@@ -106,26 +106,26 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 .header {
   padding: 30rpx;
-  background: #1a1a2e;
-  border-bottom: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-bottom: 1rpx solid #eee;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   display: block;
   margin-bottom: 10rpx;
 }
 
 .subtitle {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
 }
 
 .loading {
@@ -136,7 +136,7 @@ export default {
   
   text {
     font-size: 28rpx;
-    color: #777;
+    color: #999;
   }
 }
 
@@ -154,7 +154,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
 }
 
 .blocked-list {
@@ -162,7 +162,7 @@ export default {
 }
 
 .blocked-item {
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 25rpx;
   margin-bottom: 15rpx;
@@ -209,13 +209,13 @@ export default {
 .user-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   margin-bottom: 8rpx;
 }
 
 .user-id {
   font-size: 22rpx;
-  color: #777;
+  color: #999;
 }
 
 .actions {
@@ -224,7 +224,7 @@ export default {
 
 .unblock-btn {
   padding: 12rpx 30rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   color: #4f8cff;
   border: 2rpx solid #4f8cff;
   border-radius: 30rpx;

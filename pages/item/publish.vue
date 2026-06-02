@@ -324,25 +324,25 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
   padding-bottom: 200rpx;
 }
 
 .header {
   padding: 30rpx;
-  background: #1a1a2e;
-  border-bottom: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-bottom: 1rpx solid #eee;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .form {
   margin: 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 30rpx;
 }
@@ -353,7 +353,7 @@ export default {
 
 .label {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   margin-bottom: 15rpx;
   display: block;
 }
@@ -367,12 +367,12 @@ export default {
   flex: 1;
   height: 70rpx;
   border-radius: 35rpx;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   transition: all 0.3s;
 }
 
@@ -385,7 +385,7 @@ export default {
 .input {
   width: 100%;
   height: 80rpx;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
   border-radius: 10rpx;
   padding: 0 20rpx;
   font-size: 28rpx;
@@ -395,7 +395,7 @@ export default {
 .textarea {
   width: 100%;
   height: 200rpx;
-  border: 2rpx solid #2a2a3e;
+  border: 2rpx solid #eee;
   border-radius: 10rpx;
   padding: 20rpx;
   font-size: 28rpx;
@@ -404,7 +404,7 @@ export default {
 
 .word-count {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   float: right;
   margin-top: 10rpx;
 }
@@ -460,7 +460,7 @@ export default {
 
 .upload-text {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-top: 10rpx;
 }
 
@@ -470,8 +470,8 @@ export default {
   left: 0;
   right: 0;
   padding: 20rpx;
-  background: #1a1a2e;
-  border-top: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-top: 1rpx solid #eee;
   z-index: 100;
 }
 
@@ -510,7 +510,7 @@ export default {
 
 .progress-inner {
   height: 100%;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 3rpx;
   transition: width 0.3s;
 }
@@ -526,8 +526,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #1a1a2efff;
-  border-top: 1rpx solid #2a2a3e;
+  background: #fffffffff;
+  border-top: 1rpx solid #eee;
 }
 
 .tab-container {
@@ -552,7 +552,7 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #999999;
+  color: #666999;
   margin-top: 4rpx;
 }
 

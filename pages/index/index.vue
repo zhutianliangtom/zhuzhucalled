@@ -359,7 +359,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
   padding-top: 0;
   padding-bottom: 120rpx;
 }
@@ -393,15 +393,15 @@ export default {
 
 .search-placeholder {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
 }
 
 /* 分类tabs */
 .tabs {
   display: flex;
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 20rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
 }
 
 .tab-item {
@@ -409,7 +409,7 @@ export default {
   text-align: center;
   padding: 15rpx 0;
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   border-radius: 30rpx;
   transition: all 0.3s;
 }
@@ -422,18 +422,18 @@ export default {
 /* 时间筛选 */
 .time-filter {
   display: flex;
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 15rpx 20rpx;
-  border-bottom: 1rpx solid #2a2a3e;
+  border-bottom: 1rpx solid #eee;
   gap: 15rpx;
 }
 
 .time-filter-item {
   padding: 8rpx 20rpx;
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   border-radius: 20rpx;
-  background: #0f0f1a;
+  background: #f5f5f5;
   transition: all 0.3s;
 }
 
@@ -461,7 +461,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
 }
 
 .item-list {
@@ -474,7 +474,7 @@ export default {
 .item-card {
   display: flex;
   flex-direction: column;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
@@ -484,7 +484,7 @@ export default {
 /* 图片区域 */
 .image-wrapper {
   width: 100%;
-  background: #0f0f1a;
+  background: #f5f5f5;
 }
 
 /* 单张图片 */
@@ -547,7 +547,7 @@ export default {
   flex: 1;
   font-size: 30rpx;
   font-weight: 600;
-  color: #e0e0e0;
+  color: #333;
   line-height: 1.4;
   word-break: break-all;
 }
@@ -582,7 +582,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #1a1a2e3e0;
+  background: #ffffff3e0;
   color: #ff9800;
 }
 
@@ -604,14 +604,14 @@ export default {
 }
 
 .search-content {
-  background: #1a1a2e;
+  background: #ffffff;
   padding: 30rpx;
 }
 
 .search-input-wrap {
   display: flex;
   align-items: center;
-  background: #0f0f1a;
+  background: #f5f5f5;
   border-radius: 40rpx;
   padding: 20rpx 30rpx;
   margin-bottom: 30rpx;
@@ -625,7 +625,7 @@ export default {
 
 .clear-btn {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   padding: 10rpx;
 }
 
@@ -635,7 +635,7 @@ export default {
 
 .tags-title {
   font-size: 26rpx;
-  color: #777;
+  color: #999;
   margin-bottom: 15rpx;
   display: block;
 }
@@ -649,9 +649,9 @@ export default {
 .tag {
   font-size: 26rpx;
   padding: 10rpx 25rpx;
-  background: #0f0f1a;
+  background: #f5f5f5;
   border-radius: 30rpx;
-  color: #777;
+  color: #999;
 }
 
 .tabbar-container {
@@ -665,8 +665,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #1a1a2e;
-  border-top: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-top: 1rpx solid #eee;
 }
 
 .tab-container {
@@ -692,7 +692,7 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-top: 4rpx;
 }
 

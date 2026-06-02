@@ -215,7 +215,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #0f0f1a;
+  background: #f5f5f5;
   padding-bottom: 140rpx;
 }
 
@@ -226,7 +226,7 @@ export default {
 .image-gallery {
   width: 100%;
   padding: 0;
-  background: #1a1a2e;
+  background: #ffffff;
 }
 
 .gallery-image {
@@ -243,7 +243,7 @@ export default {
 
 .info-card {
   margin: 20rpx;
-  background: #1a1a2e;
+  background: #ffffff;
   border-radius: 15rpx;
   padding: 30rpx;
 }
@@ -263,7 +263,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #1a1a2e3e0;
+  background: #ffffff3e0;
   color: #ff9800;
 }
 
@@ -289,7 +289,7 @@ export default {
   gap: 10rpx;
   margin: 15rpx 0;
   padding: 15rpx;
-  background: #0f0f1a;
+  background: #f5f5f5;
   border-radius: 10rpx;
 }
 
@@ -299,26 +299,26 @@ export default {
 
 .time-text {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
 }
 
 .item-time {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
   margin-left: auto;
 }
 
 .item-title {
   font-size: 36rpx;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #333;
   margin-bottom: 20rpx;
   display: block;
 }
 
 .item-desc {
   font-size: 28rpx;
-  color: #777;
+  color: #999;
   line-height: 1.8;
   margin-bottom: 30rpx;
   display: block;
@@ -333,20 +333,20 @@ export default {
 
 .contact-label {
   font-size: 26rpx;
-  color: #777;
+  color: #999;
   margin-right: 15rpx;
 }
 
 .contact-value {
   font-size: 28rpx;
-  color: #e0e0e0;
+  color: #333;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   padding-top: 20rpx;
-  border-top: 1rpx solid #2a2a3e;
+  border-top: 1rpx solid #eee;
 }
 
 .avatar {
@@ -380,13 +380,13 @@ export default {
 
 .user-name {
   font-size: 28rpx;
-  color: #e0e0e0;
+  color: #333;
   font-weight: bold;
 }
 
 .user-class {
   font-size: 24rpx;
-  color: #777;
+  color: #999;
 }
 
 .loading {
@@ -402,8 +402,8 @@ export default {
   left: 0;
   right: 0;
   padding: 20rpx;
-  background: #1a1a2e;
-  border-top: 1rpx solid #2a2a3e;
+  background: #ffffff;
+  border-top: 1rpx solid #eee;
 }
 
 .footer-buttons {
