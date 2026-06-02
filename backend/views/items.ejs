@@ -5,628 +5,164 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>校园失物招领 - 物品管理</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #f5f7fa;
-      min-height: 100vh;
-    }
-    
-    .sidebar {
-      width: 240px;
-      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      padding: 30px 20px;
-      color: #fff;
-    }
-    
-    .sidebar h1 {
-      font-size: 20px;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .sidebar ul {
-      list-style: none;
-    }
-    
-    .sidebar li {
-      margin-bottom: 10px;
-    }
-    
-    .sidebar a {
-      display: block;
-      padding: 14px 18px;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 10px;
-      transition: background 0.3s;
-      font-size: 14px;
-    }
-    
-    .sidebar a:hover, .sidebar a.active {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    
-    .sidebar .logout {
-      position: absolute;
-      bottom: 30px;
-      width: calc(100% - 40px);
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .main-content {
-      margin-left: 240px;
-      padding: 30px;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-    }
-    
-    .header h2 {
-      font-size: 24px;
-      color: #333;
-    }
-    
-    .search-bar {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 25px;
-      flex-wrap: wrap;
-    }
-    
-    .search-bar input, .search-bar select {
-      padding: 12px 18px;
-      border: 1px solid #eee;
-      border-radius: 10px;
-      font-size: 14px;
-    }
-    
-    .search-bar input {
-      width: 250px;
-    }
-    
-    .search-bar select {
-      width: 150px;
-    }
-    
-    .btn {
-      padding: 12px 25px;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.3s;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-    }
-    
-    .btn-danger {
-      background: #ff4444;
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-    
-    .btn:hover {
-      opacity: 0.9;
-    }
-    
-    .table-container {
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      overflow: hidden;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    th, td {
-      padding: 16px;
-      text-align: left;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    th {
-      background: #fafafa;
-      font-weight: 600;
-      color: #666;
-      font-size: 13px;
-    }
-    
-    td {
-      font-size: 14px;
-      color: #333;
-    }
-    
-    td img {
-      width: 60px;
-      height: 60px;
-      object-fit: cover;
-      border-radius: 8px;
-    }
-    
-    .tag {
-      display: inline-block;
-      padding: 5px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .tag-lost {
-      background: #fff3e0;
-      color: #ff9800;
-    }
-    
-    .tag-found {
-      background: #e3f2fd;
-      color: #1976d2;
-    }
-    
-    .tag-active {
-      background: #e8f5e9;
-      color: #4caf50;
-    }
-    
-    .tag-deleted {
-      background: #fce4ec;
-      color: #e91e63;
-    }
-    
-    .pagination {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin-top: 25px;
-      padding: 20px;
-    }
-    
-    .pagination button {
-      padding: 10px 20px;
-      border: 1px solid #eee;
-      background: #fff;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    
-    .pagination button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .pagination span {
-      font-size: 14px;
-      color: #666;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 60px;
-      color: #999;
-    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f8f9fa; min-height:100vh; }
+    .sidebar { width:220px; background:#1e293b; min-height:100vh; position:fixed; left:0; top:0; padding:28px 18px; color:#cbd5e1; transition:transform 0.3s; z-index:1000; }
+    .sidebar h2 { font-size:16px; color:#fff; margin-bottom:32px; padding-bottom:16px; border-bottom:1px solid #334155; font-weight:600; }
+    .sidebar ul { list-style:none; }
+    .sidebar li { margin-bottom:4px; }
+    .sidebar a { display:block; padding:10px 14px; color:#94a3b8; text-decoration:none; border-radius:6px; font-size:13px; transition:all 0.2s; }
+    .sidebar a:hover, .sidebar a.active { background:#334155; color:#fff; }
+    .sidebar .logout-link { position:absolute; bottom:24px; left:18px; right:18px; display:block; padding:10px 14px; color:#64748b; text-decoration:none; border-radius:6px; font-size:13px; text-align:center; border:1px solid #334155; }
+    .sidebar .logout-link:hover { background:#334155; color:#fff; }
+    .main-content { margin-left:220px; padding:32px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .header h1 { font-size:22px; color:#111; font-weight:600; }
+    .search-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+    .search-bar input, .search-bar select { padding:9px 14px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
+    .search-bar input { width:240px; }
+    .table-wrap { background:#fff; border-radius:8px; border:1px solid #e5e7eb; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:12px 14px; text-align:left; border-bottom:1px solid #f3f4f6; font-size:13px; }
+    th { background:#f9fafb; color:#6b7280; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+    td { color:#374151; }
+    td img { width:48px; height:48px; object-fit:cover; border-radius:4px; }
+    .tag { display:inline-block; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:500; }
+    .tag-lost { background:#fef3c7; color:#92400e; }
+    .tag-found { background:#dbeafe; color:#1e40af; }
+    .tag-active { background:#d1fae5; color:#065f46; }
+    .tag-deleted { background:#fee2e2; color:#991b1b; }
+    .btn { padding:8px 18px; border:none; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+    .btn-primary { background:#2563eb; color:#fff; }
+    .btn-primary:hover { background:#1d4ed8; }
+    .btn-danger { background:#ef4444; color:#fff; }
+    .btn-danger:hover { background:#dc2626; }
+    .btn-danger:disabled { opacity:0.5; cursor:not-allowed; }
+    .empty { text-align:center; padding:60px; color:#9ca3af; }
+    .pagination { display:flex; justify-content:center; align-items:center; gap:8px; padding:20px; }
+    .pagination button { padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+    .pagination button:disabled { opacity:0.4; cursor:not-allowed; }
+    .pagination span { font-size:13px; color:#6b7280; }
 
-    /* 通知样式 */
-    .notification-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 400px;
-    }
+    .notif-c { position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; max-width:360px; }
+    .notif { background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); border-left:3px solid #2563eb; animation:slideIn 0.3s; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .notif.warn { border-left-color:#f59e0b; }
+    .notif.ok { border-left-color:#10b981; }
+    .notif .title { font-weight:600; font-size:13px; color:#111; margin-bottom:4px; }
+    .notif .msg { font-size:12px; color:#6b7280; }
+    .notif .cls { background:none; border:none; color:#9ca3af; cursor:pointer; font-size:16px; }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideOut { from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:0} }
+    .notif.out { animation:slideOut 0.3s forwards; }
 
-    .notification {
-      background: #fff;
-      padding: 16px 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-left: 4px solid #667eea;
-      animation: slideIn 0.3s ease-out;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 15px;
-    }
-
-    .notification.warning {
-      border-left-color: #ff9800;
-    }
-
-    .notification.success {
-      border-left-color: #4caf50;
-    }
-
-    .notification.info {
-      border-left-color: #2196f3;
-    }
-
-    .notification-content {
-      flex: 1;
-    }
-
-    .notification-title {
-      font-weight: 600;
-      font-size: 14px;
-      color: #333;
-      margin-bottom: 5px;
-    }
-
-    .notification-message {
-      font-size: 13px;
-      color: #666;
-      line-height: 1.5;
-    }
-
-    .notification-close {
-      background: none;
-      border: none;
-      font-size: 18px;
-      color: #999;
-      cursor: pointer;
-      line-height: 1;
-      padding: 0;
-    }
-
-    .notification-close:hover {
-      color: #333;
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    @keyframes slideOut {
-      from {
-        transform: translateX(0);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-    }
-
-    .notification.hiding {
-      animation: slideOut 0.3s ease-out forwards;
-    }
-
-    /* ========== 移动端适配 ========== */
-    .hamburger {
-      display: none;
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      z-index: 1001;
-      background: #667eea;
-      color: #fff;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      font-size: 22px;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    .sidebar-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
-    @media (max-width: 768px) {
-      .hamburger { display: block; }
-      .sidebar-close { display: block; }
-      .sidebar { transform: translateX(-100%); transition: transform 0.3s; z-index: 1000; width: 260px; padding-top: 60px; }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-left: 0 !important; padding: 20px 12px; padding-top: 60px; }
-      .header { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .header h2 { font-size: 20px; }
-      .search-bar { flex-direction: column; }
-      .search-bar input, .search-bar select { width: 100% !important; }
-      .search-bar .btn { width: 100%; text-align: center; }
-      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      table { min-width: 650px; }
-      th, td { padding: 10px 8px; font-size: 12px; }
-      .btn-danger { padding: 6px 10px; font-size: 12px; }
-      .pagination button { padding: 8px 14px; font-size: 13px; }
-      .notification-container { left: auto; right: 10px; bottom: 20px; top: auto; max-width: 280px; }
+    .hb { display:none; position:fixed; top:12px; left:12px; z-index:1001; background:#1e293b; color:#fff; border:none; width:38px; height:38px; border-radius:6px; font-size:20px; cursor:pointer; }
+    .sb-cls { display:none; position:absolute; top:14px; right:14px; background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; }
+    @media (max-width:768px) {
+      .hb { display:block; }
+      .sb-cls { display:block; }
+      .sidebar { transform:translateX(-100%); padding-top:54px; }
+      .sidebar.open { transform:translateX(0); }
+      .main-content { margin-left:0 !important; padding:20px 12px; padding-top:58px; }
+      .header { flex-direction:column; align-items:flex-start; }
+      .header h1 { font-size:18px; }
+      .search-bar { flex-direction:column; }
+      .search-bar input, .search-bar select { width:100% !important; }
+      .search-bar .btn { width:100%; text-align:center; }
+      .table-wrap { overflow-x:auto; }
+      table { min-width:650px; }
+      .notif-c { left:10px; right:10px; max-width:none; }
     }
   </style>
 </head>
 <body>
-  <!-- 通知容器 -->
-  <div class="notification-container" id="notificationContainer"></div>
-
-  <button class="hamburger" onclick="toggleSidebar()">☰</button>
-  <div class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
-    <h1>🔍 管理后台</h1>
+  <div class="notif-c" id="nc"></div>
+  <button class="hb" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sb">
+    <button class="sb-cls" onclick="toggleSidebar()">✕</button>
+    <h2>管理后台</h2>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
       <li><a href="/admin/items" class="active">物品管理</a></li>
       <li><a href="/admin/users">用户管理</a></li>
       <li><a href="/admin/versions">版本管理</a></li>
     </ul>
-    <a href="/admin/logout" class="logout">退出登录</a>
+    <a href="/admin/logout" class="logout-link">退出登录</a>
   </div>
-  
   <div class="main-content">
     <div class="header">
-      <h2>物品管理</h2>
-      <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑 批量删除 (<span id="selectedCount">0</span>)</button>
+      <h1>物品管理</h1>
+      <button class="btn btn-danger" id="batchBtn" style="display:none;" onclick="batchDelete()">🗑 批量删除 (<span id="selCnt">0</span>)</button>
     </div>
-    
     <div class="search-bar">
-      <input type="text" placeholder="搜索物品名称或描述" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { document.getElementById('searchForm').submit(); }">
-      <select name="type" onchange="document.getElementById('searchForm').submit();">
-        <option value="all" <%= type === 'all' ? 'selected' : '' %>>全部类型</option>
-        <option value="lost" <%= type === 'lost' ? 'selected' : '' %>>寻物启事</option>
-        <option value="found" <%= type === 'found' ? 'selected' : '' %>>失物招领</option>
+      <input type="text" placeholder="搜索物品" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13){syncForm();document.getElementById('sf').submit();}">
+      <select name="type" onchange="syncForm();document.getElementById('sf').submit();">
+        <option value="all" <%= type==='all'?'selected':'' %>>全部类型</option>
+        <option value="lost" <%= type==='lost'?'selected':'' %>>寻物启事</option>
+        <option value="found" <%= type==='found'?'selected':'' %>>失物招领</option>
       </select>
-      <select name="status" onchange="document.getElementById('searchForm').submit();">
-        <option value="all" <%= status === 'all' ? 'selected' : '' %>>全部状态</option>
-        <option value="active" <%= status === 'active' ? 'selected' : '' %>>正常</option>
-        <option value="deleted" <%= status === 'deleted' ? 'selected' : '' %>>已删除</option>
+      <select name="status" onchange="syncForm();document.getElementById('sf').submit();">
+        <option value="all" <%= status==='all'?'selected':'' %>>全部状态</option>
+        <option value="active" <%= status==='active'?'selected':'' %>>正常</option>
+        <option value="deleted" <%= status==='deleted'?'selected':'' %>>已删除</option>
       </select>
-      <button class="btn btn-primary" onclick="document.getElementById('searchForm').submit();">搜索</button>
+      <button class="btn btn-primary" onclick="syncForm();document.getElementById('sf').submit();">搜索</button>
     </div>
-    
-    <form id="searchForm" action="/admin/items" method="GET" style="display: none;">
+    <form id="sf" action="/admin/items" method="GET" style="display:none;">
       <input type="hidden" name="keyword" value="<%= keyword || '' %>">
       <input type="hidden" name="type" value="<%= type %>">
       <input type="hidden" name="status" value="<%= status %>">
     </form>
-    
-    <div class="table-container">
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th style="width:40px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选"></th>
+            <th style="width:36px;"><input type="checkbox" id="selAll" onchange="toggleAll(this)"></th>
             <th>图片</th>
             <th>标题</th>
             <th>类型</th>
             <th>状态</th>
             <th>联系人</th>
-            <th>创建时间</th>
+            <th>时间</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <% if (items.length === 0) { %>
+          <% if(items.length===0){ %><tr><td colspan="8" class="empty">暂无数据</td></tr><% } %>
+          <% items.forEach(function(item){ %>
             <tr>
-              <td colspan="8" class="empty-state">暂无数据</td>
-            </tr>
-          <% } %>
-          <% items.forEach(item => { %>
-            <tr>
-              <td><input type="checkbox" class="item-check" value="<%= item.id %>" onchange="updateSelection()"></td>
-              <td>
-                <% if (item.images && item.images.length > 0) { %>
-                  <img src="<%= item.images[0] %>" alt="">
-                <% } else { %>
-                  <span style="color:#999">无图片</span>
-                <% } %>
-              </td>
+              <td><input type="checkbox" class="ic" value="<%= item.id %>" onchange="upd()"></td>
+              <td><% if(item.images&&item.images.length>0){ %><img src="<%= item.images[0] %>" alt=""><% }else{ %><span style="color:#d1d5db">-</span><% } %></td>
               <td><%= item.title %></td>
-              <td><span class="tag tag-<%= item.type %>"><%= item.type === 'lost' ? '寻物启事' : '失物招领' %></span></td>
-              <td><span class="tag tag-<%= item.status %>"><%= item.status === 'active' ? '正常' : '已删除' %></span></td>
-              <td><%= item.userName || item.contact %></td>
+              <td><span class="tag tag-<%= item.type %>"><%= item.type==='lost'?'寻物':'招领' %></span></td>
+              <td><span class="tag tag-<%= item.status %>"><%= item.status==='active'?'正常':'已删' %></span></td>
+              <td><%= item.userName||item.contact %></td>
               <td><%= item.createdAt %></td>
-              <td>
-                <button class="btn btn-danger" onclick="deleteItem('<%= item.id %>')">删除</button>
-              </td>
+              <td><button class="btn btn-danger" onclick="del('<%= item.id %>')">删除</button></td>
             </tr>
           <% }) %>
         </tbody>
       </table>
-      
       <div class="pagination">
-        <button onclick="goPage(<%= currentPage - 1 %>)" <%= currentPage <= 1 ? 'disabled' : '' %>>上一页</button>
+        <button onclick="goPage(<%= currentPage-1 %>)" <%= currentPage<=1?'disabled':'' %>>上一页</button>
         <span><%= currentPage %> / <%= totalPages %></span>
-        <button onclick="goPage(<%= currentPage + 1 %>)" <%= currentPage >= totalPages ? 'disabled' : '' %>>下一页</button>
+        <button onclick="goPage(<%= currentPage+1 %>)" <%= currentPage>=totalPages?'disabled':'' %>>下一页</button>
       </div>
     </div>
   </div>
-  
   <script>
-    // 全选/取消全选
-    function toggleSelectAll(cb) {
-      document.querySelectorAll('.item-check').forEach(el => el.checked = cb.checked)
-      updateSelection()
-    }
-
-    // 更新选中计数和按钮显隐
-    function updateSelection() {
-      const checked = document.querySelectorAll('.item-check:checked')
-      const count = checked.length
-      const total = document.querySelectorAll('.item-check').length
-      const selectAll = document.getElementById('selectAll')
-      document.getElementById('selectedCount').textContent = count
-      document.getElementById('batchDeleteBtn').style.display = count > 0 ? 'inline-block' : 'none'
-      selectAll.checked = count === total && total > 0
-    }
-
-    // 侧栏切换
     function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
-      let ov = document.querySelector('.sidebar-overlay');
-      if (!ov) { ov = document.createElement('div'); ov.className = 'sidebar-overlay'; ov.onclick = toggleSidebar; document.body.appendChild(ov); }
-      ov.style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+      document.getElementById('sb').classList.toggle('open');
+      var ov=document.getElementById('sb-ov');
+      if(!ov){ov=document.createElement('div');ov.id='sb-ov';ov.onclick=toggleSidebar;ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:999;';document.body.appendChild(ov);}
+      ov.style.display=document.getElementById('sb').classList.contains('open')?'block':'none';
     }
-
-    // 批量删除
-    async function batchDelete() {
-      const checked = document.querySelectorAll('.item-check:checked')
-      if (!checked.length) return
-      if (!confirm('确定要删除选中的 ' + checked.length + ' 个物品吗？')) return
-      const ids = Array.from(checked).map(cb => cb.value)
-      const res = await fetch('/admin/items/batch-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids })
-      })
-      const data = await res.json()
-      if (data.success) location.reload()
-      else alert('删除失败: ' + (data.message || '未知错误'))
-    }
-
-    function deleteItem(id) {
-      if (!confirm('确定要删除该物品吗？')) return
-      fetch('/admin/items/delete/' + id, { method: 'POST' })
-        .then(r => r.json()).then(data => {
-          if (data.success) location.reload()
-          else alert('删除失败')
-        })
-    }
-
-    function goPage(page) {
-      const form = document.getElementById('searchForm')
-      const input = document.createElement('input')
-      input.type = 'hidden'
-      input.name = 'page'
-      input.value = page
-      form.appendChild(input)
-      form.submit()
-    }
-
-    // WebSocket 通知功能
-    let ws = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 10;
-
-    function showNotification(title, message, type = 'info') {
-      const container = document.getElementById('notificationContainer');
-      const notification = document.createElement('div');
-      notification.className = `notification ${type}`;
-      
-      const content = document.createElement('div');
-      content.className = 'notification-content';
-      
-      const titleEl = document.createElement('div');
-      titleEl.className = 'notification-title';
-      titleEl.textContent = title;
-      
-      const messageEl = document.createElement('div');
-      messageEl.className = 'notification-message';
-      messageEl.textContent = message;
-      
-      content.appendChild(titleEl);
-      content.appendChild(messageEl);
-      
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'notification-close';
-      closeBtn.textContent = '×';
-      closeBtn.onclick = () => removeNotification(notification);
-      
-      notification.appendChild(content);
-      notification.appendChild(closeBtn);
-      container.appendChild(notification);
-      
-      setTimeout(() => removeNotification(notification), 5000);
-      
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.1;
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 200);
-      } catch (e) {}
-    }
-
-    function removeNotification(notification) {
-      if (!notification.parentNode) return;
-      notification.classList.add('hiding');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }
-
-    function connectWebSocket() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}`;
-      
-      console.log('正在连接 WebSocket:', wsUrl);
-      ws = new WebSocket(wsUrl);
-      
-      ws.onopen = function() {
-        console.log('WebSocket 连接成功');
-        reconnectAttempts = 0;
-      };
-      
-      ws.onmessage = function(event) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('收到 WebSocket 消息:', data);
-          
-          if (data.type === 'connected') {
-            showNotification('连接成功', data.message, 'success');
-          } else if (data.type === 'new_message') {
-            const msg = data.data;
-            showNotification(
-              '新私信通知',
-              `${msg.senderName} → ${msg.receiverName}\n${msg.content}`,
-              'info'
-            );
-          }
-        } catch (e) {
-          console.error('解析 WebSocket 消息失败:', e);
-        }
-      };
-      
-      ws.onclose = function(event) {
-        console.log('WebSocket 连接关闭:', event.code, event.reason);
-        
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(`将在 ${delay/1000} 秒后尝试重连 (${reconnectAttempts}/${maxReconnectAttempts})`);
-          setTimeout(connectWebSocket, delay);
-        } else {
-          showNotification('连接失败', 'WebSocket 连接已断开，请刷新页面重试', 'warning');
-        }
-      };
-      
-      ws.onerror = function(error) {
-        console.error('WebSocket 错误:', error);
-      };
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      connectWebSocket();
-    });
+    function notify(t,m,tp){tp=tp||'info';var c=document.getElementById('nc');var n=document.createElement('div');n.className='notif '+(tp==='success'?'ok':tp==='warning'?'warn':'');n.innerHTML='<div><div class="title">'+t+'</div><div class="msg">'+m+'</div></div><button class="cls">×</button>';n.querySelector('.cls').onclick=function(){n.classList.add('out');setTimeout(function(){if(n.parentElement)n.parentElement.removeChild(n)},300)};c.appendChild(n);setTimeout(function(){if(n.parentElement){n.classList.add('out');setTimeout(function(){if(n.parentElement)n.parentElement.removeChild(n)},300)}},5000);}
+    function toggleAll(cb){document.querySelectorAll('.ic').forEach(function(e){e.checked=cb.checked});upd();}
+    function upd(){var c=document.querySelectorAll('.ic:checked');var n=c.length;var t=document.querySelectorAll('.ic').length;document.getElementById('selCnt').textContent=n;document.getElementById('batchBtn').style.display=n>0?'inline-block':'none';document.getElementById('selAll').checked=n===t&&t>0;}
+    async function batchDelete(){var c=document.querySelectorAll('.ic:checked');if(!c.length)return;if(!confirm('确定删除选中的 '+c.length+' 个物品？'))return;var ids=Array.from(c).map(function(cb){return cb.value});var r=await fetch('/admin/items/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:ids})});var d=await r.json();if(d.success){notify('删除成功','已删除 '+d.count+' 个物品','success');setTimeout(function(){location.reload()},800)}else notify('删除失败',d.message||'','warning')}
+    function del(id){if(!confirm('确定删除？'))return;fetch('/admin/items/delete/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify('删除成功','','success');setTimeout(function(){location.reload()},800)}else notify('删除失败',d.message||'','warning')}).catch(function(){notify('错误','网络异常','warning')})}
+    function goPage(p){var f=document.getElementById('sf');var i=document.createElement('input');i.type='hidden';i.name='page';i.value=p;f.appendChild(i);syncForm();f.submit();}
+    function syncForm(){var f=document.getElementById('sf');var kw=document.querySelector('.search-bar input[name="keyword"]');var tp=document.querySelector('.search-bar select[name="type"]');var st=document.querySelector('.search-bar select[name="status"]');f.querySelector('input[name="keyword"]').value=kw.value;f.querySelector('input[name="type"]').value=tp.value;f.querySelector('input[name="status"]').value=st.value;}
   </script>
 </body>
 </html>

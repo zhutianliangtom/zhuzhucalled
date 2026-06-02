@@ -5,481 +5,127 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>校园失物招领 - 用户管理</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #f5f7fa;
-      min-height: 100vh;
-    }
-    
-    .sidebar {
-      width: 240px;
-      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      padding: 30px 20px;
-      color: #fff;
-      transition: transform 0.3s ease;
-      z-index: 1000;
-    }
-    
-    .sidebar h1 {
-      font-size: 20px;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .sidebar ul {
-      list-style: none;
-    }
-    
-    .sidebar li {
-      margin-bottom: 10px;
-    }
-    
-    .sidebar a {
-      display: block;
-      padding: 14px 18px;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 10px;
-      transition: background 0.3s;
-      font-size: 14px;
-    }
-    
-    .sidebar a:hover, .sidebar a.active {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    
-    .sidebar .logout {
-      position: absolute;
-      bottom: 30px;
-      width: calc(100% - 40px);
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    /* 移动端菜单按钮 */
-    .menu-toggle {
-      display: none;
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 1001;
-      padding: 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      border-radius: 10px;
-      color: white;
-      cursor: pointer;
-      font-size: 20px;
-    }
-    
-    .main-content {
-      margin-left: 240px;
-      padding: 30px;
-      transition: margin-left 0.3s ease;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-    
-    .header h2 {
-      font-size: 24px;
-      color: #333;
-    }
-    
-    .search-bar {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 25px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    
-    .search-bar input {
-      padding: 12px 18px;
-      border: 1px solid #eee;
-      border-radius: 10px;
-      font-size: 14px;
-      width: 250px;
-      flex: 1;
-      min-width: 150px;
-    }
-    
-    .search-bar select {
-      padding: 12px 18px;
-      border: 1px solid #eee;
-      border-radius: 10px;
-      font-size: 14px;
-      background: #fff;
-    }
-    
-    .btn {
-      padding: 12px 25px;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.3s;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-    }
-    
-    .btn-success {
-      background: #4caf50;
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-    
-    .btn-danger {
-      background: #f44336;
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-    
-    .btn-warning {
-      background: #ff9800;
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-    
-    .btn-secondary {
-      background: #fff;
-      color: #667eea;
-      border: 1px solid #667eea;
-    }
-    
-    .btn:hover {
-      opacity: 0.9;
-    }
-    
-    .table-container {
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      overflow-x: auto;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 800px;
-    }
-    
-    th, td {
-      padding: 16px;
-      text-align: left;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    th {
-      background: #fafafa;
-      font-weight: 600;
-      color: #666;
-      font-size: 13px;
-    }
-    
-    td {
-      font-size: 14px;
-      color: #333;
-    }
-    
-    /* 复选框样式 */
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .checkbox-container input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-    }
-    
-    /* 批量操作栏 */
-    .batch-actions {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      padding: 15px;
-      background: #fff3e0;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-    
-    .batch-actions.active {
-      display: flex;
-    }
-    
-    .batch-actions span {
-      font-size: 14px;
-      color: #666;
-    }
-    
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    
-    .status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    
-    .status.pending {
-      background: #fff3e0;
-      color: #ff9800;
-    }
-    
-    .status.approved {
-      background: #e8f5e9;
-      color: #4caf50;
-    }
-    
-    .status.rejected {
-      background: #ffebee;
-      color: #f44336;
-    }
-    
-    .pagination {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin-top: 25px;
-      padding: 20px;
-      flex-wrap: wrap;
-    }
-    
-    .pagination button {
-      padding: 10px 20px;
-      border: 1px solid #eee;
-      background: #fff;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    
-    .pagination button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .pagination span {
-      font-size: 14px;
-      color: #666;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 60px;
-      color: #999;
-    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f8f9fa; min-height:100vh; }
+    .sidebar { width:220px; background:#1e293b; min-height:100vh; position:fixed; left:0; top:0; padding:28px 18px; color:#cbd5e1; transition:transform 0.3s; z-index:1000; }
+    .sidebar h2 { font-size:16px; color:#fff; margin-bottom:32px; padding-bottom:16px; border-bottom:1px solid #334155; font-weight:600; }
+    .sidebar ul { list-style:none; }
+    .sidebar li { margin-bottom:4px; }
+    .sidebar a { display:block; padding:10px 14px; color:#94a3b8; text-decoration:none; border-radius:6px; font-size:13px; transition:all 0.2s; }
+    .sidebar a:hover, .sidebar a.active { background:#334155; color:#fff; }
+    .sidebar .logout-link { position:absolute; bottom:24px; left:18px; right:18px; display:block; padding:10px 14px; color:#64748b; text-decoration:none; border-radius:6px; font-size:13px; text-align:center; border:1px solid #334155; }
+    .sidebar .logout-link:hover { background:#334155; color:#fff; }
+    .main-content { margin-left:220px; padding:32px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .header h1 { font-size:22px; color:#111; font-weight:600; }
+    .search-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .search-bar input, .search-bar select { padding:9px 14px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
+    .search-bar input { width:220px; }
+    .batch-actions { display:none; align-items:center; gap:10px; padding:12px 16px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; margin-bottom:14px; }
+    .batch-actions.on { display:flex; }
+    .batch-actions span { font-size:13px; color:#92400e; }
+    .table-wrap { background:#fff; border-radius:8px; border:1px solid #e5e7eb; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:12px 14px; text-align:left; border-bottom:1px solid #f3f4f6; font-size:13px; }
+    th { background:#f9fafb; color:#6b7280; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+    td { color:#374151; }
+    .av { width:36px; height:36px; border-radius:50%; background:#e5e7eb; display:inline-flex; align-items:center; justify-content:center; color:#6b7280; font-weight:600; font-size:14px; vertical-align:middle; }
+    .av img { width:36px; height:36px; border-radius:50%; object-fit:cover; }
+    .st { padding:3px 10px; border-radius:4px; font-size:11px; font-weight:500; }
+    .st.pending { background:#fef3c7; color:#92400e; }
+    .st.approved { background:#d1fae5; color:#065f46; }
+    .st.rejected { background:#fee2e2; color:#991b1b; }
+    .badge { padding:3px 10px; border-radius:4px; font-size:11px; font-weight:500; }
+    .badge.admin { background:#dbeafe; color:#1e40af; }
+    .badge.user { background:#f3f4f6; color:#6b7280; }
+    .btn { padding:6px 14px; border:none; border-radius:5px; font-size:12px; font-weight:500; cursor:pointer; margin:1px 2px; transition:all 0.2s; }
+    .btn-ok { background:#10b981; color:#fff; }
+    .btn-ok:hover { background:#059669; }
+    .btn-warn { background:#f59e0b; color:#fff; }
+    .btn-warn:hover { background:#d97706; }
+    .btn-info { background:#2563eb; color:#fff; }
+    .btn-info:hover { background:#1d4ed8; }
+    .btn-del { background:#ef4444; color:#fff; }
+    .btn-del:hover { background:#dc2626; }
+    .btn-out { background:#fff; color:#374151; border:1px solid #d1d5db; }
+    .btn-out:hover { background:#f9fafb; }
+    .empty { text-align:center; padding:60px; color:#9ca3af; }
+    .pagination { display:flex; justify-content:center; align-items:center; gap:8px; padding:20px; }
+    .pagination button { padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+    .pagination button:disabled { opacity:0.4; cursor:not-allowed; }
+    .pagination span { font-size:13px; color:#6b7280; }
 
-    .sidebar-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; z-index: 1001; }
+    .notif-c { position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; max-width:360px; }
+    .notif { background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); border-left:3px solid #2563eb; animation:slideIn 0.3s; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .notif.warn { border-left-color:#f59e0b; }
+    .notif.ok { border-left-color:#10b981; }
+    .notif .title { font-weight:600; font-size:13px; color:#111; margin-bottom:4px; }
+    .notif .msg { font-size:12px; color:#6b7280; }
+    .notif .cls { background:none; border:none; color:#9ca3af; cursor:pointer; font-size:16px; }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideOut { from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:0} }
+    .notif.out { animation:slideOut 0.3s forwards; }
 
-    /* 移动端优化 */
-    @media (max-width: 768px) {
-      .menu-toggle { display: block; }
-      .sidebar-close { display: block; }
-      .sidebar { transform: translateX(-100%); padding-top: 60px; }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-left: 0 !important; padding: 60px 12px 12px 12px; }
-      .header { padding-top: 0; }
-      .header h2 { font-size: 20px; }
-      .search-bar { flex-direction: column; gap: 10px; }
-      .search-bar input, .search-bar select { width: 100% !important; }
-      .search-bar .btn { width: 100%; text-align: center; }
-      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      th, td { padding: 10px 6px; font-size: 11px; }
-      .btn { padding: 10px 12px; font-size: 12px; }
-      .batch-actions { flex-wrap: wrap; flex-direction: column; align-items: flex-start; }
-      .notification-container { left: auto; right: 10px; bottom: 20px; top: auto; max-width: 280px; }
-    }
-
-    /* 通知样式 */
-    .notification-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 400px;
-    }
-
-    .notification {
-      background: #fff;
-      padding: 16px 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-left: 4px solid #667eea;
-      animation: slideIn 0.3s ease-out;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 15px;
-    }
-
-    .notification.warning {
-      border-left-color: #ff9800;
-    }
-
-    .notification.success {
-      border-left-color: #4caf50;
-    }
-
-    .notification.info {
-      border-left-color: #2196f3;
-    }
-
-    .notification-content {
-      flex: 1;
-    }
-
-    .notification-title {
-      font-weight: 600;
-      font-size: 14px;
-      color: #333;
-      margin-bottom: 5px;
-    }
-
-    .notification-message {
-      font-size: 13px;
-      color: #666;
-      line-height: 1.5;
-    }
-
-    .notification-close {
-      background: none;
-      border: none;
-      font-size: 18px;
-      color: #999;
-      cursor: pointer;
-      line-height: 1;
-      padding: 0;
-    }
-
-    .notification-close:hover {
-      color: #333;
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    @keyframes slideOut {
-      from {
-        transform: translateX(0);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-    }
-
-    .notification.hiding {
-      animation: slideOut 0.3s ease-out forwards;
+    .hb { display:none; position:fixed; top:12px; left:12px; z-index:1001; background:#1e293b; color:#fff; border:none; width:38px; height:38px; border-radius:6px; font-size:20px; cursor:pointer; }
+    .sb-cls { display:none; position:absolute; top:14px; right:14px; background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; }
+    @media (max-width:768px) {
+      .hb { display:block; }
+      .sb-cls { display:block; }
+      .sidebar { transform:translateX(-100%); padding-top:54px; }
+      .sidebar.open { transform:translateX(0); }
+      .main-content { margin-left:0 !important; padding:20px 12px; padding-top:58px; }
+      .header { flex-direction:column; align-items:flex-start; }
+      .header h1 { font-size:18px; }
+      .search-bar { flex-direction:column; }
+      .search-bar input, .search-bar select { width:100% !important; }
+      .search-bar .btn { width:100%; text-align:center; }
+      .table-wrap { overflow-x:auto; }
+      table { min-width:750px; }
+      .batch-actions { flex-wrap:wrap; }
+      .notif-c { left:10px; right:10px; max-width:none; }
     }
   </style>
 </head>
 <body>
-  <!-- 通知容器 -->
-  <div class="notification-container" id="notificationContainer"></div>
-
-  <!-- 移动端菜单按钮 -->
-  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-  <div class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="toggleSidebar()" style="display:none;">✕</button>
-    <h1>🔍 管理后台</h1>
+  <div class="notif-c" id="nc"></div>
+  <button class="hb" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sb">
+    <button class="sb-cls" onclick="toggleSidebar()">✕</button>
+    <h2>管理后台</h2>
     <ul>
       <li><a href="/admin/dashboard">数据概览</a></li>
       <li><a href="/admin/items">物品管理</a></li>
       <li><a href="/admin/users" class="active">用户管理</a></li>
       <li><a href="/admin/versions">版本管理</a></li>
     </ul>
-    <a href="/admin/logout" class="logout">退出登录</a>
+    <a href="/admin/logout" class="logout-link">退出登录</a>
   </div>
-  
   <div class="main-content">
-    <div class="header">
-      <h2>用户管理</h2>
-    </div>
-    
+    <div class="header"><h1>用户管理</h1></div>
     <div class="search-bar">
-      <select name="status" onchange="syncSearchForm(); document.getElementById('searchForm').submit();">
-        <option value="all" <%= status === 'all' || !status ? 'selected' : '' %>>全部状态</option>
-        <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>待审核</option>
-        <option value="approved" <%= status === 'approved' ? 'selected' : '' %>>已通过</option>
-        <option value="rejected" <%= status === 'rejected' ? 'selected' : '' %>>已拒绝</option>
+      <select name="status" onchange="syncForm();document.getElementById('sf').submit();">
+        <option value="all" <%= status==='all'||!status?'selected':'' %>>全部状态</option>
+        <option value="pending" <%= status==='pending'?'selected':'' %>>待审核</option>
+        <option value="approved" <%= status==='approved'?'selected':'' %>>已通过</option>
+        <option value="rejected" <%= status==='rejected'?'selected':'' %>>已拒绝</option>
       </select>
-      <input type="text" placeholder="搜索学号或姓名" name="keyword" value="<%= keyword || '' %>" onkeyup="if(event.keyCode===13) { syncSearchForm(); document.getElementById('searchForm').submit(); }">
-      <button class="btn btn-primary" onclick="syncSearchForm(); document.getElementById('searchForm').submit();">搜索</button>
+      <input type="text" placeholder="搜索学号或姓名" name="keyword" value="<%= keyword||'' %>" onkeyup="if(event.keyCode===13){syncForm();document.getElementById('sf').submit();}">
+      <button class="btn btn-info" onclick="syncForm();document.getElementById('sf').submit();">搜索</button>
     </div>
-    
-    <!-- 批量操作栏 -->
-    <div class="batch-actions" id="batchActions">
-      <span>已选择 <strong id="selectedCount">0</strong> 个用户</span>
-      <button class="btn btn-danger" onclick="batchDelete()">批量删除</button>
-      <button class="btn btn-secondary" onclick="clearSelection()">取消选择</button>
+    <div class="batch-actions" id="ba">
+      <span>已选择 <strong id="sc">0</strong> 个用户</span>
+      <button class="btn btn-del" onclick="batchDelete()">批量删除</button>
+      <button class="btn btn-out" onclick="clearSel()">取消</button>
     </div>
-    
-    <form id="searchForm" action="/admin/users" method="GET" style="display: none;">
-      <input type="hidden" name="keyword" value="<%= keyword || '' %>">
-      <input type="hidden" name="status" value="<%= status || 'all' %>">
+    <form id="sf" action="/admin/users" method="GET" style="display:none;">
+      <input type="hidden" name="keyword" value="<%= keyword||'' %>">
+      <input type="hidden" name="status" value="<%= status||'all' %>">
     </form>
-    
-    <div class="table-container">
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th style="width: 50px;">
-              <div class="checkbox-container">
-                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
-              </div>
-            </th>
+            <th style="width:36px;"><input type="checkbox" id="selAll" onchange="toggleAll()"></th>
             <th>头像</th>
             <th>学号</th>
             <th>姓名</th>
@@ -492,392 +138,61 @@
           </tr>
         </thead>
         <tbody>
-          <% if (users.length === 0) { %>
+          <% if(users.length===0){ %><tr><td colspan="10" class="empty">暂无数据</td></tr><% } %>
+          <% users.forEach(function(u){ %>
             <tr>
-              <td colspan="10" class="empty-state">暂无数据</td>
-            </tr>
-          <% } %>
-          <% users.forEach(user => { %>
-            <tr data-user-id="<%= user.id %>">
+              <td><input type="checkbox" class="uc" value="<%= u.id %>" onchange="upd()"></td>
+              <td><% if(u.avatar){ %><div class="av"><img src="<%= u.avatar %>" alt=""></div><% }else{ %><div class="av"><%= u.name.charAt(0) %></div><% } %></td>
+              <td><%= u.studentId %></td>
+              <td><%= u.name %></td>
+              <td><%= u.className %></td>
+              <td><%= u.phone %></td>
+              <td><span class="st <%= u.status %>"><%= u.status==='pending'?'待审核':u.status==='approved'?'已通过':'已拒绝' %></span></td>
+              <td><span class="badge <%= u.isAdmin?'admin':'user' %>"><%= u.isAdmin?'管理员':'用户' %></span></td>
+              <td><%= u.createdAt %></td>
               <td>
-                <div class="checkbox-container">
-                  <input type="checkbox" class="user-checkbox" value="<%= user.id %>" onchange="updateSelection()">
-                </div>
-              </td>
-              <td>
-                <% if (user.avatar) { %>
-                  <img src="<%= user.avatar.startsWith('http') ? user.avatar : '/uploads/' + user.avatar.split('/').pop() %>" class="avatar" alt="" style="object-fit: cover;">
-                <% } else { %>
-                  <div class="avatar"><%= user.name.charAt(0) %></div>
+                <% if(u.status==='pending'){ %>
+                  <button class="btn btn-ok" onclick="approve('<%= u.id %>')">通过</button>
+                  <button class="btn btn-warn" onclick="reject('<%= u.id %>')">拒绝</button>
                 <% } %>
-              </td>
-              <td><%= user.studentId %></td>
-              <td><%= user.name %></td>
-              <td><%= user.className %></td>
-              <td><%= user.phone %></td>
-              <td><span class="status <%= user.status %>"><%= user.status === 'pending' ? '待审核' : (user.status === 'approved' ? '已通过' : '已拒绝') %></span></td>
-              <td>
-                <% if (user.isAdmin) { %>
-                  <span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">管理员</span>
-                <% } else { %>
-                  <span style="background: #f0f0f0; color: #666; padding: 4px 12px; border-radius: 20px; font-size: 12px;">普通用户</span>
+                <% if(u.id!==currentAdminId){ %>
+                  <button class="btn btn-info" onclick="toggleAdmin('<%= u.id %>',<%= u.isAdmin %>)"><%= u.isAdmin?'取消管理员':'设为管理员' %></button>
                 <% } %>
-              </td>
-              <td><%= user.createdAt %></td>
-              <td>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <% if (user.status === 'pending') { %>
-                    <button class="btn btn-success" onclick="approveUser('<%= user.id %>')">通过</button>
-                    <button class="btn btn-warning" onclick="rejectUser('<%= user.id %>')">拒绝</button>
-                  <% } %>
-                  <% if (user.id !== currentAdminId) { %>
-                    <button class="btn btn-primary" onclick="toggleAdmin('<%= user.id %>', <%= user.isAdmin %>)">
-                      <%= user.isAdmin ? '取消管理员' : '设为管理员' %>
-                    </button>
-                  <% } %>
-                  <% if (user.id !== currentAdminId) { %>
-                    <button class="btn btn-danger" onclick="deleteUser('<%= user.id %>')">删除</button>
-                  <% } %>
-                </div>
+                <% if(u.id!==currentAdminId){ %>
+                  <button class="btn btn-del" onclick="delUser('<%= u.id %>')">删除</button>
+                <% } %>
               </td>
             </tr>
           <% }) %>
         </tbody>
       </table>
-      
       <div class="pagination">
-        <button onclick="goPage(<%- currentPage - 1 %>)" <%- currentPage <= 1 ? 'disabled' : '' %>>上一页</button>
-        <span><%- currentPage %> / <%- totalPages %></span>
-        <button onclick="goPage(<%- currentPage + 1 %>)" <%- currentPage >= totalPages ? 'disabled' : '' %>>下一页</button>
+        <button onclick="goPage(<%= currentPage-1 %>)" <%= currentPage<=1?'disabled':'' %>>上一页</button>
+        <span><%= currentPage %> / <%= totalPages %></span>
+        <button onclick="goPage(<%= currentPage+1 %>)" <%= currentPage>=totalPages?'disabled':'' %>>下一页</button>
       </div>
     </div>
   </div>
-  
   <script>
-    const selectedUserIds = new Set();
-    
-    function toggleSidebar() {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('open');
-      let ov = document.getElementById('sidebar-overlay');
-      if (!ov) { ov = document.createElement('div'); ov.id = 'sidebar-overlay'; ov.onclick = toggleSidebar; ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;'; document.body.appendChild(ov); }
-      ov.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+    var sel=new Set();
+    function toggleSidebar(){
+      document.getElementById('sb').classList.toggle('open');
+      var ov=document.getElementById('sb-ov');
+      if(!ov){ov=document.createElement('div');ov.id='sb-ov';ov.onclick=toggleSidebar;ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:999;';document.body.appendChild(ov);}
+      ov.style.display=document.getElementById('sb').classList.contains('open')?'block':'none';
     }
-    
-    function toggleSelectAll() {
-      const selectAll = document.getElementById('selectAll');
-      const checkboxes = document.querySelectorAll('.user-checkbox');
-      
-      checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAll.checked;
-        const userId = checkbox.value;
-        if (selectAll.checked) {
-          selectedUserIds.add(userId);
-        } else {
-          selectedUserIds.delete(userId);
-        }
-      });
-      
-      updateBatchActions();
-    }
-    
-    function updateSelection() {
-      const checkboxes = document.querySelectorAll('.user-checkbox:checked');
-      selectedUserIds.clear();
-      
-      checkboxes.forEach(checkbox => {
-        selectedUserIds.add(checkbox.value);
-      });
-      
-      // 更新全选状态
-      const totalCheckboxes = document.querySelectorAll('.user-checkbox').length;
-      const selectAllCheckbox = document.getElementById('selectAll');
-      if (selectAllCheckbox) {
-        selectAllCheckbox.checked = checkboxes.length === totalCheckboxes && totalCheckboxes > 0;
-      }
-      
-      updateBatchActions();
-    }
-    
-    function updateBatchActions() {
-      const batchActions = document.getElementById('batchActions');
-      const selectedCount = document.getElementById('selectedCount');
-      
-      if (selectedUserIds.size > 0) {
-        batchActions.classList.add('active');
-        selectedCount.textContent = selectedUserIds.size;
-      } else {
-        batchActions.classList.remove('active');
-      }
-    }
-    
-    function clearSelection() {
-      selectedUserIds.clear();
-      const checkboxes = document.querySelectorAll('.user-checkbox');
-      checkboxes.forEach(checkbox => checkbox.checked = false);
-      document.getElementById('selectAll').checked = false;
-      updateBatchActions();
-    }
-    
-    function batchDelete() {
-      if (selectedUserIds.size === 0) {
-        showNotification('提示', '请先选择要删除的用户', 'warning');
-        return;
-      }
-
-      if (!confirm(`确定删除选中的 ${selectedUserIds.size} 个用户吗？此操作不可恢复。`)) {
-        return;
-      }
-
-      const userIds = Array.from(selectedUserIds);
-      fetch('/admin/users/batch-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) {
-          showNotification('删除成功', `已删除 ${data.count} 个用户`, 'success');
-          setTimeout(() => location.reload(), 800);
-        } else {
-          showNotification('删除失败', data.message || '操作失败', 'warning');
-        }
-      })
-      .catch(error => {
-        console.error('批量删除失败:', error);
-        showNotification('请求失败', '网络错误或服务器异常，请重试', 'warning');
-      });
-    }
-    
-    function goPage(page) {
-      const form = document.getElementById('searchForm')
-      const input = document.createElement('input')
-      input.type = 'hidden'
-      input.name = 'page'
-      input.value = page
-      form.appendChild(input)
-      syncSearchForm()
-      form.submit()
-    }
-
-    // 同步可见输入框的值到隐藏搜索表单
-    function syncSearchForm() {
-      const form = document.getElementById('searchForm')
-      const keywordInput = document.querySelector('.search-bar input[name="keyword"]')
-      const statusSelect = document.querySelector('.search-bar select[name="status"]')
-      if (keywordInput && form.querySelector('input[name="keyword"]')) {
-        form.querySelector('input[name="keyword"]').value = keywordInput.value
-      }
-      if (statusSelect && form.querySelector('input[name="status"]')) {
-        form.querySelector('input[name="status"]').value = statusSelect.value
-      }
-    }
-    
-    function approveUser(userId) {
-      if (confirm('确定通过该用户的注册申请吗？')) {
-        fetch(`/admin/users/approve/${userId}`, { method: 'POST' })
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              showNotification('审核通过', '已通过该用户的注册申请', 'success');
-              setTimeout(() => location.reload(), 800);
-            } else {
-              showNotification('操作失败', data.message || '未知错误', 'warning');
-            }
-          })
-          .catch(err => {
-            console.error('审核失败:', err);
-            showNotification('请求失败', '网络错误，请重试', 'warning');
-          });
-      }
-    }
-
-    function rejectUser(userId) {
-      if (confirm('确定拒绝该用户的注册申请吗？')) {
-        fetch(`/admin/users/reject/${userId}`, { method: 'POST' })
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              showNotification('已拒绝', '已拒绝该用户的注册申请', 'success');
-              setTimeout(() => location.reload(), 800);
-            } else {
-              showNotification('操作失败', data.message || '未知错误', 'warning');
-            }
-          })
-          .catch(err => {
-            console.error('拒绝失败:', err);
-            showNotification('请求失败', '网络错误，请重试', 'warning');
-          });
-      }
-    }
-
-    function deleteUser(userId) {
-      if (confirm('确定删除该用户吗？此操作不可恢复。')) {
-        fetch(`/admin/users/delete/${userId}`, { method: 'POST' })
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              showNotification('删除成功', '用户已删除', 'success');
-              setTimeout(() => location.reload(), 800);
-            } else {
-              showNotification('删除失败', data.message || '操作失败', 'warning');
-            }
-          })
-          .catch(err => {
-            console.error('删除失败:', err);
-            showNotification('请求失败', '网络错误，请重试', 'warning');
-          });
-      }
-    }
-
-    function toggleAdmin(userId, isAdmin) {
-      const action = isAdmin ? '取消管理员' : '设为管理员'
-      if (confirm(`确定${action}吗？`)) {
-        fetch(`/admin/users/toggle-admin/${userId}`, { method: 'POST' })
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              showNotification('操作成功', `已${action}`, 'success');
-              setTimeout(() => location.reload(), 800);
-            } else {
-              showNotification('操作失败', data.message || '未知错误', 'warning');
-            }
-          })
-          .catch(err => {
-            console.error('操作失败:', err);
-            showNotification('请求失败', '网络错误，请重试', 'warning');
-          });
-      }
-    }
-
-    // WebSocket 通知功能
-    let ws = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 10;
-
-    function showNotification(title, message, type = 'info') {
-      const container = document.getElementById('notificationContainer');
-      const notification = document.createElement('div');
-      notification.className = `notification ${type}`;
-      
-      const content = document.createElement('div');
-      content.className = 'notification-content';
-      
-      const titleEl = document.createElement('div');
-      titleEl.className = 'notification-title';
-      titleEl.textContent = title;
-      
-      const messageEl = document.createElement('div');
-      messageEl.className = 'notification-message';
-      messageEl.textContent = message;
-      
-      content.appendChild(titleEl);
-      content.appendChild(messageEl);
-      
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'notification-close';
-      closeBtn.textContent = '×';
-      closeBtn.onclick = () => removeNotification(notification);
-      
-      notification.appendChild(content);
-      notification.appendChild(closeBtn);
-      container.appendChild(notification);
-      
-      setTimeout(() => removeNotification(notification), 5000);
-      
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.1;
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 200);
-      } catch (e) {}
-    }
-
-    function removeNotification(notification) {
-      if (!notification.parentNode) return;
-      notification.classList.add('hiding');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }
-
-    function connectWebSocket() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}`;
-      
-      console.log('正在连接 WebSocket:', wsUrl);
-      ws = new WebSocket(wsUrl);
-      
-      ws.onopen = function() {
-        console.log('WebSocket 连接成功');
-        reconnectAttempts = 0;
-      };
-      
-      ws.onmessage = function(event) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('收到 WebSocket 消息:', data);
-          
-          if (data.type === 'connected') {
-            showNotification('连接成功', data.message, 'success');
-          } else if (data.type === 'new_message') {
-            const msg = data.data;
-            showNotification(
-              '新私信通知',
-              `${msg.senderName} → ${msg.receiverName}\n${msg.content}`,
-              'info'
-            );
-          }
-        } catch (e) {
-          console.error('解析 WebSocket 消息失败:', e);
-        }
-      };
-      
-      ws.onclose = function(event) {
-        console.log('WebSocket 连接关闭:', event.code, event.reason);
-        
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(`将在 ${delay/1000} 秒后尝试重连 (${reconnectAttempts}/${maxReconnectAttempts})`);
-          setTimeout(connectWebSocket, delay);
-        } else {
-          showNotification('连接失败', 'WebSocket 连接已断开，请刷新页面重试', 'warning');
-        }
-      };
-      
-      ws.onerror = function(error) {
-        console.error('WebSocket 错误:', error);
-      };
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      connectWebSocket();
-    });
+    function notify(t,m,tp){tp=tp||'info';var c=document.getElementById('nc');var n=document.createElement('div');n.className='notif '+(tp==='success'?'ok':tp==='warning'?'warn':'');n.innerHTML='<div><div class="title">'+t+'</div><div class="msg">'+m+'</div></div><button class="cls">×</button>';n.querySelector('.cls').onclick=function(){n.classList.add('out');setTimeout(function(){if(n.parentElement)n.parentElement.removeChild(n)},300)};c.appendChild(n);setTimeout(function(){if(n.parentElement){n.classList.add('out');setTimeout(function(){if(n.parentElement)n.parentElement.removeChild(n)},300)}},5000);}
+    function toggleAll(){var a=document.getElementById('selAll');document.querySelectorAll('.uc').forEach(function(c){c.checked=a.checked;if(a.checked)sel.add(c.value);else sel.delete(c.value)});render();}
+    function upd(){sel.clear();document.querySelectorAll('.uc:checked').forEach(function(c){sel.add(c.value)});var t=document.querySelectorAll('.uc').length;document.getElementById('selAll').checked=sel.size===t&&t>0;render();}
+    function render(){document.getElementById('sc').textContent=sel.size;document.getElementById('ba').className='batch-actions'+(sel.size>0?' on':'');}
+    function clearSel(){sel.clear();document.querySelectorAll('.uc').forEach(function(c){c.checked=false});document.getElementById('selAll').checked=false;render();}
+    async function batchDelete(){if(!sel.size)return;if(!confirm('确定删除选中的 '+sel.size+' 个用户？'))return;var r=await fetch('/admin/users/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userIds:Array.from(sel)})});var d=await r.json();if(d.success){notify('删除成功','已删除 '+d.count+' 个用户','success');setTimeout(function(){location.reload()},800)}else notify('删除失败',d.message||'','warning')}
+    function approve(id){if(!confirm('确定通过？'))return;fetch('/admin/users/approve/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify('已通过','','success');setTimeout(function(){location.reload()},800)}else notify('失败',d.message||'','warning')})}
+    function reject(id){if(!confirm('确定拒绝？'))return;fetch('/admin/users/reject/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify('已拒绝','','success');setTimeout(function(){location.reload()},800)}else notify('失败',d.message||'','warning')})}
+    function delUser(id){if(!confirm('确定删除该用户？'))return;fetch('/admin/users/delete/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify('已删除','','success');setTimeout(function(){location.reload()},800)}else notify('失败',d.message||'','warning')})}
+    function toggleAdmin(id,is){var a=is?'取消管理员':'设为管理员';if(!confirm('确定'+a+'？'))return;fetch('/admin/users/toggle-admin/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify(a,'','success');setTimeout(function(){location.reload()},800)}else notify('失败',d.message||'','warning')})}
+    function goPage(p){var f=document.getElementById('sf');var i=document.createElement('input');i.type='hidden';i.name='page';i.value=p;f.appendChild(i);syncForm();f.submit();}
+    function syncForm(){var f=document.getElementById('sf');var kw=document.querySelector('.search-bar input[name="keyword"]');var st=document.querySelector('.search-bar select[name="status"]');f.querySelector('input[name="keyword"]').value=kw.value;f.querySelector('input[name="status"]').value=st.value;}
   </script>
 </body>
 </html>
