@@ -215,7 +215,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
   padding-bottom: 140rpx;
 }
 
@@ -226,7 +226,7 @@ export default {
 .image-gallery {
   width: 100%;
   padding: 0;
-  background: #fff;
+  background: #1a1a2e;
 }
 
 .gallery-image {
@@ -243,7 +243,7 @@ export default {
 
 .info-card {
   margin: 20rpx;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   padding: 30rpx;
 }
@@ -263,7 +263,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #fff3e0;
+  background: #1a1a2e3e0;
   color: #ff9800;
 }
 
@@ -289,7 +289,7 @@ export default {
   gap: 10rpx;
   margin: 15rpx 0;
   padding: 15rpx;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 10rpx;
 }
 
@@ -299,26 +299,26 @@ export default {
 
 .time-text {
   font-size: 24rpx;
-  color: #666;
+  color: #777;
 }
 
 .item-time {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   margin-left: auto;
 }
 
 .item-title {
   font-size: 36rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   margin-bottom: 20rpx;
   display: block;
 }
 
 .item-desc {
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   line-height: 1.8;
   margin-bottom: 30rpx;
   display: block;
@@ -333,26 +333,26 @@ export default {
 
 .contact-label {
   font-size: 26rpx;
-  color: #999;
+  color: #777;
   margin-right: 15rpx;
 }
 
 .contact-value {
   font-size: 28rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   padding-top: 20rpx;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid #2a2a3e;
 }
 
 .avatar {
   width: 70rpx;
   height: 70rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -380,13 +380,13 @@ export default {
 
 .user-name {
   font-size: 28rpx;
-  color: #333;
+  color: #e0e0e0;
   font-weight: bold;
 }
 
 .user-class {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
 }
 
 .loading {
@@ -402,8 +402,8 @@ export default {
   left: 0;
   right: 0;
   padding: 20rpx;
-  background: #fff;
-  border-top: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-top: 1rpx solid #2a2a3e;
 }
 
 .footer-buttons {
@@ -414,7 +414,7 @@ export default {
 .chat-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;

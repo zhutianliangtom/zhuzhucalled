@@ -161,7 +161,7 @@ export default {
 
     // 更新未读总数 + Android 角标
     updateUnreadTotal() {
-      const total = this.conversations.reduce((s, c) => s + (c.unread || 0), 0)
+      const total = this.conversations.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
       this.unreadTotal = total
       this.updateBadge()
       // 对每条有未读的对话发通知（仅第一次发现未读时）
@@ -222,19 +222,19 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
   padding: 30rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .empty {
@@ -251,7 +251,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
 }
 
 .conversation-list {
@@ -260,7 +260,7 @@ export default {
 
 .conversation-item {
   display: flex;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   padding: 20rpx;
   margin-bottom: 15rpx;
@@ -269,7 +269,7 @@ export default {
 .avatar {
   width: 80rpx;
   height: 80rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -323,17 +323,17 @@ export default {
 .conv-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .conv-time {
   font-size: 22rpx;
-  color: #999;
+  color: #777;
 }
 
 .conv-preview {
   font-size: 26rpx;
-  color: #999;
+  color: #777;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -351,8 +351,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-top: 1rpx solid #e8e8e8;
+  background: #1a1a2efff;
+  border-top: 1rpx solid #2a2a3e;
 }
 
 .tab-container {
@@ -396,12 +396,12 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   margin-top: 4rpx;
 }
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #667eea;
+  color: #4f8cff;
 }
 </style>

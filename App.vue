@@ -512,22 +512,21 @@ export default {
   @import '@/uni_modules/uni-scss/index.scss';
   /* #ifndef APP-NVUE */
   @import '@/static/customicons.css';
-  // 设置整个项目的背景色
+
+  // 全局深色模式
   page {
-    background-color: #f5f5f5;
+    background-color: #0f0f1a;
   }
-  
-  // 修复底部导航栏白边
+
+  // 修复底部导航栏白边 - 覆盖所有层级
   /* #ifdef APP-PLUS */
   .uni-app--showleftwindow,
-  .uni-page-body {
-    background-color: #1a1a1a !important;
+  .uni-page-body,
+  .uni-app,
+  uni-page-wrapper,
+  uni-page-body {
+    background-color: #0f0f1a !important;
   }
   /* #endif */
   /* #endif */
-  .example-info {
-    font-size: 14px;
-    color: #333;
-    padding: 10px;
-  }
 </style>

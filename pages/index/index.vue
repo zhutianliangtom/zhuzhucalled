@@ -326,7 +326,7 @@ export default {
     async loadUnreadCount() {
       try {
         const res = await api.getMessages()
-        const total = res.data.reduce((s, c) => s + (c.unread || 0), 0)
+        const total = res.data.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
         this.unreadTotal = total
       } catch (err) {
         // 静默失败，不打印错误（避免未登录时刷屏）
@@ -359,9 +359,8 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
   padding-top: 0;
-  /* 为固定的头部留出空间 */
   padding-bottom: 120rpx;
 }
 
@@ -372,7 +371,7 @@ export default {
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
 }
 
 .header {
@@ -382,7 +381,7 @@ export default {
 .search-bar {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(26, 26, 46, 0.95);
   border-radius: 40rpx;
   padding: 20rpx 30rpx;
 }
@@ -394,15 +393,15 @@ export default {
 
 .search-placeholder {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
 }
 
 /* 分类tabs */
 .tabs {
   display: flex;
-  background: #fff;
+  background: #1a1a2e;
   padding: 20rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .tab-item {
@@ -410,36 +409,36 @@ export default {
   text-align: center;
   padding: 15rpx 0;
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   border-radius: 30rpx;
   transition: all 0.3s;
 }
 
 .tab-item.active {
-  background: #667eea;
+  background: #4f8cff;
   color: #fff;
 }
 
 /* 时间筛选 */
 .time-filter {
   display: flex;
-  background: #fff;
+  background: #1a1a2e;
   padding: 15rpx 20rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid #2a2a3e;
   gap: 15rpx;
 }
 
 .time-filter-item {
   padding: 8rpx 20rpx;
   font-size: 24rpx;
-  color: #666;
+  color: #777;
   border-radius: 20rpx;
-  background: #f5f5f5;
+  background: #0f0f1a;
   transition: all 0.3s;
 }
 
 .time-filter-item.active {
-  background: #667eea;
+  background: #4f8cff;
   color: #fff;
 }
 
@@ -462,7 +461,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
 }
 
 .item-list {
@@ -475,7 +474,7 @@ export default {
 .item-card {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
@@ -485,7 +484,7 @@ export default {
 /* 图片区域 */
 .image-wrapper {
   width: 100%;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 /* 单张图片 */
@@ -548,7 +547,7 @@ export default {
   flex: 1;
   font-size: 30rpx;
   font-weight: 600;
-  color: #2c3e50;
+  color: #e0e0e0;
   line-height: 1.4;
   word-break: break-all;
 }
@@ -583,7 +582,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #fff3e0;
+  background: #1a1a2e3e0;
   color: #ff9800;
 }
 
@@ -605,14 +604,14 @@ export default {
 }
 
 .search-content {
-  background: #fff;
+  background: #1a1a2e;
   padding: 30rpx;
 }
 
 .search-input-wrap {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 40rpx;
   padding: 20rpx 30rpx;
   margin-bottom: 30rpx;
@@ -626,7 +625,7 @@ export default {
 
 .clear-btn {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
   padding: 10rpx;
 }
 
@@ -636,7 +635,7 @@ export default {
 
 .tags-title {
   font-size: 26rpx;
-  color: #999;
+  color: #777;
   margin-bottom: 15rpx;
   display: block;
 }
@@ -650,9 +649,9 @@ export default {
 .tag {
   font-size: 26rpx;
   padding: 10rpx 25rpx;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 30rpx;
-  color: #666;
+  color: #777;
 }
 
 .tabbar-container {
@@ -666,8 +665,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-top: 1rpx solid #e8e8e8;
+  background: #1a1a2e;
+  border-top: 1rpx solid #2a2a3e;
 }
 
 .tab-container {
@@ -693,13 +692,13 @@ export default {
 
 .tab-text {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   margin-top: 4rpx;
 }
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #667eea;
+  color: #4f8cff;
 }
 
 /* 消息角标 */

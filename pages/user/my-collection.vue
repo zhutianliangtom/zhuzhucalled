@@ -78,14 +78,14 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #fff;
+  background: #1a1a2e;
 }
 
 .back-btn {
@@ -99,13 +99,13 @@ export default {
 
 .back-btn text {
   font-size: 48rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .empty-state {
@@ -123,13 +123,13 @@ export default {
 
 .empty-text {
   font-size: 32rpx;
-  color: #333;
+  color: #e0e0e0;
   margin-bottom: 15rpx;
 }
 
 .empty-desc {
   font-size: 26rpx;
-  color: #999;
+  color: #777;
 }
 
 .collection-list {
@@ -139,7 +139,7 @@ export default {
 .collection-item {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   padding: 25rpx;
   margin-bottom: 20rpx;
@@ -156,7 +156,7 @@ export default {
 .item-placeholder {
   width: 160rpx;
   height: 160rpx;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 10rpx;
   display: flex;
   align-items: center;
@@ -176,7 +176,7 @@ export default {
 .item-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   display: block;
   margin-bottom: 10rpx;
   overflow: hidden;
@@ -186,7 +186,7 @@ export default {
 
 .item-desc {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -207,7 +207,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #fff3e0;
+  background: #1a1a2e3e0;
   color: #ff9800;
 }
 
@@ -227,13 +227,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 50%;
   margin-left: 15rpx;
 }
 
 .remove-btn text {
   font-size: 32rpx;
-  color: #999;
+  color: #777;
 }
 </style>

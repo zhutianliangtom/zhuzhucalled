@@ -80,7 +80,7 @@ export default {
         title: '取消拉黑',
         content: `确定要取消拉黑 "${user.name || '校园用户'}" 吗？`,
         confirmText: '取消拉黑',
-        confirmColor: '#667eea',
+        confirmColor: '#4f8cff',
         success: async (res) => {
           if (res.confirm) {
             await this.unblockUser(user)
@@ -106,26 +106,26 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
   padding: 30rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   display: block;
   margin-bottom: 10rpx;
 }
 
 .subtitle {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
 }
 
 .loading {
@@ -136,7 +136,7 @@ export default {
   
   text {
     font-size: 28rpx;
-    color: #999;
+    color: #777;
   }
 }
 
@@ -154,7 +154,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
 }
 
 .blocked-list {
@@ -162,7 +162,7 @@ export default {
 }
 
 .blocked-item {
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   padding: 25rpx;
   margin-bottom: 15rpx;
@@ -180,7 +180,7 @@ export default {
 .avatar {
   width: 80rpx;
   height: 80rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -209,13 +209,13 @@ export default {
 .user-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   margin-bottom: 8rpx;
 }
 
 .user-id {
   font-size: 22rpx;
-  color: #999;
+  color: #777;
 }
 
 .actions {
@@ -224,9 +224,9 @@ export default {
 
 .unblock-btn {
   padding: 12rpx 30rpx;
-  background: #fff;
-  color: #667eea;
-  border: 2rpx solid #667eea;
+  background: #1a1a2e;
+  color: #4f8cff;
+  border: 2rpx solid #4f8cff;
   border-radius: 30rpx;
   font-size: 26rpx;
   line-height: 1.5;

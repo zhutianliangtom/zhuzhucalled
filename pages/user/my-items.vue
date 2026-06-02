@@ -104,7 +104,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
@@ -112,7 +112,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 60rpx 30rpx 20rpx;
-  background: #fff;
+  background: #1a1a2e;
 }
 
 .back-btn {
@@ -122,13 +122,13 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 48rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .title {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .placeholder {
@@ -137,9 +137,9 @@ export default {
 
 .tabs {
   display: flex;
-  background: #fff;
+  background: #1a1a2e;
   padding: 0 20rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .tab-item {
@@ -147,12 +147,12 @@ export default {
   padding: 25rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   position: relative;
 }
 
 .tab-item.active {
-  color: #667eea;
+  color: #4f8cff;
 }
 
 .tab-item.active::after {
@@ -163,7 +163,7 @@ export default {
   transform: translateX(-50%);
   width: 40rpx;
   height: 4rpx;
-  background: #667eea;
+  background: #4f8cff;
   border-radius: 2rpx;
 }
 
@@ -187,7 +187,7 @@ export default {
 
 .empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
 }
 
 .items-list {
@@ -198,7 +198,7 @@ export default {
 
 .item-card {
   display: flex;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
@@ -231,7 +231,7 @@ export default {
 }
 
 .tag-lost {
-  background: #fff3e0;
+  background: #1a1a2e3e0;
   color: #ff9800;
 }
 
@@ -242,19 +242,19 @@ export default {
 
 .item-time {
   font-size: 22rpx;
-  color: #999;
+  color: #777;
 }
 
 .item-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   margin-bottom: 10rpx;
 }
 
 .item-desc {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;

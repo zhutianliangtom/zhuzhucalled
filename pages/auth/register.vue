@@ -181,7 +181,7 @@ export default {
 .container {
   min-height: 100vh;
   padding: 40rpx;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
@@ -192,11 +192,11 @@ export default {
 .title {
   font-size: 40rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .form {
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 20rpx;
   padding: 40rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
@@ -216,14 +216,14 @@ export default {
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  border: 4rpx solid #eee;
+  border: 2rpx solid #2a2a3e;
 }
 
 .avatar-placeholder {
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  border: 4rpx dashed #ddd;
+  border: 2rpx dashed #555;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,14 +231,14 @@ export default {
 
 .avatar-icon {
   font-size: 48rpx;
-  color: #999;
+  color: #777;
 }
 
 .avatar-tip {
   display: block;
   text-align: center;
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   margin-top: 10rpx;
 }
 
@@ -248,7 +248,7 @@ export default {
 
 .label {
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   margin-bottom: 10rpx;
   display: block;
 }
@@ -256,7 +256,7 @@ export default {
 .input {
   width: 100%;
   height: 80rpx;
-  border: 2rpx solid #eee;
+  border: 2rpx solid #2a2a3e;
   border-radius: 10rpx;
   padding: 0 20rpx;
   font-size: 28rpx;
@@ -266,7 +266,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
@@ -284,6 +284,6 @@ export default {
 
 .link {
   font-size: 26rpx;
-  color: #667eea;
+  color: #4f8cff;
 }
 </style>

@@ -324,25 +324,25 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
   padding-bottom: 200rpx;
 }
 
 .header {
   padding: 30rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .form {
   margin: 20rpx;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   padding: 30rpx;
 }
@@ -353,7 +353,7 @@ export default {
 
 .label {
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   margin-bottom: 15rpx;
   display: block;
 }
@@ -367,25 +367,25 @@ export default {
   flex: 1;
   height: 70rpx;
   border-radius: 35rpx;
-  border: 2rpx solid #eee;
+  border: 2rpx solid #2a2a3e;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #666;
+  color: #777;
   transition: all 0.3s;
 }
 
 .type-option.active {
-  border-color: #667eea;
+  border-color: #4f8cff;
   background: #f0f4ff;
-  color: #667eea;
+  color: #4f8cff;
 }
 
 .input {
   width: 100%;
   height: 80rpx;
-  border: 2rpx solid #eee;
+  border: 2rpx solid #2a2a3e;
   border-radius: 10rpx;
   padding: 0 20rpx;
   font-size: 28rpx;
@@ -395,7 +395,7 @@ export default {
 .textarea {
   width: 100%;
   height: 200rpx;
-  border: 2rpx solid #eee;
+  border: 2rpx solid #2a2a3e;
   border-radius: 10rpx;
   padding: 20rpx;
   font-size: 28rpx;
@@ -404,7 +404,7 @@ export default {
 
 .word-count {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   float: right;
   margin-top: 10rpx;
 }
@@ -445,7 +445,7 @@ export default {
 .upload-btn {
   width: 200rpx;
   height: 200rpx;
-  border: 2rpx dashed #ddd;
+  border: 2rpx dashed #444;
   border-radius: 10rpx;
   display: flex;
   flex-direction: column;
@@ -460,7 +460,7 @@ export default {
 
 .upload-text {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   margin-top: 10rpx;
 }
 
@@ -470,15 +470,15 @@ export default {
   left: 0;
   right: 0;
   padding: 20rpx;
-  background: #fff;
-  border-top: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-top: 1rpx solid #2a2a3e;
   z-index: 100;
 }
 
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
@@ -510,7 +510,7 @@ export default {
 
 .progress-inner {
   height: 100%;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 3rpx;
   transition: width 0.3s;
 }
@@ -526,8 +526,8 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-top: 1rpx solid #e8e8e8;
+  background: #1a1a2efff;
+  border-top: 1rpx solid #2a2a3e;
 }
 
 .tab-container {
@@ -558,7 +558,7 @@ export default {
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #667eea;
+  color: #4f8cff;
 }
 
 /* 消息角标 */

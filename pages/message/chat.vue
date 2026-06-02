@@ -296,7 +296,7 @@ export default {
         title: '取消拉黑',
         content: '取消拉黑后，对方将可以再次给你发送消息',
         confirmText: '取消拉黑',
-        confirmColor: '#667eea',
+        confirmColor: '#4f8cff',
         success: async (res) => {
           if (res.confirm) {
             try {
@@ -575,8 +575,8 @@ export default {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  background: #1a1a2e;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .back-btn {
@@ -586,7 +586,7 @@ export default {
   align-items: center;
   justify-content: center;
   margin-right: 20rpx;
-  text { font-size: 48rpx; color: #333; }
+  text { font-size: 48rpx; color: #e0e0e0; }
 }
 
 .more-btn {
@@ -596,7 +596,7 @@ export default {
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  text { font-size: 40rpx; color: #666; }
+  text { font-size: 40rpx; color: #777; }
 }
 
 .user-info {
@@ -607,7 +607,7 @@ export default {
 .avatar {
   width: 72rpx;
   height: 72rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -629,7 +629,7 @@ export default {
 .user-name {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   margin-left: 16rpx;
 }
 
@@ -698,7 +698,7 @@ export default {
 
 /* ── Text Message ─── */
 .text-message {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   padding: 20rpx 25rpx;
   border-radius: 24rpx 8rpx 24rpx 24rpx;
@@ -709,8 +709,8 @@ export default {
 }
 
 .message-item.other .text-message {
-  background: #fff;
-  color: #333;
+  background: #1a1a2e;
+  color: #e0e0e0;
   border-radius: 8rpx 24rpx 24rpx 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
@@ -766,7 +766,7 @@ export default {
   
   text {
     font-size: 40rpx;
-    color: #667eea;
+    color: #4f8cff;
     margin-left: 6rpx;
   }
 }
@@ -823,7 +823,7 @@ export default {
   border-radius: 20rpx;
   text {
     font-size: 24rpx;
-    color: #999;
+    color: #777;
     font-style: italic;
   }
 }
@@ -841,9 +841,9 @@ export default {
 
 /* ─── Input Area ─── */
 .input-area {
-  background: #fff;
+  background: #1a1a2e;
   padding: 20rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid #2a2a3e;
   flex-shrink: 0;
 }
 
@@ -865,7 +865,7 @@ export default {
 .input-wrapper {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
+  background: #0f0f1a;
   border-radius: 40rpx;
   padding: 0 20rpx;
 }
@@ -877,7 +877,7 @@ export default {
 }
 
 .send-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   border-radius: 30rpx;
   padding: 15rpx 30rpx;
@@ -895,7 +895,7 @@ export default {
 
 .context-menu {
   position: absolute;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 16rpx;
   box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.18);
   overflow: hidden;
@@ -913,9 +913,9 @@ export default {
   display: flex;
   align-items: center;
   padding: 28rpx 36rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #2a2a3e;
   &:last-child { border-bottom: none; }
-  &:active { background: #f5f5f5; }
+  &:active { background: #0f0f1a; }
 
   .menu-icon {
     font-size: 32rpx;
@@ -923,7 +923,7 @@ export default {
   }
   .menu-label {
     font-size: 28rpx;
-    color: #333;
+    color: #e0e0e0;
   }
 
   &.danger .menu-label {
@@ -938,7 +938,7 @@ export default {
   bottom: 260rpx;
   width: 80rpx;
   height: 80rpx;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 50%;
   box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.15);
   display: flex;
@@ -950,7 +950,7 @@ export default {
 
 .scroll-icon {
   font-size: 32rpx;
-  color: #667eea;
+  color: #4f8cff;
 }
 
 .scroll-count {

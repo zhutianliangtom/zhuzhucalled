@@ -11,13 +11,13 @@
       <view class="settings-item">
         <text class="settings-icon">🔔</text>
         <text class="settings-text">消息通知</text>
-        <switch :checked="notifications" @change="toggleNotifications" color="#667eea" />
+        <switch :checked="notifications" @change="toggleNotifications" color="#4f8cff" />
       </view>
       
       <view class="settings-item">
         <text class="settings-icon">🌙</text>
         <text class="settings-text">深色模式</text>
-        <switch :checked="darkMode" @change="toggleDarkMode" color="#667eea" />
+        <switch :checked="darkMode" @change="toggleDarkMode" color="#4f8cff" />
       </view>
       
       <view class="settings-item" @click="clearCache">
@@ -75,13 +75,13 @@ export default {
       
       if (this.darkMode) {
         uni.setNavigationBarColor({
-          frontColor: '#ffffff',
+          frontColor: '#e0e0e0',
           backgroundColor: '#1a1a1a'
         })
       } else {
         uni.setNavigationBarColor({
           frontColor: '#000000',
-          backgroundColor: '#ffffff'
+          backgroundColor: '#1a1a2e'
         })
       }
       
@@ -120,7 +120,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .container.dark {
@@ -131,7 +131,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #fff;
+  background: #1a1a2e;
 }
 
 .container.dark .header {
@@ -149,7 +149,7 @@ export default {
 
 .back-btn text {
   font-size: 48rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .container.dark .back-btn text {
@@ -159,7 +159,7 @@ export default {
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .container.dark .header-title {
@@ -168,7 +168,7 @@ export default {
 
 .settings-list {
   margin: 20rpx;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 15rpx;
   overflow: hidden;
 }
@@ -181,7 +181,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .container.dark .settings-item {
@@ -200,7 +200,7 @@ export default {
 .settings-text {
   flex: 1;
   font-size: 30rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .container.dark .settings-text {
@@ -213,7 +213,7 @@ export default {
 }
 
 .container.dark .settings-arrow {
-  color: #666;
+  color: #777;
 }
 
 .version-info {
@@ -223,10 +223,10 @@ export default {
 
 .version-text {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
 }
 
 .container.dark .version-text {
-  color: #666;
+  color: #777;
 }
 </style>

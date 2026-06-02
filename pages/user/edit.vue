@@ -163,14 +163,14 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0f0f1a;
 }
 
 .header {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
-  background: #fff;
+  background: #1a1a2e;
 }
 
 .back-btn {
@@ -184,13 +184,13 @@ export default {
 
 .back-btn text {
   font-size: 48rpx;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .form-container {
@@ -198,7 +198,7 @@ export default {
 }
 
 .form-item {
-  background: #fff;
+  background: #1a1a2e;
   padding: 30rpx;
   margin-bottom: 20rpx;
   border-radius: 15rpx;
@@ -206,20 +206,20 @@ export default {
 
 .form-label {
   font-size: 28rpx;
-  color: #999;
+  color: #777;
   margin-bottom: 15rpx;
   display: block;
 }
 
 .form-input {
   font-size: 32rpx;
-  color: #333;
+  color: #e0e0e0;
   padding: 15rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #2a2a3e;
 }
 
 .form-input:disabled {
-  color: #999;
+  color: #777;
 }
 
 .avatar-wrapper {
@@ -230,7 +230,7 @@ export default {
 .avatar {
   width: 120rpx;
   height: 120rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -255,7 +255,7 @@ export default {
   right: 0;
   width: 40rpx;
   height: 40rpx;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -270,7 +270,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 90rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
   color: #fff;
   border-radius: 45rpx;
   font-size: 32rpx;
