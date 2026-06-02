@@ -254,10 +254,18 @@ function getPublicUrl(url) {
   const publicBase = PUBLIC_BASE
   if (url.startsWith('http://') || url.startsWith('https://')) {
     // 如果已经包含正确的外网地址，直接返回
-    if (url.includes(PUBLIC_HOST)) return url
+    if (url.includes(PUBLIC_HOST)) {
+      // 协议不一致也修正（http → https）
+      if (PUBLIC_PROTO === 'https' && url.startsWith('http://')) {
+        return url.replace('http://', 'https://')
+      }
+      return url
+    }
     try {
       const urlObj = new URL(url)
       urlObj.host = PUBLIC_HOST
+      // 同步协议
+      urlObj.protocol = PUBLIC_PROTO === 'https' ? 'https:' : 'http:'
       return urlObj.toString()
     } catch (e) { return url }
   }
