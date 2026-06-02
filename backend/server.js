@@ -744,7 +744,7 @@ function formatTime(timestamp) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-app.get('/', (req, res) => res.redirect('/admin/login'))
+app.get('/', (req, res) => res.redirect('/download'))
 
 app.get('/admin/login', (req, res) => res.render('login', { error: null }))
 
@@ -1910,6 +1910,7 @@ process.on('SIGINT', () => {
       console.log(`服务器运行在 http://localhost:${port}`)
       console.log(`局域网访问: http://${localIP}:${port}`)
       console.log(`外网映射: ${PUBLIC_BASE} (端口映射)`)
+      console.log(`下载页面: ${PUBLIC_BASE}/download`)
       console.log(`Web管理后台: ${PUBLIC_BASE}/admin/login`)
       console.log(`WebSocket 服务已启动`)
     })
