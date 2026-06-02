@@ -698,7 +698,7 @@ app.use(rateLimitMiddleware({
   windowMs: 60000,
   max: 200,
   message: '请求过于频繁，请稍后再试',
-  skipPaths: ['/api/heartbeat', '/messages/unread', '/admin']
+  skipPaths: ['/api/heartbeat', '/messages/unread', '/stats', '/version', '/admin']
 }))
 app.use(xssProtection)
 app.use(sqlInjectionProtection)
@@ -1528,7 +1528,8 @@ app.get('/stats', async (req, res) => {
   const [[{ totalItems }]] = await pool.query("SELECT COUNT(*) AS totalItems FROM items")
   const [[{ activeItems }]] = await pool.query("SELECT COUNT(*) AS activeItems FROM items WHERE status = 'active'")
   const [[{ solvedItems }]] = await pool.query("SELECT COUNT(*) AS solvedItems FROM items WHERE status = 'solved'")
-  res.json({ data: { totalItems, activeItems, solvedItems } })
+  const [[{ totalUsers }]] = await pool.query("SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'approved' AND isAdmin = FALSE")
+  res.json({ data: { totalItems, activeItems, solvedItems, totalUsers } })
 })
 
 // 用户发布的物品

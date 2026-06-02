@@ -2,171 +2,196 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>校园失物招领 - App 下载</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 让失物不再迷路</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f2f5;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      background: #fff; color: #374151; line-height: 1.6;
     }
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
-      width: 100%;
-      max-width: 400px;
-      overflow: hidden;
-    }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+    /* Hero */
     .hero {
-      background: #1e293b;
-      padding: 36px 28px 28px;
-      text-align: center;
-      color: #fff;
-      position: relative;
+      background: #1e293b; color: #fff; text-align: center;
+      padding: 80px 24px 60px; position: relative; overflow: hidden;
     }
-    .hero::after {
-      content: '';
-      position: absolute;
-      bottom: -1px; left: 0; right: 0;
-      height: 24px;
-      background: #fff;
-      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    .hero::before {
+      content: ''; position: absolute; top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at 30% 50%, rgba(37,99,235,0.15), transparent 60%),
+                  radial-gradient(circle at 70% 30%, rgba(99,102,241,0.1), transparent 50%);
     }
-    .app-icon {
-      width: 72px; height: 72px;
-      border-radius: 16px;
-      background: #fff;
-      margin: 0 auto 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 38px;
+    .hero .container { position: relative; z-index: 1; }
+    .hero-icon { font-size: 64px; margin-bottom: 20px; display: block; }
+    .hero h1 { font-size: 40px; font-weight: 700; margin-bottom: 12px; letter-spacing: -1px; }
+    .hero p { font-size: 18px; color: #94a3b8; max-width: 480px; margin: 0 auto 32px; }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-block; padding: 12px 32px; border-radius: 8px;
+      font-size: 15px; font-weight: 600; text-decoration: none;
+      cursor: pointer; transition: all 0.2s; border: none;
     }
-    .hero h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-    .hero p { font-size: 13px; color: #94a3b8; }
-    .body { padding: 28px; }
-    .version-info {
-      background: #f8f9fa;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px 18px;
-      margin-bottom: 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .btn-outline { background: transparent; color: #fff; border: 1px solid #475569; }
+    .btn-outline:hover { border-color: #94a3b8; }
+
+    /* Features */
+    .section { padding: 72px 0; }
+    .section-title { text-align: center; margin-bottom: 48px; }
+    .section-title h2 { font-size: 28px; font-weight: 700; color: #111; margin-bottom: 8px; }
+    .section-title p { color: #9ca3af; font-size: 15px; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+    .feature-card {
+      text-align: center; padding: 32px 20px;
+      border: 1px solid #e5e7eb; border-radius: 10px; transition: box-shadow 0.2s;
     }
-    .version-label { font-size: 12px; color: #9ca3af; }
-    .version-value { font-size: 15px; font-weight: 600; color: #111; }
-    .features {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 18px;
+    .feature-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .feature-card .icon { font-size: 36px; margin-bottom: 14px; display: block; }
+    .feature-card h3 { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: #9ca3af; line-height: 1.5; }
+
+    /* Stats */
+    .stats { background: #f8f9fa; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .stats-grid { display: flex; justify-content: center; gap: 60px; flex-wrap: wrap; padding: 48px 0; }
+    .stat-item { text-align: center; }
+    .stat-num { font-size: 36px; font-weight: 700; color: #2563eb; }
+    .stat-label { font-size: 13px; color: #9ca3af; margin-top: 4px; }
+
+    /* Download */
+    .download-card {
+      max-width: 500px; margin: 0 auto;
+      background: #f8f9fa; border: 1px solid #e5e7eb;
+      border-radius: 12px; padding: 32px;
     }
-    .feature-item {
-      background: #f8f9fa;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 14px 12px;
-      text-align: center;
-    }
-    .feature-icon { font-size: 26px; margin-bottom: 6px; }
-    .feature-name { font-size: 12px; color: #6b7280; font-weight: 500; }
-    .changelog { margin-bottom: 20px; }
-    .changelog h3 { font-size: 14px; color: #374151; margin-bottom: 10px; font-weight: 600; }
-    .changelog ul { list-style: none; padding: 0; }
-    .changelog li {
-      font-size: 13px; color: #6b7280; padding: 5px 0;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .dot { width: 5px; height: 5px; border-radius: 50%; background: #2563eb; flex-shrink: 0; }
+    .version-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .version-row .lbl { font-size: 13px; color: #9ca3af; }
+    .version-row .val { font-size: 15px; font-weight: 600; color: #111; }
+    .changelog { margin-bottom: 22px; }
+    .changelog h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+    .changelog li { font-size: 13px; color: #6b7280; padding: 3px 0; list-style: none; display: flex; gap: 8px; }
+    .changelog li::before { content: '·'; color: #2563eb; font-weight: 700; }
     .download-btn {
       display: block; width: 100%; padding: 14px;
       background: #2563eb; color: #fff; border: none;
       border-radius: 8px; font-size: 16px; font-weight: 600;
-      cursor: pointer; text-align: center; text-decoration: none;
-      transition: background 0.2s;
+      cursor: pointer; text-align: center; transition: background 0.2s;
     }
     .download-btn:hover { background: #1d4ed8; }
-    .download-btn:active { transform: scale(0.98); }
     .download-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .meta { text-align: center; margin-top: 14px; font-size: 12px; color: #9ca3af; }
-    .loading { text-align: center; padding: 30px; color: #9ca3af; font-size: 14px; }
-    .loading p { margin-bottom: 12px; }
-    .error-msg { background: #fef2f2; color: #991b1b; padding: 14px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; text-align: center; border: 1px solid #fecaca; }
-    .error-msg p { margin-bottom: 8px; }
+    .download-meta { text-align: center; margin-top: 12px; font-size: 12px; color: #9ca3af; }
+
+    /* Loading / Error */
+    .status-msg { text-align: center; padding: 40px; }
+    .status-msg p { color: #9ca3af; margin-bottom: 12px; }
+    .status-msg.error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #991b1b; }
     .retry-btn {
-      display: inline-block; padding: 7px 24px;
+      display: inline-block; padding: 8px 24px;
       background: #2563eb; color: #fff; border: none;
-      border-radius: 6px; font-size: 13px; cursor: pointer; margin-top: 6px;
+      border-radius: 6px; font-size: 13px; cursor: pointer;
     }
-    .retry-btn:hover { background: #1d4ed8; }
+
+    /* Footer */
+    .footer { text-align: center; padding: 32px 0; color: #9ca3af; font-size: 13px; }
+    .footer a { color: #6b7280; text-decoration: none; }
+    .footer a:hover { color: #2563eb; }
+
+    @media (max-width: 640px) {
+      .hero { padding: 56px 20px 40px; }
+      .hero h1 { font-size: 28px; }
+      .hero p { font-size: 15px; }
+      .section { padding: 48px 0; }
+      .stats-grid { gap: 32px; }
+      .stat-num { font-size: 28px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card" id="app">
-    <div class="hero">
-      <div class="app-icon">📦</div>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <span class="hero-icon">📦</span>
       <h1>校园失物招领</h1>
-      <p>让失物不再迷路</p>
-    </div>
-    <div class="body">
-      <div v-if="loading" class="loading">
-        <p>正在获取最新版本...</p>
-        <button class="retry-btn" @click="fetchLatest">刷新</button>
+      <p>帮助同学们快速找回丢失的物品，支持图片、视频、实时聊天</p>
+      <div class="hero-btns">
+        <a href="#download" class="btn btn-primary">立即下载</a>
+        <a href="/admin/login" class="btn btn-outline">管理后台</a>
       </div>
-      <div v-else-if="error" class="error-msg">
-        <p>{{ error }}</p>
-        <button class="retry-btn" @click="fetchLatest">重试</button>
-      </div>
-      <template v-else-if="latest">
-        <div class="version-info">
-          <div>
-            <div class="version-label">当前版本</div>
-            <div class="version-value">v{{ latest.version }}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="version-label">发布时间</div>
-            <div class="version-value" style="font-size:12px;color:#9ca3af;">{{ formatDate(latest.createdAt) }}</div>
-          </div>
-        </div>
-        <div class="features">
-          <div class="feature-item"><div class="feature-icon">🔍</div><div class="feature-name">快速寻物</div></div>
-          <div class="feature-item"><div class="feature-icon">💬</div><div class="feature-name">即时聊天</div></div>
-          <div class="feature-item"><div class="feature-icon">🔔</div><div class="feature-name">消息通知</div></div>
-          <div class="feature-item"><div class="feature-icon">🔒</div><div class="feature-name">安全可靠</div></div>
-        </div>
-        <div class="changelog" v-if="changelogList.length">
-          <h3>📝 更新日志</h3>
-          <ul>
-            <li v-for="(item, idx) in changelogList" :key="idx">
-              <span class="dot"></span><span>{{ item }}</span>
-            </li>
-          </ul>
-        </div>
-        <button @click="handleDownload" :disabled="downloading" class="download-btn" v-if="latest.apkUrl">
-          <span v-if="downloading">下载中...</span>
-          <span v-else>⬇ 立即下载 v{{ latest.version }}</span>
-        </button>
-        <div v-else class="error-msg" style="margin-bottom:0">暂无安装包，请联系管理员上传</div>
-        <div class="meta">适用于 Android 5.0 及以上</div>
-      </template>
-      <div v-else class="error-msg">暂未发布版本，请稍后再试</div>
     </div>
-  </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats" id="stats">
+    <div class="container stats-grid">
+      <div class="stat-item"><div class="stat-num" id="statItems">-</div><div class="stat-label">失物招领</div></div>
+      <div class="stat-item"><div class="stat-num" id="statUsers">-</div><div class="stat-label">注册用户</div></div>
+      <div class="stat-item"><div class="stat-num" id="statSolved">-</div><div class="stat-label">已解决</div></div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-title"><h2>核心功能</h2><p>专为校园设计的失物招领平台</p></div>
+      <div class="features-grid">
+        <div class="feature-card"><span class="icon">🔍</span><h3>快速寻物</h3><p>发布寻物启事，按类型和时间筛选</p></div>
+        <div class="feature-card"><span class="icon">📸</span><h3>图文并茂</h3><p>支持上传最多 5 张图片辅助辨认</p></div>
+        <div class="feature-card"><span class="icon">💬</span><h3>实时聊天</h3><p>与失主/拾主直接沟通，支持图片视频</p></div>
+        <div class="feature-card"><span class="icon">🔔</span><h3>消息通知</h3><p>新消息实时提醒，不错过任何线索</p></div>
+        <div class="feature-card"><span class="icon">👥</span><h3>身份认证</h3><p>学号注册 + 管理员审核，安全可靠</p></div>
+        <div class="feature-card"><span class="icon">📱</span><h3>跨平台</h3><p>支持 Android / iOS / H5 多端使用</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download -->
+  <section class="section" id="download" style="background:#f8f9fa;border-top:1px solid #e5e7eb;">
+    <div class="container">
+      <div class="section-title"><h2>下载应用</h2><p>选择适合你的方式开始使用</p></div>
+      <div id="downloadApp">
+        <div v-if="loading" class="status-msg">
+          <p>正在获取最新版本...</p>
+          <button class="retry-btn" @click="fetchLatest" style="margin-top:8px;">刷新</button>
+        </div>
+        <div v-else-if="error" class="status-msg error">
+          <p>{{ error }}</p>
+          <button class="retry-btn" @click="fetchLatest">重试</button>
+        </div>
+        <div v-else-if="latest" class="download-card">
+          <div class="version-row">
+            <div><div class="lbl">最新版本</div><div class="val">v{{ latest.version }}</div></div>
+            <div style="text-align:right"><div class="lbl">发布时间</div><div class="val" style="font-size:12px;color:#9ca3af;">{{ formatDate(latest.createdAt) }}</div></div>
+          </div>
+          <div class="changelog" v-if="changelogList.length">
+            <h3>📝 更新日志</h3>
+            <ul><li v-for="(item, idx) in changelogList" :key="idx">{{ item }}</li></ul>
+          </div>
+          <button @click="handleDownload" :disabled="downloading" class="download-btn" v-if="latest.apkUrl">
+            <span v-if="downloading">下载中...</span>
+            <span v-else>⬇ 下载 Android APK</span>
+          </button>
+          <div v-else class="status-msg error" style="margin-bottom:0">暂无安装包，请联系管理员上传</div>
+          <div class="download-meta">Android 5.0+ · 安全无毒 · 实时更新</div>
+        </div>
+        <div v-else class="status-msg error"><p>暂未发布版本</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 校园失物招领 · <a href="/admin/login">管理后台</a></p>
+    </div>
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
   <script>
     const { createApp } = Vue
-    const app = {
-      data() {
-        return { latest: null, loading: true, error: '', downloading: false }
-      },
+    createApp({
+      data() { return { latest: null, loading: true, error: '', downloading: false } },
       computed: {
         changelogList() {
           if (!this.latest || !this.latest.changelog) return []
@@ -189,7 +214,7 @@
             if (!res.ok) throw new Error('服务器返回 ' + res.status)
             const json = await res.json()
             if (json.data) this.latest = json.data
-            else { this.latest = null; this.error = '暂无可用版本，请联系管理员上传安装包' }
+            else { this.latest = null; this.error = '暂无可用版本' }
           } catch (e) {
             this.error = e.name === 'AbortError' ? '请求超时，请检查网络后重试' : '获取版本信息失败，请检查网络连接'
           } finally { this.loading = false }
@@ -211,11 +236,24 @@
             } else { this.error = '暂无可用下载链接' }
           } catch (e) { this.error = '下载失败，请重试' }
           finally { this.downloading = false }
+        },
+        async fetchStats() {
+          try {
+            const res = await fetch('/stats')
+            const json = await res.json()
+            if (json.data) {
+              document.getElementById('statItems').textContent = json.data.totalItems || 0
+              document.getElementById('statUsers').textContent = json.data.totalUsers || 0
+              document.getElementById('statSolved').textContent = json.data.solvedItems || 0
+            }
+          } catch (e) {}
         }
       },
-      async mounted() { await this.fetchLatest() }
-    }
-    createApp(app).mount('#app')
+      async mounted() {
+        await this.fetchLatest()
+        this.fetchStats()
+      }
+    }).mount('#downloadApp')
   </script>
 </body>
 </html>
