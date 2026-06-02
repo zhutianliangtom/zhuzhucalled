@@ -137,9 +137,10 @@ const port = 5000
 const JWT_SECRET = process.env.JWT_SECRET || 'lost_found_secret_key'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 const PUBLIC_HOST = process.env.PUBLIC_HOST || 'chentian.dpdns.org'
-// HTTPS 支持：设置 SSL_CERT 和 SSL_KEY 环境变量启用
+// HTTPS 判断：有证书就自启HTTPS，没证书但用域名（无端口号）则假定Nginx代理HTTPS
 const USE_HTTPS = !!(process.env.SSL_CERT && process.env.SSL_KEY)
-const PUBLIC_PROTO = USE_HTTPS ? 'https' : 'http'
+const BEHIND_PROXY = !USE_HTTPS && !PUBLIC_HOST.includes(':')
+const PUBLIC_PROTO = USE_HTTPS || BEHIND_PROXY ? 'https' : 'http'
 const PUBLIC_BASE = `${PUBLIC_PROTO}://${PUBLIC_HOST}`
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads')
