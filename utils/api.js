@@ -1,6 +1,6 @@
 import { storage } from './storage'
 
-const baseUrl = 'http://183.66.27.20:41412'
+const baseUrl = 'https://chentian.dpdns.org'
 
 // 心跳检测配置
 let heartbeatTimer = null

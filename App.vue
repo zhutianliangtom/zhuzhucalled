@@ -9,7 +9,7 @@ let globalNetworkStatus = {
 }
 
 // 基础API地址
-const baseUrl = 'http://183.66.27.20:41412'
+const baseUrl = 'https://chentian.dpdns.org'
 
 // 保活定时器引用
 let keepAliveTimer = null

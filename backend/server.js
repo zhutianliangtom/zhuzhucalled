@@ -136,7 +136,7 @@ const port = 5000
 // JWT 密钥从环境变量读取，生产环境必须配置强随机字符串
 const JWT_SECRET = process.env.JWT_SECRET || 'lost_found_secret_key'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
-const PUBLIC_HOST = process.env.PUBLIC_HOST || '183.66.27.20:41412'
+const PUBLIC_HOST = process.env.PUBLIC_HOST || 'chentian.dpdns.org'
 // HTTPS 支持：设置 SSL_CERT 和 SSL_KEY 环境变量启用
 const USE_HTTPS = !!(process.env.SSL_CERT && process.env.SSL_KEY)
 const PUBLIC_PROTO = USE_HTTPS ? 'https' : 'http'

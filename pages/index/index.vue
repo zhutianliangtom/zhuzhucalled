@@ -237,7 +237,7 @@ export default {
         return url
       }
       // 如果是相对路径，拼接baseUrl
-      const baseUrl = 'http://183.66.27.20:41412'
+      const baseUrl = 'https://chentian.dpdns.org'
       return baseUrl + url
     },
     async loadItems() {

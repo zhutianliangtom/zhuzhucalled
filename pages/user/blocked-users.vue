@@ -60,7 +60,7 @@ export default {
       if (url.startsWith('http://') || url.startsWith('https://')) {
         return url
       }
-      const baseUrl = 'http://183.66.27.20:41412'
+      const baseUrl = 'https://chentian.dpdns.org'
       return baseUrl + url
     },
     async loadBlockedUsers() {
