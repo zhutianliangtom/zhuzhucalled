@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开发者 - 校园失物招领</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    .page-title {
+      text-align: center;
+      color: #333;
+      font-size: 24px;
+      padding: 40px 0 20px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      margin-bottom: 20px;
+    }
+    
+    .developer-section {
+      text-align: center;
+      padding-bottom: 60px;
+    }
+    
+    .avatar-link {
+      display: inline-block;
+      text-decoration: none;
+    }
+    
+    .avatar {
+      width: 550px;
+      height: 550px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 5px solid #eee;
+      transition: transform 0.2s;
+      cursor: zoom-in;
+    }
+    
+    .avatar:hover {
+      transform: scale(1.05);
+    }
+    
+    .avatar-hint {
+      font-size: 14px;
+      color: #999;
+      margin-top: 12px;
+    }
+    
+    .name {
+      font-size: 28px;
+      color: #333;
+      margin-top: 24px;
+      margin-bottom: 6px;
+    }
+    
+    .role {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 40px;
+    }
+    
+    .info-item {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      text-align: left;
+    }
+    
+    .info-item label {
+      font-weight: 600;
+      color: #666;
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .info-item span {
+      font-size: 17px;
+      color: #333;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #eee;
+      margin: 20px 0;
+    }
+    
+    .donation-section {
+      text-align: center;
+      padding-top: 40px;
+    }
+    
+    .donation-title {
+      font-size: 20px;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    
+    .qr-wrapper {
+      background: #f8f9fa;
+      padding: 30px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    .qr-code {
+      width: 500px;
+      height: 500px;
+      object-fit: contain;
+    }
+    
+    .donation-hint {
+      color: #999;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    
+    .back-btn {
+      display: inline-block;
+      padding: 14px 40px;
+      background: #333;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    
+    .back-btn:hover {
+      background: #555;
+    }
+    
+    @media (max-width: 640px) {
+      body { padding: 0 16px; }
+      .card { padding: 28px 20px; }
+      .avatar { width: 280px; height: 280px; }
+      .qr-code { width: 220px; height: 220px; }
+      .name { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="page-title">👨‍💻 关于开发者</h1>
+    
+    <div class="card">
+      <div class="developer-section">
+        <a href="/developer_avatar.jpg" target="_blank" class="avatar-link" download="developer_avatar.jpg">
+          <img src="/developer_avatar.jpg" alt="开发者头像" class="avatar">
+        </a>
+        <p class="avatar-hint">点击头像可查看大图和下载</p>
+        
+        <h2 class="name">朱天亮</h2>
+        <p class="role">🚀 全栈工程师 / 总开发者</p>
+        
+        <div class="info-item">
+          <label>💬 QQ / 微信</label>
+          <span>18799784824</span>
+        </div>
+        
+        <div class="info-item">
+          <label>📧 邮箱</label>
+          <span>13239027385@163.com</span>
+        </div>
+        
+        <div class="info-item">
+          <label>📱 项目</label>
+          <span>校园失物招领 App</span>
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="donation-section">
+        <h3 class="donation-title">🧋 请开发者喝一杯奶茶吧~</h3>
+        
+        <div class="qr-wrapper">
+          <img src="/donation_qrcode.png" alt="微信捐赠码" class="qr-code">
+        </div>
+        
+        <p class="donation-hint">💖 您的支持是我持续开发的动力！</p>
+        
+        <a href="/download" class="back-btn">🔙 返回下载页面</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

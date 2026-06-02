@@ -85,6 +85,12 @@
         <text class="menu-arrow">›</text>
       </view>
       
+      <view class="menu-item donation" @click="goDonation">
+        <text class="menu-icon">🧋</text>
+        <text class="menu-text">请开发者喝奶茶</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
       <view class="menu-item logout" @click="handleLogout">
         <text class="menu-icon">🚪</text>
         <text class="menu-text">退出登录</text>
@@ -297,6 +303,48 @@ export default {
     },
     goBlockedUsers() {
       uni.navigateTo({ url: '/pages/user/blocked-users' })
+    },
+    goDonation() {
+      uni.showModal({
+        title: '请开发者喝杯奶茶',
+        content: '感谢使用校园失物招领！\n您的支持是我持续开发的动力！\n\n点击下方按钮查看开发者信息和捐赠码',
+        confirmText: '去看看',
+        success: (res) => {
+          if (res.confirm) {
+            // 在 App 内打开 web-view 或者跳转到外部链接
+            // 这里我们可以用 uni.navigateTo 打开一个页面，或者用 plus.runtime.openURL
+            // 简单起见，先跳转到外部链接或 web-view
+            uni.showToast({ 
+              title: '正在打开...', 
+              icon: 'loading' 
+            })
+            // 延迟一点再打开，避免 toast 立即被覆盖
+            setTimeout(() => {
+              // 尝试用 plus.runtime.openURL（APP 端）或其他方式
+              // 首先尝试 webview，简单起见，我们先在 app 内打开 web-view
+              // 但是用户可能没有 web-view 页面，所以我们用简单的方式
+              // 先简单点，尝试用 uni.navigateTo 或者 web-view
+              // 或者我们先弹出提示，告诉用户访问 /developer 页面
+              uni.showModal({
+                title: '前往捐赠',
+                content: '请在浏览器中访问：\nhttps://chentian.dpdns.org/developer',
+                showCancel: false,
+                confirmText: '复制链接',
+                success: (copyRes) => {
+                  if (copyRes.confirm) {
+                    uni.setClipboardData({
+                      data: 'https://chentian.dpdns.org/developer',
+                      success: () => {
+                        uni.showToast({ title: '链接已复制', icon: 'success' })
+                      }
+                    })
+                  }
+                }
+              })
+            }, 500)
+          }
+        }
+      })
     },
     handleLogout() {
       uni.showModal({

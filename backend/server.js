@@ -1801,6 +1801,21 @@ app.get('/download', (req, res) => {
   res.sendFile(path.join(__dirname, 'views/download.html'))
 })
 
+// 开发者信息页面
+app.get('/developer', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views/developer.html'))
+})
+
+// 提供开发者头像图片
+app.get('/developer_avatar.jpg', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', '开发者头像.jpg'))
+})
+
+// 提供微信捐赠码图片
+app.get('/donation_qrcode.png', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', '微信捐赠码.png'))
+})
+
 // 心跳检测 API（不需要token认证，允许未登录状态检测）
 app.get('/api/heartbeat', (req, res) => {
   res.json({ 
