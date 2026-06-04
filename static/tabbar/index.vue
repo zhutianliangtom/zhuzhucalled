@@ -268,7 +268,7 @@ export default {
 }
 
 .tab-item.active .tab-text {
-  color: #667eea;
+  color: #334155;
   font-weight: 500;
 }
 
@@ -276,10 +276,10 @@ export default {
   position: absolute;
   height: 60rpx;
   border-radius: 30rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #334155;
   transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.3s ease;
   opacity: 0.8;
-  box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8rpx 25rpx rgba(51, 65, 85, 0.4);
   will-change: left, transform;
   transform-origin: center center;
 }

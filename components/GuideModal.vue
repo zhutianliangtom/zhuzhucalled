@@ -174,11 +174,11 @@ export default {
   &.active {
     width: 36rpx;
     border-radius: 7rpx;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: #334155;
   }
 
   &.done {
-    background: #667eea;
+    background: #475569;
   }
 }
 
@@ -210,12 +210,12 @@ export default {
 }
 
 .guide-btn-prev {
-  color: #667eea;
-  background: #f0f0ff;
+  color: #334155;
+  background: #e5e7eb;
 }
 
 .guide-btn-next {
   color: #fff;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #334155;
 }
 </style>
