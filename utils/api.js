@@ -1,6 +1,10 @@
-import { storage } from './storage'
+﻿import { storage } from './storage'
 
 const baseUrl = 'https://chentian.dpdns.org'
+
+// 生产环境关闭 debug 日志（云打包后 process.env.NODE_ENV === 'production'）
+const __DEV__ = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production'
+const debug = (...args) => { if (__DEV__) console.log(...args) }
 
 // 心跳检测配置
 let heartbeatTimer = null
@@ -162,10 +166,10 @@ export const api = {
       'Authorization': token ? `Bearer ${token}` : ''
     }
     
-    console.log('[API] 请求URL:', baseUrl + url)
-    console.log('[API] 请求方法:', method)
-    console.log('[API] 请求数据:', data)
-    console.log('[API] 请求头:', { ...defaultHeader, ...header })
+    debug('[API] 请求URL:', baseUrl + url)
+    debug('[API] 请求方法:', method)
+    debug('[API] 请求数据:', data)
+    debug('[API] 请求头:', { ...defaultHeader, ...header })
     
     return new Promise((resolve, reject) => {
       uni.request({
@@ -174,8 +178,8 @@ export const api = {
         data,
         header: { ...defaultHeader, ...header },
         success: (res) => {
-          console.log('[API] 响应状态:', res.statusCode)
-          console.log('[API] 响应数据:', res.data)
+          debug('[API] 响应状态:', res.statusCode)
+          debug('[API] 响应数据:', res.data)
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
@@ -298,7 +302,7 @@ export const api = {
   },
   
   async uploadImage(filePath) {
-    console.log('[上传图片] 开始上传:', filePath)
+    debug('[上传图片] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
       if (!token) {
@@ -315,12 +319,12 @@ export const api = {
           'Authorization': `Bearer ${token}`
         },
         success: (res) => {
-          console.log('[上传图片] 响应状态码:', res.statusCode)
-          console.log('[上传图片] 响应数据:', res.data)
+          debug('[上传图片] 响应状态码:', res.statusCode)
+          debug('[上传图片] 响应数据:', res.data)
           if (res.statusCode === 200) {
             try {
               const data = JSON.parse(res.data)
-              console.log('[上传图片] 上传成功:', data.url)
+              debug('[上传图片] 上传成功:', data.url)
               resolve(data)
             } catch (e) {
               console.error('[上传图片] 解析响应失败:', e)
@@ -352,18 +356,18 @@ export const api = {
   
   // 注册用头像上传（无需登录，调用 /upload/avatar）
   async uploadAvatarImage(filePath) {
-    console.log('[上传头像] 开始上传:', filePath)
+    debug('[上传头像] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       uni.uploadFile({
         url: baseUrl + '/upload/avatar',
         filePath,
         name: 'image',
         success: (res) => {
-          console.log('[上传头像] 响应状态码:', res.statusCode)
+          debug('[上传头像] 响应状态码:', res.statusCode)
           if (res.statusCode === 200) {
             try {
               const data = JSON.parse(res.data)
-              console.log('[上传头像] 上传成功:', data.url)
+              debug('[上传头像] 上传成功:', data.url)
               resolve(data)
             } catch (e) {
               console.error('[上传头像] 解析响应失败:', e)
@@ -400,7 +404,7 @@ export const api = {
   },
 
   async uploadVideo(filePath) {
-    console.log('[上传视频] 开始上传:', filePath)
+    debug('[上传视频] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
       if (!token) {
@@ -419,12 +423,12 @@ export const api = {
         },
         success: (res) => {
           uni.hideLoading()
-          console.log('[上传视频] 响应状态码:', res.statusCode)
-          console.log('[上传视频] 响应数据:', res.data)
+          debug('[上传视频] 响应状态码:', res.statusCode)
+          debug('[上传视频] 响应数据:', res.data)
           if (res.statusCode === 200) {
             try {
               const data = JSON.parse(res.data)
-              console.log('[上传视频] 上传成功:', data.url)
+              debug('[上传视频] 上传成功:', data.url)
               resolve(data)
             } catch (e) {
               console.error('[上传视频] 解析响应失败:', e)
