@@ -126,12 +126,13 @@ export default {
   },
   onShow: function() {
     console.log('App Show')
+    // 每次显示时确保主题正确
+    this.applyTheme()
     // #ifdef APP-PLUS
     try {
       if (typeof plus !== 'undefined' && plus && plus.runtime) {
         plus.runtime.setBadgeNumber(0)
       }
-      // 每次App显示时强制检测更新
       this.checkUpdate()
     } catch (e) {
       console.error('onShow设置角标失败:', e)
@@ -436,9 +437,12 @@ export default {
       if (old) old.remove()
 
       if (isDark) {
-        const s = document.createElement('style')
-        s.id = 'dark-theme-style'
-        s.textContent = `
+        // 延迟注入 + 重试，确保 DOM head 就绪
+        const inject = () => {
+          if (!document.head) { setTimeout(inject, 200); return }
+          const s = document.createElement('style')
+          s.id = 'dark-theme-style'
+          s.textContent = `
           * { border-color: #334155 !important; }
           page, body, html, uni-app, uni-page, uni-page-wrapper, uni-page-body,
           .container, .content, .item-list, .conversation-list, .user-list,
@@ -516,8 +520,12 @@ export default {
           .tab-icon, .menu-icon, .settings-icon { color: inherit !important; }
           .menu-item.logout { border-top-color: #334155 !important; }
         `
-        document.head.appendChild(s)
-        document.body.classList.add('theme-dark')
+          document.head.appendChild(s)
+          document.body.classList.add('theme-dark')
+        }
+        // 重试注入，确保 DOM 就绪
+        const tryInject = () => { if (!document.head) setTimeout(tryInject, 200); else inject() }
+        setTimeout(tryInject, 400)
       } else {
         document.body.classList.remove('theme-dark')
       }

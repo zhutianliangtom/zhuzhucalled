@@ -145,10 +145,10 @@ export default {
         totalCount: 0
       },
       tabBarItems: [
-        { pagePath: '/pages/index/index', text: '首页', icon: '🏠' },
-        { pagePath: '/pages/message/index', text: '消息', icon: '💬' },
-        { pagePath: '/pages/item/publish', text: '发布', icon: '+' },
-        { pagePath: '/pages/user/index', text: '我的', icon: '👤' }
+        { pagePath: '/pages/index/index', icon: '⌂' },
+        { pagePath: '/pages/message/index', icon: '◇' },
+        { pagePath: '/pages/item/publish', icon: '＋' },
+        { pagePath: '/pages/user/index', icon: '○' }
       ],
       currentTabBarIndex: 3,
       unreadTotal: 0,
@@ -617,8 +617,10 @@ export default {
 }
 
 .tab-icon {
-  font-size: 44rpx;
-  opacity: 0.5;
+  font-size: 52rpx;
+  font-weight: 200;
+  opacity: 0.4;
+  line-height: 1;
 }
 
 .tab-bar-item.active .tab-icon {
