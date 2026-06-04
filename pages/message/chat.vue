@@ -865,7 +865,7 @@ export default {
 .input-wrapper {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 40rpx;
   padding: 0 20rpx;
 }
@@ -915,7 +915,7 @@ export default {
   padding: 28rpx 36rpx;
   border-bottom: 1rpx solid #eee;
   &:last-child { border-bottom: none; }
-  &:active { background: #f5f5f5; }
+  &:active { background: #f8f9fa; }
 
   .menu-icon {
     font-size: 32rpx;

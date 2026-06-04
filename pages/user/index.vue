@@ -381,7 +381,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f8f9fa;
 }
 
 .user-header {
@@ -537,7 +537,7 @@ export default {
   font-size: 24rpx;
   color: #999;
   margin-right: 15rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
   padding: 5rpx 15rpx;
   border-radius: 20rpx;
 }

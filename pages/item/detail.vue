@@ -240,7 +240,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f8f9fa;
   padding-bottom: 140rpx;
 }
 
@@ -314,7 +314,7 @@ export default {
   gap: 10rpx;
   margin: 15rpx 0;
   padding: 15rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 10rpx;
 }
 

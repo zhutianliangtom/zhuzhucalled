@@ -377,7 +377,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f8f9fa;
   padding-top: 0;
   padding-bottom: 120rpx;
 }
@@ -459,7 +459,7 @@ export default {
   font-size: 24rpx;
   color: #999;
   border-radius: 20rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
   transition: all 0.3s;
 }
 
@@ -510,7 +510,7 @@ export default {
 /* 图片区域 */
 .image-wrapper {
   width: 100%;
-  background: #f5f5f5;
+  background: #f8f9fa;
 }
 
 /* 单张图片 */
@@ -641,7 +641,7 @@ export default {
 .search-input-wrap {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 40rpx;
   padding: 20rpx 30rpx;
   margin-bottom: 30rpx;
@@ -692,7 +692,7 @@ export default {
 .tag {
   font-size: 26rpx;
   padding: 10rpx 25rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 30rpx;
   color: #666;
 }

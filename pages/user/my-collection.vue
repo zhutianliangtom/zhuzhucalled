@@ -78,7 +78,7 @@ export default {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f8f9fa;
 }
 
 .header {
@@ -156,7 +156,7 @@ export default {
 .item-placeholder {
   width: 160rpx;
   height: 160rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 10rpx;
   display: flex;
   align-items: center;
@@ -227,7 +227,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #f8f9fa;
   border-radius: 50%;
   margin-left: 15rpx;
 }

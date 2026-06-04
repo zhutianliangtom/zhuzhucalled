@@ -450,53 +450,125 @@ export default {
   /* #ifndef APP-NVUE */
   @import '@/static/customicons.css';
 
-  // 默认浅色模式
-  page { background-color: #f5f5f5; }
+  // 默认浅色模式（与后台统一：#f8f9fa 背景）
+  page { background-color: #f8f9fa; }
   /* #ifdef APP-PLUS */
   .uni-app--showleftwindow,
   .uni-page-body, .uni-app,
-  uni-page-wrapper, uni-page-body { background-color: #f5f5f5 !important; }
+  uni-page-wrapper, uni-page-body { background-color: #f8f9fa !important; }
   /* #endif */
 
-  // ========== 深色模式全局覆盖 ==========
-  // 同时匹配 page.theme-dark（全局）和 .theme-dark（页面级class）
+  // ========== 深色模式——全页面覆盖（!important 确保覆盖 Vue scoped 样式）==========
+  // 配色与后台统一：#1e293b 侧栏 / #0f172a 卡片 / #334155 边框
   .theme-dark, page.theme-dark {
-    background-color: #0f0f1a;
+    &, .container, .content, .image-gallery, .conversation-list,
+    .item-list, .settings-group, .user-list, .collection-list { background-color: #1e293b !important; }
     /* #ifdef APP-PLUS */
     .uni-app--showleftwindow, .uni-page-body, .uni-app,
-    uni-page-wrapper, uni-page-body { background-color: #0f0f1a !important; }
+    uni-page-wrapper, uni-page-body { background-color: #1e293b !important; }
     /* #endif */
-    .container, &.container { background-color: #0f0f1a; }
+
+    // 卡片 / 表单 / 列表项
     .item-card, .form, .menu-list, .menu-item, .conversation-item,
     .settings-list, .settings-item, .stats-section, .guest-card,
-    .user-header, .detail-card, .publish-form, .info-card { background-color: #1a1a2e; }
-    .header, .fixed-header { background: #1a1a2e; }
-    .stat-divider { background: #2a2a3e; }
-    .tabbar-container .custom-tabbar { background: #1a1a2e; border-top-color: #2a2a3e; }
+    .user-header, .detail-card, .publish-form, .info-card,
+    .input-area, .input-tools, .context-menu, .search-content,
+    view[class*="card"], view[class*="Card"], view[class*="panel"],
+    view[class*="section"], view[class*="Section"] { background-color: #0f172a !important; }
+
+    // 头部
+    .header, .fixed-header, .user-header, .detail-header { background-color: #0f172a !important; }
+
+    // 底部栏
+    .tabbar-container .custom-tabbar, .footer {
+      background-color: #0f172a !important;
+      border-top-color: #334155 !important;
+    }
+
+    // 标题/重要文字
     .item-title, .title, .user-name, .label, .menu-text, .conv-name,
-    .settings-text, .header-title, .detail-title, .guest-title { color: #e0e0e0; }
-    .item-desc, .item-time, .tab-text, .user-class, .menu-count,
+    .settings-text, .header-title, .detail-title, .guest-title,
+    .contact-value, .item-desc, .text-message text, .user-detail text,
+    view[class*="title"], view[class*="Title"],
+    text[class*="title"], text[class*="Title"] { color: #f1f5f9 !important; }
+
+    // 次要文字
+    .item-time, .tab-text, .user-class, .menu-count,
     .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
-    .settings-arrow, .version-text, .search-placeholder { color: #999; }
-    .input, .form-item input, .message-input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
-    .search-bar { background: rgba(26, 26, 46, 0.95) !important; }
-    .search-placeholder { color: #999; }
-    .tabs, .time-filter { background: #1a1a2e; border-bottom-color: #2a2a3e; }
-    .tab-item { color: #999; }
-    .time-filter-item { background: #2a2a3e; color: #999; }
-    .tab-text { color: #666; }
-    .empty-icon { opacity: 0.6; }
-    .image-gallery, .content { background-color: #0f0f1a; }
-    .footer { background: #1a1a2e; border-top-color: #2a2a3e; }
-    .chat-btn { background: #2563eb; }
-    .solve-btn { background: #10b981; }
-    .delete-btn { background: #dc2626; }
-    .contact-info { background: #2a2a3e; }
-    .submit-btn { background: #2563eb; }
-    .send-btn { background: #2563eb; }
-    .publish-form input, .publish-form textarea { background: #1a1a2e; border-color: #2a2a3e; color: #e0e0e0; }
-    .input-area, .input-tools { background: #1a1a2e; border-color: #2a2a3e; }
-    .context-menu { background: #1a1a2e; border-color: #2a2a3e; }
+    .settings-arrow, .version-text, .search-placeholder,
+    .publish-time text, .time-text, .contact-label, .menu-arrow,
+    view[class*="time"], view[class*="desc"], view[class*="Time"],
+    text[class*="time"], text[class*="desc"], text[class*="Time"],
+    text[class*="label"], text[class*="Label"] { color: #94a3b8 !important; }
+
+    // 描述文字
+    .item-desc, .conv-preview, text[class*="desc"], text[class*="Desc"] { color: #94a3b8 !important; }
+
+    // 边框
+    .input, .form-item input, .message-input, .publish-form input,
+    .publish-form textarea, .form-item textarea {
+      border-color: #334155 !important;
+      background-color: #0f172a !important;
+      color: #f1f5f9 !important;
+    }
+
+    // 搜索
+    .search-bar, .search-input-wrap, .search-modal {
+      background-color: #0f172a !important;
+      border-color: #334155 !important;
+    }
+    .search-input, .search-bar input { color: #f1f5f9 !important; }
+
+    // 标签/筛选按钮
+    .tabs, .time-filter { background-color: #0f172a !important; border-bottom-color: #334155 !important; }
+    .tab-item { color: #94a3b8 !important; }
+    .time-filter-item { background-color: #334155 !important; color: #94a3b8 !important; }
+
+    // 分隔线
+    .stat-divider, .menu-divider, .divider { background-color: #334155 !important; }
+
+    // 按钮
+    .submit-btn, .send-btn, .chat-btn, .edit-btn, .login-btn,
+    .guest-btn, .retry-btn, .download-btn { background-color: #2563eb !important; color: #fff !important; }
+    .solve-btn { background-color: #10b981 !important; }
+    .delete-btn, .unblock-btn { background-color: #ef4444 !important; }
+    .btn[disabled], button[disabled] { opacity: 0.5 !important; }
+
+    // 头像占位
+    .avatar, .avatar-placeholder { border-color: #334155 !important; }
+    .avatar-text, .avatar-icon { color: #94a3b8 !important; }
+
+    // 底部操作栏
+    .footer { background-color: #0f172a !important; }
+    .footer-buttons { background-color: #0f172a !important; }
+
+    // 空状态
+    .empty-icon { opacity: 0.5 !important; }
+    .empty-text, .empty-state { color: #64748b !important; }
+
+    // 标签
+    .item-tag, .tag, .status-tag { border-color: #334155 !important; }
+    .item-tag.lost { color: #fbbf24 !important; background: rgba(251,191,36,0.1) !important; }
+    .item-tag.found { color: #60a5fa !important; background: rgba(96,165,250,0.1) !important; }
+
+    // 角标
+    .unread-badge { background-color: #ef4444 !important; }
+    .tab-badge { background-color: #ef4444 !important; }
+
+    // 图库
+    .image-wrapper, .image-container-multiple { background-color: #0f172a !important; }
+
+    // 遮罩
+    .mask-top, .mask-bottom, .mask-left, .mask-right { background-color: rgba(0,0,0,0.7) !important; }
+
+    // 设置页 swiper/switch 底色
+    switch { background-color: #334155 !important; }
+
+    // 通用 view/text 兜底
+    view, text { border-color: #334155; }
+    text { color: #e2e8f0; }
+    text[class*="secondary"], text[class*="Secondary"],
+    text[class*="muted"], text[class*="Muted"] { color: #94a3b8 !important; }
   }
   /* #endif */
 </style>

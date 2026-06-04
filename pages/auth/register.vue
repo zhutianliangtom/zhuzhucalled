@@ -183,7 +183,7 @@ export default {
 .container {
   min-height: 100vh;
   padding: 40rpx;
-  background: #f5f5f5;
+  background: #f8f9fa;
 }
 
 .header {
