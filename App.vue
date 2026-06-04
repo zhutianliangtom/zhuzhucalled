@@ -184,30 +184,13 @@ export default {
         const Uri = plus.android.importClass('android.net.Uri')
         const Settings = plus.android.importClass('android.provider.Settings')
         
-        // 1. 申请忽略电池优化
-        try {
-          const powerManager = main.getSystemService(Context.POWER_SERVICE)
-          const packageName = main.getPackageName()
-          
-          // 检查是否已添加到白名单
-          if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-            console.log('申请忽略电池优化权限')
-            const intent = new Intent()
-            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-            intent.setData(Uri.parse('package:' + packageName))
-            main.startActivity(intent)
-          }
-        } catch (e) {
-          console.log('申请忽略电池优化失败:', e)
-        }
-        
-        // 2. 创建前台通知（保活）
+        // 1. 创建前台通知（保活）
         this.createForegroundNotification()
-        
-        // 3. 设置定时唤醒
+
+        // 2. 设置定时唤醒
         this.setupWakeLock()
-        
-        // 4. 定时任务保持活跃
+
+        // 3. 定时任务保持活跃
         this.setupKeepAliveTasks()
         
         console.log('Android保活服务初始化完成')
@@ -339,104 +322,43 @@ export default {
       // #endif
     },
     
-    // 申请通知权限
+    // 申请通知权限（仅首次，不跳转设置页）
     requestNotificationPermission() {
       // #ifdef APP-PLUS
       try {
-        if (typeof plus !== 'undefined' && plus) {
-          if (plus.android) {
-            // Android 平台
-            const main = plus.android.runtimeMainActivity()
-            const NotificationManager = plus.android.importClass('android.app.NotificationManager')
-            const Build = plus.android.importClass('android.os.Build')
-            
-            if (Build.VERSION.SDK_INT >= 26) {
-              // Android 8.0+ 申请通知渠道
-              try {
-                const NotificationChannel = plus.android.importClass('android.app.NotificationChannel')
-                const Importance = plus.android.importClass('android.app.NotificationManager')
-                const Context = plus.android.importClass('android.content.Context')
-                
-                const notificationManager = main.getSystemService(Context.NOTIFICATION_SERVICE)
-                const channelId = 'lost_found_channel'
-                const channelName = '失物招领通知'
-                
-                // 检查是否已创建渠道
-                const channel = notificationManager.getNotificationChannel(channelId)
-                if (!channel) {
-                  const notificationChannel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
-                  notificationChannel.enableVibration(true)
-                  notificationChannel.enableLights(true)
-                  notificationManager.createNotificationChannel(notificationChannel)
-                }
-              } catch (e) {
-                console.log('创建通知渠道失败:', e)
-              }
-            }
-            
-            // 检查通知权限
-            const checkPermission = () => {
-              try {
-                const NotificationManagerCompat = plus.android.importClass('androidx.core.app.NotificationManagerCompat')
-                const compat = NotificationManagerCompat.from(main)
-                if (!compat.areNotificationsEnabled()) {
-                  // 没有通知权限，引导用户去设置
-                  uni.showModal({
-                    title: '提示',
-                    content: '请开启通知权限，以便接收新消息提醒',
-                    confirmText: '去开启',
-                    success: (res) => {
-                      if (res.confirm) {
-                        try {
-                          const Intent = plus.android.importClass('android.content.Intent')
-                          const Settings = plus.android.importClass('android.provider.Settings')
-                          const Uri = plus.android.importClass('android.net.Uri')
-                          
-                          const intent = new Intent()
-                          if (Build.VERSION.SDK_INT >= 26) {
-                            intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                            intent.putExtra(Settings.EXTRA_APP_PACKAGE, main.getPackageName())
-                          } else {
-                            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                            intent.setData(Uri.parse('package:' + main.getPackageName()))
-                          }
-                          main.startActivity(intent)
-                        } catch (e2) {
-                          console.log('跳转到设置失败:', e2)
-                        }
-                      }
-                    }
-                  })
-                }
-              } catch (e) {
-                console.log('检查通知权限失败:', e)
-              }
-            }
-            
-            checkPermission()
-          } else if (plus.ios) {
-            // iOS 平台
+        if (typeof plus === 'undefined' || !plus) return
+        if (plus.android) {
+          const main = plus.android.runtimeMainActivity()
+          const Build = plus.android.importClass('android.os.Build')
+          const Context = plus.android.importClass('android.content.Context')
+          const notificationManager = main.getSystemService(Context.NOTIFICATION_SERVICE)
+          const channelId = 'lost_found_msg'
+          const channelName = '新消息通知'
+
+          // Android 8.0+ 创建通知渠道（必需，否则推送不显示）
+          if (Build.VERSION.SDK_INT >= 26) {
             try {
-              const UIApplication = plus.ios.import('UIApplication')
-              const app = UIApplication.sharedApplication()
-              const UNUserNotificationCenter = plus.ios.import('UNUserNotificationCenter')
-              const center = UNUserNotificationCenter.currentNotificationCenter()
-              
-              // 请求通知权限
-              center.requestAuthorizationWithOptionsCompletionHandler(
-                (1 << 0) | (1 << 1) | (1 << 2), // 徽章、声音、提醒
-                (granted, error) => {
-                  console.log('iOS 通知权限申请结果:', granted)
-                }
-              )
-            } catch (e) {
-              console.log('iOS 申请通知权限失败:', e)
-            }
+              const NotificationChannel = plus.android.importClass('android.app.NotificationChannel')
+              const ch = notificationManager.getNotificationChannel(channelId)
+              if (!ch) {
+                const nc = new NotificationChannel(channelId, channelName, 4) // IMPORTANCE_HIGH=4
+                nc.enableVibration(true)
+                nc.setShowBadge(true)
+                notificationManager.createNotificationChannel(nc)
+                console.log('[通知] 渠道已创建')
+              }
+            } catch (e) { console.log('[通知] 渠道创建失败:', e) }
           }
+
+          // 静默检查权限，不弹窗不跳转（首次打开由系统自动询问）
+        } else if (plus.ios) {
+          try {
+            const UNUserNotificationCenter = plus.ios.import('UNUserNotificationCenter')
+            const center = UNUserNotificationCenter.currentNotificationCenter()
+            center.requestAuthorizationWithOptionsCompletionHandler(7, function(granted) {}) // badge+sound+alert
+          } catch (e) {}
         }
-      } catch (e) {
-        console.error('申请通知权限失败:', e)
-      }
+      } catch (e) {}
       // #endif
     },
     // 检测版本更新（仅 App 平台 - 强制检测）

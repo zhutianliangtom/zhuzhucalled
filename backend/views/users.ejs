@@ -193,6 +193,7 @@
     function toggleAdmin(id,is){var a=is?'取消管理员':'设为管理员';if(!confirm('确定'+a+'？'))return;fetch('/admin/users/toggle-admin/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify(a,'','success');setTimeout(function(){location.reload()},800)}else notify('失败',d.message||'','warning')})}
     function goPage(p){var f=document.getElementById('sf');var i=document.createElement('input');i.type='hidden';i.name='page';i.value=p;f.appendChild(i);syncForm();f.submit();}
     function syncForm(){var f=document.getElementById('sf');var kw=document.querySelector('.search-bar input[name="keyword"]');var st=document.querySelector('.search-bar select[name="status"]');f.querySelector('input[name="keyword"]').value=kw.value;f.querySelector('input[name="status"]').value=st.value;}
+    (function(){var ws,rc=0;function c(){var p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(p+'//'+location.host);ws.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='new_message')notify('新私信',d.data.senderName+' → '+d.data.receiverName,'info')}catch(ex){}};ws.onclose=function(){if(rc<10){rc++;setTimeout(c,3000)}};ws.onerror=function(){}}c();})();
   </script>
 </body>
 </html>

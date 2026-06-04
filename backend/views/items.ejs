@@ -163,6 +163,8 @@
     function del(id){if(!confirm('确定删除？'))return;fetch('/admin/items/delete/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.success){notify('删除成功','','success');setTimeout(function(){location.reload()},800)}else notify('删除失败',d.message||'','warning')}).catch(function(){notify('错误','网络异常','warning')})}
     function goPage(p){var f=document.getElementById('sf');var i=document.createElement('input');i.type='hidden';i.name='page';i.value=p;f.appendChild(i);syncForm();f.submit();}
     function syncForm(){var f=document.getElementById('sf');var kw=document.querySelector('.search-bar input[name="keyword"]');var tp=document.querySelector('.search-bar select[name="type"]');var st=document.querySelector('.search-bar select[name="status"]');f.querySelector('input[name="keyword"]').value=kw.value;f.querySelector('input[name="type"]').value=tp.value;f.querySelector('input[name="status"]').value=st.value;}
+    // WebSocket 消息推送
+    (function(){var ws,rc=0;function c(){var p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(p+'//'+location.host);ws.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='new_message')notify('新私信',d.data.senderName+' → '+d.data.receiverName,'info')}catch(ex){}};ws.onclose=function(){if(rc<10){rc++;setTimeout(c,3000)}};ws.onerror=function(){}}c();})();
   </script>
 </body>
 </html>

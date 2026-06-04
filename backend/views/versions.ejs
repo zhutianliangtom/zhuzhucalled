@@ -176,6 +176,7 @@
       xhr.addEventListener('error',function(){notify('失败','网络错误','warning');b.textContent=ot;b.disabled=false;});
       xhr.open('POST','/admin/version/publish');xhr.withCredentials=true;xhr.send(fd);
     });
+    (function(){var ws,rc=0;function c(){var p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(p+'//'+location.host);ws.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='new_message')notify('新私信',d.data.senderName+' → '+d.data.receiverName,'info')}catch(ex){}};ws.onclose=function(){if(rc<10){rc++;setTimeout(c,3000)}};ws.onerror=function(){}}c();})();
   </script>
 </body>
 </html>

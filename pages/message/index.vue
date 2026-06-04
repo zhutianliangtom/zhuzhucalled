@@ -208,22 +208,14 @@ export default {
     },
 
     showLocalNotification(conversation) {
+      // #ifdef APP-PLUS
       if (typeof plus === 'undefined' || !plus.push) return
-      // payload 携带 userId，点击通知时 App.vue 读取并跳转
-      const payload = JSON.stringify({
-        userId: conversation.userId,
-        userName: conversation.userName
-      })
       plus.push.createMessage(
-        `来自 ${conversation.userName} 的新消息`,
-        conversation.lastMessage || '点击查看',
-        {
-          title: '校园失物招领',
-          payload: payload,
-          sound: 'system',
-          cover: false
-        }
+        conversation.userName,
+        conversation.lastMessage || '发来一条新消息',
+        { title: '校园失物招领', sound: 'system', cover: false }
       )
+      // #endif
     },
 
     goChat(userId, userName, userAvatar) {
