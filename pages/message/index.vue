@@ -1,5 +1,5 @@
 <template>
-  <view class="container">
+  <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <text class="title">消息</text>
     </view>
@@ -62,11 +62,13 @@
 import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
     return {
       format,
+      isDark: false,
       conversations: [],
       tabBarItems: [
         { pagePath: '/pages/index/index', text: '首页', icon: '🏠' },
@@ -85,6 +87,15 @@ export default {
     this.getStatusBarHeight()
     this.checkLoginAndLoad()
     this.startPoll()
+    this.applyTheme()
+    
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      this.isDark = isDark
+    })
+  },
+  onUnload() {
+    uni.$off('theme-change')
   },
   onShow() {
     this.checkLoginAndLoad()
@@ -98,6 +109,10 @@ export default {
     this.stopPoll()
   },
   methods: {
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      this.isDark = settings.theme === 'dark'
+    },
     getStatusBarHeight() {
       try {
         const systemInfo = uni.getSystemInfoSync()
@@ -127,17 +142,27 @@ export default {
         this.unreadTotal = 0
       }
     },
-    async loadConversations() {
+    async loadConversations(force) {
       try {
-        this._notified = {}  // 每次刷新重置通知状态
-        const res = await api.getMessages()
-        this.conversations = res.data || []
-        this.updateUnreadTotal()
+        const userId = (storage.getUser() || {}).id || 'anon'
+        await cache.fetch('conv_' + userId, () => api.getMessages(), {
+          ttl: cache.TTL.messages,
+          force,
+          onLoad: (cached) => {
+            // 秒显缓存
+            if (cached && cached.data) {
+              this.conversations = cached.data
+              this.updateUnreadTotal()
+            }
+          },
+          onRefresh: (fresh) => {
+            this._notified = {}
+            this.conversations = (fresh && fresh.data) ? fresh.data : []
+            this.updateUnreadTotal()
+          }
+        })
       } catch (err) {
-        // 静默失败，避免未登录时刷屏
-        if (err.message !== '登录已过期') {
-          console.error(err)
-        }
+        if (err.message !== '登录已过期') console.error(err)
       }
     },
 
@@ -351,7 +376,7 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #fffffffff;
+  background: #ffffff;
   border-top: 1rpx solid #eee;
 }
 

@@ -572,9 +572,10 @@ export default {
     .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
     .settings-arrow, .version-text, .search-placeholder { color: #999; }
     // 边框
-    .input, .search-bar, .form-item input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
+    .input, .form-item input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
     // 搜索
     .search-bar { background: rgba(26, 26, 46, 0.95); }
+    .search-placeholder { color: #999; }
     // 标签/筛选
     .tabs, .time-filter { background: #1a1a2e; border-bottom-color: #2a2a3e; }
     .tab-item { color: #999; }

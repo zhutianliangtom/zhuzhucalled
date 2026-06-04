@@ -1,5 +1,5 @@
 <template>
-  <view class="container">
+  <view class="container" :class="{ 'theme-dark': isDark }">
     <!-- 断网提示条 -->
     <offline-banner />
 
@@ -155,6 +155,7 @@
 import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
+import { cache } from '@/utils/cache'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import GuideModal from '@/components/GuideModal.vue'
 
@@ -166,6 +167,7 @@ export default {
   data() {
     return {
       format,
+      isDark: false,
       items: [],
       activeTab: 'all',
       categoryTabs: [
@@ -202,9 +204,18 @@ export default {
   onLoad() {
     this.getStatusBarHeight()
     this.loadItems()
+    this.applyTheme()
     this.$nextTick(() => {
       this.checkShowGuide()
     })
+    
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      this.isDark = isDark
+    })
+  },
+  onUnload() {
+    uni.$off('theme-change')
   },
   onShow() {
     this.currentTabBarIndex = 0
@@ -216,6 +227,10 @@ export default {
     this.stopPoll()
   },
   methods: {
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      this.isDark = settings.theme === 'dark'
+    },
     checkShowGuide() {
       const settings = storage.getSettings() || {}
       if (!settings.guide_shown) {
@@ -244,34 +259,37 @@ export default {
       if (this.loading) return
       this.loading = true
 
+      const cacheKey = `items_${this.activeTab}_${this.activeTimeFilter}_${this.searchKeyword}_${this.page}`
+
       try {
         const params = {
           page: this.page,
           pageSize: this.pageSize
         }
-        // 传递分类筛选参数
-        if (this.activeTab && this.activeTab !== 'all') {
-          params.type = this.activeTab
-        }
-        // 传递时间筛选参数
-        if (this.activeTimeFilter && this.activeTimeFilter !== 'all') {
-          params.timeRange = this.activeTimeFilter
-        }
-        // 传递搜索关键词
-        if (this.searchKeyword && this.searchKeyword.trim()) {
-          params.keyword = this.searchKeyword.trim()
-        }
+        if (this.activeTab && this.activeTab !== 'all') params.type = this.activeTab
+        if (this.activeTimeFilter && this.activeTimeFilter !== 'all') params.timeRange = this.activeTimeFilter
+        if (this.searchKeyword && this.searchKeyword.trim()) params.keyword = this.searchKeyword.trim()
 
-        const res = await api.getItems(params)
-
-        if (res && res.data && res.data.length > 0) {
-          this.items = res.data
-        } else {
-          this.items = []
-        }
+        await cache.fetch(cacheKey, () => api.getItems(params), {
+          ttl: cache.TTL.items,
+          onLoad: (cached) => {
+            // 秒显缓存数据
+            if (cached && cached.data && cached.data.length > 0) {
+              this.items = cached.data
+            }
+          },
+          onRefresh: (fresh) => {
+            // 后台刷新拿到新数据
+            if (fresh && fresh.data && fresh.data.length > 0) {
+              this.items = fresh.data
+            } else {
+              this.items = []
+            }
+          }
+        })
       } catch (err) {
         console.error('[首页] 加载失败:', err)
-        this.items = []
+        if (this.items.length === 0) this.items = []
       } finally {
         this.loading = false
       }
@@ -381,7 +399,7 @@ export default {
 .search-bar {
   display: flex;
   align-items: center;
-  background: rgba(26, 26, 46, 0.95);
+  background: rgba(255, 255, 255, 0.95) !important;
   border-radius: 40rpx;
   padding: 20rpx 30rpx;
 }
@@ -393,7 +411,15 @@ export default {
 
 .search-placeholder {
   font-size: 28rpx;
-  color: #999;
+  color: #666 !important;
+}
+
+.theme-dark .search-bar {
+  background: rgba(26, 26, 46, 0.95) !important;
+}
+
+.theme-dark .search-placeholder {
+  color: #999 !important;
 }
 
 /* 分类tabs */
@@ -582,7 +608,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #ffffff3e0;
+  background: #fff3e0;
   color: #ff9800;
 }
 
@@ -608,6 +634,10 @@ export default {
   padding: 30rpx;
 }
 
+.theme-dark .search-content {
+  background: #1a1a2e;
+}
+
 .search-input-wrap {
   display: flex;
   align-items: center;
@@ -617,10 +647,19 @@ export default {
   margin-bottom: 30rpx;
 }
 
+.theme-dark .search-input-wrap {
+  background: rgba(26, 26, 46, 0.95);
+}
+
 .search-input {
   flex: 1;
   font-size: 28rpx;
   margin-left: 15rpx;
+  color: #333;
+}
+
+.theme-dark .search-input {
+  color: #e0e0e0;
 }
 
 .clear-btn {
@@ -635,9 +674,13 @@ export default {
 
 .tags-title {
   font-size: 26rpx;
-  color: #999;
+  color: #666;
   margin-bottom: 15rpx;
   display: block;
+}
+
+.theme-dark .tags-title {
+  color: #999;
 }
 
 .tags-wrap {
@@ -651,6 +694,11 @@ export default {
   padding: 10rpx 25rpx;
   background: #f5f5f5;
   border-radius: 30rpx;
+  color: #666;
+}
+
+.theme-dark .tag {
+  background: #2a2a3e;
   color: #999;
 }
 

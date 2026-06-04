@@ -1,5 +1,5 @@
 <template>
-  <view class="container">
+  <view class="container" :class="{ 'theme-dark': isDark }">
     <view v-if="item" class="content">
       <view class="image-gallery">
         <image 
@@ -81,6 +81,7 @@ export default {
   data() {
     return {
       format,
+      isDark: false,
       item: null,
       itemId: null,
       isOwnItem: false
@@ -91,8 +92,21 @@ export default {
       this.itemId = options.id
       this.loadItem()
     }
+    this.applyTheme()
+    
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      this.isDark = isDark
+    })
+  },
+  onUnload() {
+    uni.$off('theme-change')
   },
   methods: {
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      this.isDark = settings.theme === 'dark'
+    },
     getFullImageUrl(url) {
       if (!url) return ''
       // 如果已经是完整URL，直接返回
@@ -263,7 +277,7 @@ export default {
 }
 
 .item-tag.lost {
-  background: #ffffff3e0;
+  background: #fff3e0;
   color: #ff9800;
 }
 

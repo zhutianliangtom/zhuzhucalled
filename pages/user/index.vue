@@ -1,5 +1,5 @@
 <template>
-  <view class="container">
+  <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="user-header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <view class="avatar-wrapper" @click="chooseAvatar">
         <image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
@@ -132,11 +132,13 @@
 <script>
 import { storage } from '@/utils/storage'
 import { api } from '@/utils/api'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
     return {
       user: null,
+      isDark: false,
       stats: {
         lostCount: 0,
         foundCount: 0,
@@ -158,6 +160,15 @@ export default {
   onLoad() {
     this.getStatusBarHeight()
     this.loadUser()
+    this.applyTheme()
+    
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      this.isDark = isDark
+    })
+  },
+  onUnload() {
+    uni.$off('theme-change')
   },
   onShow() {
     this.loadUser()
@@ -170,6 +181,10 @@ export default {
     this.stopPoll()
   },
   methods: {
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      this.isDark = settings.theme === 'dark'
+    },
     getStatusBarHeight() {
       try {
         const systemInfo = uni.getSystemInfoSync()
@@ -225,15 +240,31 @@ export default {
     },
     async loadStats() {
       if (!this.user) return
-      
+      const userId = this.user.id
+
       try {
-        const res = await api.getUserStats()
-        const data = res.data || {}
-        
-        this.stats.lostCount = data.lostActive || data.lost || 0
-        this.stats.foundCount = data.foundActive || data.found || 0
-        this.stats.solvedCount = data.solved || 0
-        this.stats.totalCount = data.total || 0
+        await cache.fetch('stats_' + userId, () => api.getUserStats(), {
+          ttl: cache.TTL.stats,
+          onLoad: (cached) => {
+            // 秒显缓存统计
+            if (cached && cached.data) {
+              const d = cached.data
+              this.stats.lostCount = d.lostActive || d.lost || 0
+              this.stats.foundCount = d.foundActive || d.found || 0
+              this.stats.solvedCount = d.solved || 0
+              this.stats.totalCount = d.total || 0
+            }
+          },
+          onRefresh: (fresh) => {
+            if (fresh && fresh.data) {
+              const d = fresh.data
+              this.stats.lostCount = d.lostActive || d.lost || 0
+              this.stats.foundCount = d.foundActive || d.found || 0
+              this.stats.solvedCount = d.solved || 0
+              this.stats.totalCount = d.total || 0
+            }
+          }
+        })
       } catch (err) {
         console.error('加载统计数据失败', err)
         await this.loadStatsFallback()
@@ -305,46 +336,20 @@ export default {
       uni.navigateTo({ url: '/pages/user/blocked-users' })
     },
     goDonation() {
-      uni.showModal({
-        title: '请开发者喝杯奶茶',
-        content: '感谢使用校园失物招领！\n您的支持是我持续开发的动力！\n\n点击下方按钮查看开发者信息和捐赠码',
-        confirmText: '去看看',
-        success: (res) => {
-          if (res.confirm) {
-            // 在 App 内打开 web-view 或者跳转到外部链接
-            // 这里我们可以用 uni.navigateTo 打开一个页面，或者用 plus.runtime.openURL
-            // 简单起见，先跳转到外部链接或 web-view
-            uni.showToast({ 
-              title: '正在打开...', 
-              icon: 'loading' 
-            })
-            // 延迟一点再打开，避免 toast 立即被覆盖
-            setTimeout(() => {
-              // 尝试用 plus.runtime.openURL（APP 端）或其他方式
-              // 首先尝试 webview，简单起见，我们先在 app 内打开 web-view
-              // 但是用户可能没有 web-view 页面，所以我们用简单的方式
-              // 先简单点，尝试用 uni.navigateTo 或者 web-view
-              // 或者我们先弹出提示，告诉用户访问 /developer 页面
-              uni.showModal({
-                title: '前往捐赠',
-                content: '请在浏览器中访问：\nhttps://chentian.dpdns.org/developer',
-                showCancel: false,
-                confirmText: '复制链接',
-                success: (copyRes) => {
-                  if (copyRes.confirm) {
-                    uni.setClipboardData({
-                      data: 'https://chentian.dpdns.org/developer',
-                      success: () => {
-                        uni.showToast({ title: '链接已复制', icon: 'success' })
-                      }
-                    })
-                  }
-                }
-              })
-            }, 500)
-          }
-        }
+      uni.showToast({ 
+        title: '正在打开...', 
+        icon: 'loading' 
       })
+      setTimeout(() => {
+        // #ifdef APP-PLUS
+        if (typeof plus !== 'undefined' && plus.runtime) {
+          plus.runtime.openURL('https://chentian.dpdns.org/developer')
+        }
+        // #endif
+        // #ifndef APP-PLUS
+        window.open('https://chentian.dpdns.org/developer', '_blank')
+        // #endif
+      }, 300)
     },
     handleLogout() {
       uni.showModal({
@@ -592,7 +597,7 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #fffffffff;
+  background: #ffffff;
   border-top: 1rpx solid #eee;
 }
 

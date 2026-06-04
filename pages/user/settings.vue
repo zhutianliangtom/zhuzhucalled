@@ -76,19 +76,9 @@ export default {
       // 通知 App.vue 切换主题
       uni.$emit('theme-change', { isDark: this.darkMode })
 
-      // 需要重启才能完全生效
-      uni.showModal({
-        title: '提示',
-        content: '主题切换需要重启应用才能完全生效',
-        confirmText: '立即重启',
-        cancelText: '稍后再说',
-        success: (res) => {
-          if (res.confirm) {
-            // #ifdef APP-PLUS
-            plus.runtime.restart()
-            // #endif
-          }
-        }
+      uni.showToast({
+        title: this.darkMode ? '已切换到深色模式' : '已切换到浅色模式',
+        icon: 'none'
       })
     },
     clearCache() {

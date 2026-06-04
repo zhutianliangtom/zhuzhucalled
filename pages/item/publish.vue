@@ -1,5 +1,5 @@
 <template>
-  <view class="container">
+  <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <text class="title">发布{{ form.type === 'lost' ? '寻物启事' : '失物招领' }}</text>
     </view>
@@ -117,6 +117,7 @@ import { storage } from '@/utils/storage'
 export default {
   data() {
     return {
+      isDark: false,
       form: {
         type: 'lost',
         title: '',
@@ -141,6 +142,15 @@ export default {
   },
   onLoad() {
     this.getStatusBarHeight()
+    this.applyTheme()
+    
+    // 监听主题切换
+    uni.$on('theme-change', ({ isDark }) => {
+      this.isDark = isDark
+    })
+  },
+  onUnload() {
+    uni.$off('theme-change')
   },
   onShow() {
     const user = storage.getUser()
@@ -160,6 +170,10 @@ export default {
     }
   },
   methods: {
+    applyTheme() {
+      const settings = storage.getSettings() || {}
+      this.isDark = settings.theme === 'dark'
+    },
     getStatusBarHeight() {
       try {
         const systemInfo = uni.getSystemInfoSync()
@@ -526,7 +540,7 @@ export default {
 .custom-tabbar {
   padding: 12rpx 0;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  background: #fffffffff;
+  background: #ffffff;
   border-top: 1rpx solid #eee;
 }
 
