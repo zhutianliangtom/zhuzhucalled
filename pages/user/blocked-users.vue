@@ -40,6 +40,7 @@
 
 <script>
 import { api } from '@/utils/api'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
@@ -49,9 +50,6 @@ export default {
     }
   },
   onLoad() {
-    this.loadBlockedUsers()
-  },
-  onShow() {
     this.loadBlockedUsers()
   },
   methods: {
@@ -66,11 +64,17 @@ export default {
     async loadBlockedUsers() {
       this.loading = true
       try {
-        const res = await api.getBlockedUsers()
-        this.blockedUsers = res.data || []
+        await cache.fetch('blocked_users', () => api.getBlockedUsers(), {
+          ttl: 60,
+          onLoad: (cached) => {
+            if (cached && cached.data) this.blockedUsers = cached.data
+          },
+          onRefresh: (fresh) => {
+            if (fresh && fresh.data) this.blockedUsers = fresh.data
+          }
+        })
       } catch (err) {
         console.error('加载黑名单失败:', err)
-        uni.showToast({ title: '加载失败', icon: 'none' })
       } finally {
         this.loading = false
       }

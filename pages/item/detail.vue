@@ -76,6 +76,7 @@
 import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
@@ -136,25 +137,35 @@ export default {
       })
     },
     async loadItem() {
-      uni.showLoading({ title: '加载中...' })
       try {
-        const res = await api.getItem(this.itemId)
-        console.log('物品详情数据:', res)
-        console.log('发布者信息:', { 
-          userName: res.data?.userName, 
-          userAvatar: res.data?.userAvatar, 
-          userId: res.data?.userId 
+        await cache.fetch('item_' + this.itemId, () => api.getItem(this.itemId), {
+          ttl: 30,
+          onLoad: (cached) => {
+            // 缓存秒显
+            if (cached && cached.data) {
+              this.item = cached.data
+              this.checkOwnership()
+            }
+          },
+          onRefresh: (fresh) => {
+            uni.hideLoading()
+            if (fresh && fresh.data) {
+              this.item = fresh.data
+              this.checkOwnership()
+            }
+          }
         })
-        this.item = res.data
-        
-        const user = storage.getUser()
-        if (user && this.item.userId === user.id) {
-          this.isOwnItem = true
-        }
       } catch (err) {
+        uni.hideLoading()
         console.error(err)
-        uni.showToast({ title: '加载失败', icon: 'none' })
-      } finally {
+      }
+    },
+    checkOwnership() {
+      const user = storage.getUser()
+      if (user && this.item && this.item.userId === user.id) {
+        this.isOwnItem = true
+      }
+    },
         uni.hideLoading()
       }
     },

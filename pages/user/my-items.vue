@@ -46,6 +46,8 @@
 <script>
 import { api } from '@/utils/api'
 import { format } from '@/utils/format'
+import { storage } from '@/utils/storage'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
@@ -80,19 +82,24 @@ export default {
       await this.loadItems()
     },
     async loadItems() {
-      uni.showLoading({ title: '加载中...' })
       try {
-        const res = await api.getUserItems({
-          type: this.activeTab,
-          status: this.status,
-          page: 1,
-          pageSize: 100
+        const user = storage.getUser()
+        const uid = user ? user.id : 'anon'
+        const key = `myitems_${uid}_${this.activeTab}_${this.status}`
+        await cache.fetch(key, () => api.getUserItems({ type: this.activeTab, status: this.status, page: 1, pageSize: 100 }), {
+          ttl: 30,
+          onLoad: (cached) => {
+            if (cached && cached.data) this.items = cached.data
+          },
+          onRefresh: (fresh) => {
+            uni.hideLoading()
+            if (fresh && fresh.data) this.items = fresh.data
+          }
         })
-        this.items = res.data || []
       } catch (err) {
+        uni.hideLoading()
         uni.showToast({ title: '加载失败', icon: 'none' })
       }
-      uni.hideLoading()
     },
     goDetail(id) {
       uni.navigateTo({ url: `/pages/item/detail?id=${id}` })
