@@ -217,7 +217,7 @@ export default {
         if (token) {
           this.loadUnreadCount()
         }
-      }, 3000)
+      }, 5000)
     },
     stopPoll() {
       if (this.pollTimer) {

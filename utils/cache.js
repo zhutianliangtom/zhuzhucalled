@@ -9,7 +9,7 @@ const memCache = {}
 // 默认 TTL（秒）
 const TTL = {
   items: 30,       // 物品列表 30 秒
-  messages: 15,    // 消息列表 15 秒
+  messages: 10,    // 消息列表 10 秒
   conversation: 10,// 对话详情 10 秒
   user: 60,        // 用户信息 60 秒
   stats: 60,       // 统计数据 60 秒

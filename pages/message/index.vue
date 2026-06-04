@@ -80,7 +80,9 @@ export default {
       unreadTotal: 0,
       pollTimer: null,
       _lastUnread: {},
+      _notifyCooldown: {},
       _appInForeground: true,
+      _loading: false,
       statusBarHeight: 0
     }
   },
@@ -100,13 +102,12 @@ export default {
   },
   onShow() {
     this._appInForeground = true
-    this.checkLoginAndLoad()
+    // 轮询已由 onLoad 启动，这里只更新角标和当前页状态
     this.updateBadge()
     this.currentTabBarIndex = 1
   },
   onHide() {
     this._appInForeground = false
-    // 不停止轮询：后台继续检测新消息并推送通知
   },
   onUnload() {
     this.stopPoll()
@@ -146,6 +147,8 @@ export default {
       }
     },
     async loadConversations(force) {
+      if (this._loading) return
+      this._loading = true
       try {
         const userId = (storage.getUser() || {}).id || 'anon'
         const isFirst = Object.keys(this._lastUnread).length === 0
@@ -167,6 +170,8 @@ export default {
         })
       } catch (err) {
         if (err.message !== '登录已过期') console.error(err)
+      } finally {
+        this._loading = false
       }
     },
     // 种子化 _lastUnread，避免首次加载把已有未读当新消息
@@ -181,7 +186,7 @@ export default {
       this.pollTimer = setInterval(() => {
         const token = storage.getToken()
         if (token) this.loadConversations()
-      }, 3000)
+      }, 5000)
     },
     stopPoll() {
       if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
@@ -214,8 +219,12 @@ export default {
     },
 
     showLocalNotification(conversation) {
+      // 同对话 10 秒冷却，防止重复弹窗
+      const now = Date.now()
+      if (this._notifyCooldown[conversation.userId] && now - this._notifyCooldown[conversation.userId] < 10000) return
+      this._notifyCooldown[conversation.userId] = now
+
       const text = `${conversation.userName}: ${conversation.lastMessage || '新消息'}`
-      // 前台弹窗，后台系统推送（不重复）
       if (this._appInForeground) {
         uni.showToast({ title: text, icon: 'none', duration: 3000 })
       } else {
