@@ -219,24 +219,22 @@ export default {
     },
 
     showLocalNotification(conversation) {
-      // 同对话 10 秒冷却，防止重复弹窗
+      // 前台静默，只更新角标；后台才发系统通知
+      if (this._appInForeground) return
+
       const now = Date.now()
       if (this._notifyCooldown[conversation.userId] && now - this._notifyCooldown[conversation.userId] < 10000) return
       this._notifyCooldown[conversation.userId] = now
 
+      // #ifdef APP-PLUS
       const text = `${conversation.userName}: ${conversation.lastMessage || '新消息'}`
-      if (this._appInForeground) {
-        uni.showToast({ title: text, icon: 'none', duration: 3000 })
-      } else {
-        // #ifdef APP-PLUS
-        if (typeof plus !== 'undefined' && plus.push) {
-          plus.push.createMessage(text,
-            JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
-            { title: '校园失物招领', sound: 'system', cover: false }
-          )
-        }
-        // #endif
+      if (typeof plus !== 'undefined' && plus.push) {
+        plus.push.createMessage(text,
+          JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
+          { title: '校园失物招领', sound: 'system', cover: false }
+        )
       }
+      // #endif
     },
 
     goChat(userId, userName, userAvatar) {
