@@ -84,7 +84,7 @@ export default {
         title: '取消拉黑',
         content: `确定要取消拉黑 "${user.name || '校园用户'}" 吗？`,
         confirmText: '取消拉黑',
-        confirmColor: '#2563eb',
+        confirmColor: '#334155',
         success: async (res) => {
           if (res.confirm) {
             await this.unblockUser(user)
@@ -184,7 +184,7 @@ export default {
 .avatar {
   width: 80rpx;
   height: 80rpx;
-  background: #2563eb;
+  background: #334155;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -229,8 +229,8 @@ export default {
 .unblock-btn {
   padding: 12rpx 30rpx;
   background: #ffffff;
-  color: #2563eb;
-  border: 2rpx solid #2563eb;
+  color: #334155;
+  border: 2rpx solid #334155;
   border-radius: 30rpx;
   font-size: 26rpx;
   line-height: 1.5;

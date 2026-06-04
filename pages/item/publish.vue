@@ -391,9 +391,9 @@ export default {
 }
 
 .type-option.active {
-  border-color: #2563eb;
+  border-color: #334155;
   background: #f0f4ff;
-  color: #2563eb;
+  color: #334155;
 }
 
 .input {
@@ -492,7 +492,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: #2563eb;
+  background: #334155;
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
@@ -572,7 +572,7 @@ export default {
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #2563eb;
+  color: #334155;
 }
 
 /* 消息角标 */

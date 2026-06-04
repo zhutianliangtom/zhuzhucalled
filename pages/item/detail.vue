@@ -377,7 +377,7 @@ export default {
 .avatar {
   width: 70rpx;
   height: 70rpx;
-  background: #2563eb;
+  background: #334155;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -439,7 +439,7 @@ export default {
 .chat-btn {
   width: 100%;
   height: 88rpx;
-  background: #2563eb;
+  background: #334155;
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;

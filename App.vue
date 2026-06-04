@@ -411,7 +411,7 @@ export default {
       }
       // #endif
     },
-    // 根据设置应用主题（浅色/深色）
+    // 根据设置应用主题（浅色/深色）—— 操作 body 最高优先级
     applyTheme() {
       const settings = storage.getSettings() || {}
       const isDark = settings.theme === 'dark'
@@ -420,8 +420,8 @@ export default {
         if (typeof plus !== 'undefined' && plus.navigator) {
           if (isDark) {
             plus.navigator.setStatusBarStyle('light')
-            plus.navigator.setStatusBarBackground('#1a1a2e')
-            if (plus.navigator.setNavigationBarColor) plus.navigator.setNavigationBarColor('#1a1a2e')
+            plus.navigator.setStatusBarBackground('#1e293b')
+            if (plus.navigator.setNavigationBarColor) plus.navigator.setNavigationBarColor('#1e293b')
           } else {
             plus.navigator.setStatusBarStyle('dark')
             plus.navigator.setStatusBarBackground('#ffffff')
@@ -430,13 +430,15 @@ export default {
         }
       } catch (e) {}
       // #endif
-
-      // 直接操作 document page 元素，确保全局生效
+      // body 级别 class，所有元素都能被 body.theme-dark 选择器命中
       setTimeout(() => {
-        const pageEl = document.querySelector('page') || document.body
-        if (pageEl) {
-          if (isDark) pageEl.classList.add('theme-dark')
-          else pageEl.classList.remove('theme-dark')
+        if (isDark) document.body.classList.add('theme-dark')
+        else document.body.classList.remove('theme-dark')
+        // 同步 page 元素
+        const pg = document.querySelector('page')
+        if (pg) {
+          if (isDark) pg.classList.add('theme-dark')
+          else pg.classList.remove('theme-dark')
         }
       }, 200)
     }
@@ -445,130 +447,124 @@ export default {
 </script>
 
 <style lang="scss">
-  /*每个页面公共css */
   @import '@/uni_modules/uni-scss/index.scss';
   /* #ifndef APP-NVUE */
   @import '@/static/customicons.css';
 
-  // 默认浅色模式（与后台统一：#f8f9fa 背景）
+  // 默认浅色 — 纯黑白灰，与后台统一
   page { background-color: #f8f9fa; }
   /* #ifdef APP-PLUS */
-  .uni-app--showleftwindow,
-  .uni-page-body, .uni-app,
+  .uni-app--showleftwindow, .uni-page-body, .uni-app,
   uni-page-wrapper, uni-page-body { background-color: #f8f9fa !important; }
   /* #endif */
 
-  // ========== 深色模式——全页面覆盖（!important 确保覆盖 Vue scoped 样式）==========
-  // 配色与后台统一：#1e293b 侧栏 / #0f172a 卡片 / #334155 边框
-  .theme-dark, page.theme-dark {
-    &, .container, .content, .image-gallery, .conversation-list,
-    .item-list, .settings-group, .user-list, .collection-list { background-color: #1e293b !important; }
-    /* #ifdef APP-PLUS */
-    .uni-app--showleftwindow, .uni-page-body, .uni-app,
-    uni-page-wrapper, uni-page-body { background-color: #1e293b !important; }
-    /* #endif */
+  // ============ 深色模式 — body 级注入，CSS 优先级最高 ============
+  body.theme-dark {
+    * { border-color: #334155 !important; }
 
-    // 卡片 / 表单 / 列表项
+    // --- 背景 ---
+    page, .container, .content, .image-gallery, .conversation-list,
+    .item-list, .settings-group, .user-list, .collection-list,
+    .uni-app--showleftwindow, .uni-page-body, .uni-app,
+    uni-page-wrapper, uni-page-body {
+      background-color: #1e293b !important;
+    }
+
+    // --- 卡片 / 列表项 ---
     .item-card, .form, .menu-list, .menu-item, .conversation-item,
     .settings-list, .settings-item, .stats-section, .guest-card,
     .user-header, .detail-card, .publish-form, .info-card,
     .input-area, .input-tools, .context-menu, .search-content,
-    view[class*="card"], view[class*="Card"], view[class*="panel"],
-    view[class*="section"], view[class*="Section"] { background-color: #0f172a !important; }
-
-    // 头部
-    .header, .fixed-header, .user-header, .detail-header { background-color: #0f172a !important; }
-
-    // 底部栏
-    .tabbar-container .custom-tabbar, .footer {
+    .header, .fixed-header, .tabbar-container .custom-tabbar, .footer,
+    .footer-buttons, .image-wrapper, .image-container-multiple,
+    .search-input-wrap, .search-bar, .tabs, .time-filter,
+    .crop-container, .mask, .loading, .quick-actions,
+    .version-info, .download-card, .table-wrap,
+    [class*="card"], [class*="Card"], [class*="panel"], [class*="Panel"],
+    [class*="item--"], [class*="form"], [class*="info"],
+    .user-info, .contact-info, .conv-info, .item-info, .menu-list,
+    .features, .feature-item, .section, .stats, .hero {
       background-color: #0f172a !important;
-      border-top-color: #334155 !important;
     }
 
-    // 标题/重要文字
+    // --- 文字 ---
+    text, view, span, p, label, h1, h2, h3, h4, h5, h6,
     .item-title, .title, .user-name, .label, .menu-text, .conv-name,
     .settings-text, .header-title, .detail-title, .guest-title,
-    .contact-value, .item-desc, .text-message text, .user-detail text,
-    view[class*="title"], view[class*="Title"],
-    text[class*="title"], text[class*="Title"] { color: #f1f5f9 !important; }
-
-    // 次要文字
-    .item-time, .tab-text, .user-class, .menu-count,
-    .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
-    .settings-arrow, .version-text, .search-placeholder,
-    .publish-time text, .time-text, .contact-label, .menu-arrow,
-    view[class*="time"], view[class*="desc"], view[class*="Time"],
-    text[class*="time"], text[class*="desc"], text[class*="Time"],
-    text[class*="label"], text[class*="Label"] { color: #94a3b8 !important; }
-
-    // 描述文字
-    .item-desc, .conv-preview, text[class*="desc"], text[class*="Desc"] { color: #94a3b8 !important; }
-
-    // 边框
-    .input, .form-item input, .message-input, .publish-form input,
-    .publish-form textarea, .form-item textarea {
-      border-color: #334155 !important;
-      background-color: #0f172a !important;
+    .contact-value, .stat-num, .version-value, .feature-name,
+    [class*="title"], [class*="Title"], [class*="name"], [class*="Name"] {
       color: #f1f5f9 !important;
     }
 
-    // 搜索
-    .search-bar, .search-input-wrap, .search-modal {
+    .item-desc, .item-time, .tab-text, .user-class, .menu-count,
+    .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
+    .settings-arrow, .version-text, .search-placeholder, .menu-arrow,
+    .item-sub, .avatar-tip, .stat-label, .version-label,
+    .download-meta, .hero p, .feature-item p,
+    [class*="desc"], [class*="Desc"], [class*="time"], [class*="Time"],
+    [class*="sub"], [class*="Sub"], [class*="meta"], [class*="Meta"] {
+      color: #94a3b8 !important;
+    }
+
+    // --- 输入框 ---
+    .input, input, textarea, .message-input, .search-input {
       background-color: #0f172a !important;
+      color: #f1f5f9 !important;
       border-color: #334155 !important;
     }
-    .search-input, .search-bar input { color: #f1f5f9 !important; }
 
-    // 标签/筛选按钮
-    .tabs, .time-filter { background-color: #0f172a !important; border-bottom-color: #334155 !important; }
-    .tab-item { color: #94a3b8 !important; }
-    .time-filter-item { background-color: #334155 !important; color: #94a3b8 !important; }
+    // --- 按钮（全部黑白灰，无蓝色）---
+    button, .btn, .submit-btn, .send-btn, .chat-btn,
+    .edit-btn, .login-btn, .guest-btn, .download-btn,
+    .confirm-btn, .context-menu-item, .publish-btn,
+    .btn-primary, .btn-ok, .btn-info, .btn-p, .btn-warn,
+    [class*="btn"], [class*="Btn"] {
+      background-color: #334155 !important;
+      color: #f1f5f9 !important;
+      border-color: #475569 !important;
+    }
+    .solve-btn, .btn-success { background-color: #065f46 !important; }
+    .delete-btn, .btn-danger, .btn-del, .unblock-btn { background-color: #7f1d1d !important; }
+    button[disabled] { opacity: 0.4 !important; }
 
-    // 分隔线
-    .stat-divider, .menu-divider, .divider { background-color: #334155 !important; }
+    // --- 标签/筛选 ---
+    .tab-item, .time-filter-item { background-color: #334155 !important; color: #94a3b8 !important; }
+    .tab-item.active, .time-filter-item.active { background-color: #475569 !important; color: #f1f5f9 !important; }
 
-    // 按钮
-    .submit-btn, .send-btn, .chat-btn, .edit-btn, .login-btn,
-    .guest-btn, .retry-btn, .download-btn { background-color: #2563eb !important; color: #fff !important; }
-    .solve-btn { background-color: #10b981 !important; }
-    .delete-btn, .unblock-btn { background-color: #ef4444 !important; }
-    .btn[disabled], button[disabled] { opacity: 0.5 !important; }
+    // --- 角标 ---
+    .unread-badge, .tab-badge { background-color: #ef4444 !important; color: #fff !important; }
 
-    // 头像占位
-    .avatar, .avatar-placeholder { border-color: #334155 !important; }
+    // --- 头像占位 ---
+    .avatar, .avatar-placeholder { border-color: #334155 !important; background-color: #334155 !important; }
     .avatar-text, .avatar-icon { color: #94a3b8 !important; }
 
-    // 底部操作栏
-    .footer { background-color: #0f172a !important; }
-    .footer-buttons { background-color: #0f172a !important; }
+    // --- 分隔 ---
+    .stat-divider, .menu-divider, hr { background-color: #334155 !important; }
 
-    // 空状态
-    .empty-icon { opacity: 0.5 !important; }
-    .empty-text, .empty-state { color: #64748b !important; }
+    // --- 空状态 ---
+    .empty-icon { opacity: 0.4 !important; }
+    .empty-text, .empty-state { color: #475569 !important; }
 
-    // 标签
-    .item-tag, .tag, .status-tag { border-color: #334155 !important; }
-    .item-tag.lost { color: #fbbf24 !important; background: rgba(251,191,36,0.1) !important; }
-    .item-tag.found { color: #60a5fa !important; background: rgba(96,165,250,0.1) !important; }
+    // --- 标签 ---
+    .item-tag.lost { color: #fbbf24 !important; background: rgba(251,191,36,0.15) !important; }
+    .item-tag.found { color: #94a3b8 !important; background: rgba(148,163,184,0.15) !important; }
+    .status-tag.solved { color: #6ee7b7 !important; background: rgba(110,231,183,0.15) !important; }
 
-    // 角标
-    .unread-badge { background-color: #ef4444 !important; }
-    .tab-badge { background-color: #ef4444 !important; }
+    // --- 遮罩 ---
+    .mask, .mask-top, .mask-bottom, .mask-left, .mask-right { background-color: rgba(0,0,0,0.7) !important; }
 
-    // 图库
-    .image-wrapper, .image-container-multiple { background-color: #0f172a !important; }
-
-    // 遮罩
-    .mask-top, .mask-bottom, .mask-left, .mask-right { background-color: rgba(0,0,0,0.7) !important; }
-
-    // 设置页 swiper/switch 底色
+    // --- switch ---
     switch { background-color: #334155 !important; }
 
-    // 通用 view/text 兜底
-    view, text { border-color: #334155; }
-    text { color: #e2e8f0; }
-    text[class*="secondary"], text[class*="Secondary"],
-    text[class*="muted"], text[class*="Muted"] { color: #94a3b8 !important; }
+    // --- 导航栏 ---
+    .custom-tabbar { background-color: #0f172a !important; border-top-color: #334155 !important; }
+    .tab-bar-item .tab-text { color: #64748b !important; }
+    .tab-bar-item.active .tab-text { color: #f1f5f9 !important; }
+
+    // --- 裁剪页 ---
+    .crop-area { border-color: rgba(255,255,255,0.3) !important; }
+    .corner { border-color: rgba(255,255,255,0.6) !important; }
+    .grid-line { background: rgba(255,255,255,0.1) !important; }
   }
   /* #endif */
 </style>

@@ -102,7 +102,7 @@ export default {
 .container {
   min-height: 100vh;
   padding: 60rpx 40rpx;
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
 }
 
 .logo {
@@ -170,13 +170,13 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
-  color: #2563eb;
+  color: #334155;
   margin-right: 10rpx;
 }
 
 .checkbox.checked {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #334155;
+  border-color: #334155;
   color: #fff;
 }
 
@@ -188,7 +188,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: #2563eb;
+  background: #334155;
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
@@ -206,6 +206,6 @@ export default {
 
 .link {
   font-size: 26rpx;
-  color: #2563eb;
+  color: #334155;
 }
 </style>

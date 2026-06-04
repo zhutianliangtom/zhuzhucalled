@@ -333,7 +333,7 @@ export default {
 
 .confirm-btn text {
   font-size: 30rpx;
-  color: #2563eb;
+  color: #334155;
   font-weight: bold;
 }
 
