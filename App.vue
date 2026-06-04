@@ -458,19 +458,18 @@ export default {
   uni-page-wrapper, uni-page-body { background-color: #f8f9fa !important; }
   /* #endif */
 
-  // ============ 深色模式 — body 级注入，CSS 优先级最高 ============
+  // ============ 深色模式 — 用 background 简写彻底覆盖 ============
   body.theme-dark {
-    * { border-color: #334155 !important; }
-
-    // --- 背景 ---
-    page, .container, .content, .image-gallery, .conversation-list,
-    .item-list, .settings-group, .user-list, .collection-list,
+    // --- 全局背景 ---
+    page, body, .container, .content, .image-gallery, .conversation-list,
+    .item-list, .user-list, .collection-list,
     .uni-app--showleftwindow, .uni-page-body, .uni-app,
     uni-page-wrapper, uni-page-body {
-      background-color: #1e293b !important;
+      background: #1e293b !important;
+      background-image: none !important;
     }
 
-    // --- 卡片 / 列表项 ---
+    // --- 卡片/列表 ---
     .item-card, .form, .menu-list, .menu-item, .conversation-item,
     .settings-list, .settings-item, .stats-section, .guest-card,
     .user-header, .detail-card, .publish-form, .info-card,
@@ -478,20 +477,26 @@ export default {
     .header, .fixed-header, .tabbar-container .custom-tabbar, .footer,
     .footer-buttons, .image-wrapper, .image-container-multiple,
     .search-input-wrap, .search-bar, .tabs, .time-filter,
-    .crop-container, .mask, .loading, .quick-actions,
-    .version-info, .download-card, .table-wrap,
+    .crop-container, .loading, .quick-actions,
+    .version-info, .download-card, .table-wrap, .table-container,
+    .user-info, .contact-info, .conv-info, .item-info,
+    .features, .feature-item, .section, .stats, .hero,
+    .image-gallery, .gallery-image, .info-card, .contact-info,
+    .message-item.other .message-content, .message-item.self .message-content,
     [class*="card"], [class*="Card"], [class*="panel"], [class*="Panel"],
-    [class*="item--"], [class*="form"], [class*="info"],
-    .user-info, .contact-info, .conv-info, .item-info, .menu-list,
-    .features, .feature-item, .section, .stats, .hero {
-      background-color: #0f172a !important;
+    [class*="section"], [class*="Section"], [class*="info"],
+    [class*="item--"], [class*="form"], [class*="header"],
+    .text-message, .media-message, .recalled-message {
+      background: #0f172a !important;
+      background-image: none !important;
     }
 
     // --- 文字 ---
-    text, view, span, p, label, h1, h2, h3, h4, h5, h6,
+    text, view, span, p, label, h1, h2, h3, h4,
     .item-title, .title, .user-name, .label, .menu-text, .conv-name,
     .settings-text, .header-title, .detail-title, .guest-title,
     .contact-value, .stat-num, .version-value, .feature-name,
+    .detail-title, .conv-name, .user-name, .item-title,
     [class*="title"], [class*="Title"], [class*="name"], [class*="Name"] {
       color: #f1f5f9 !important;
     }
@@ -499,65 +504,60 @@ export default {
     .item-desc, .item-time, .tab-text, .user-class, .menu-count,
     .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
     .settings-arrow, .version-text, .search-placeholder, .menu-arrow,
-    .item-sub, .avatar-tip, .stat-label, .version-label,
-    .download-meta, .hero p, .feature-item p,
+    .avatar-tip, .version-label, .download-meta, .hero p,
     [class*="desc"], [class*="Desc"], [class*="time"], [class*="Time"],
-    [class*="sub"], [class*="Sub"], [class*="meta"], [class*="Meta"] {
+    [class*="sub"], [class*="Sub"], [class*="meta"], [class*="Meta"],
+    [class*="label"], [class*="Label"], .contact-label, .publish-time text {
       color: #94a3b8 !important;
     }
 
     // --- 输入框 ---
-    .input, input, textarea, .message-input, .search-input {
-      background-color: #0f172a !important;
-      color: #f1f5f9 !important;
-      border-color: #334155 !important;
+    input, textarea, .input, .message-input, .search-input {
+      background: #0f172a !important; color: #f1f5f9 !important; border-color: #334155 !important;
     }
 
-    // --- 按钮（全部黑白灰，无蓝色）---
-    button, .btn, .submit-btn, .send-btn, .chat-btn,
-    .edit-btn, .login-btn, .guest-btn, .download-btn,
-    .confirm-btn, .context-menu-item, .publish-btn,
-    .btn-primary, .btn-ok, .btn-info, .btn-p, .btn-warn,
-    [class*="btn"], [class*="Btn"] {
-      background-color: #334155 !important;
-      color: #f1f5f9 !important;
-      border-color: #475569 !important;
+    // --- 按钮 ---
+    button, .btn, .submit-btn, .send-btn, .chat-btn, .edit-btn,
+    .login-btn, .guest-btn, .download-btn, .confirm-btn, .context-menu-item,
+    .publish-btn, .btn-primary, .btn-ok, .btn-info, .btn-p, .btn-s,
+    .btn-secondary, .btn-outline, .btn-warn, [class*="btn"], [class*="Btn"] {
+      background: #334155 !important; background-image: none !important;
+      color: #f1f5f9 !important; border-color: #475569 !important;
     }
-    .solve-btn, .btn-success { background-color: #065f46 !important; }
-    .delete-btn, .btn-danger, .btn-del, .unblock-btn { background-color: #7f1d1d !important; }
+    .solve-btn, .btn-success { background: #065f46 !important; background-image: none !important; }
+    .delete-btn, .btn-danger, .btn-del, .unblock-btn { background: #7f1d1d !important; background-image: none !important; }
     button[disabled] { opacity: 0.4 !important; }
 
-    // --- 标签/筛选 ---
-    .tab-item, .time-filter-item { background-color: #334155 !important; color: #94a3b8 !important; }
-    .tab-item.active, .time-filter-item.active { background-color: #475569 !important; color: #f1f5f9 !important; }
+    // --- 标签/筛选（去掉残留蓝色）---
+    .tab-item, .time-filter-item { background: #334155 !important; color: #94a3b8 !important; }
+    .tab-item.active, .time-filter-item.active { background: #475569 !important; color: #f1f5f9 !important; }
 
     // --- 角标 ---
-    .unread-badge, .tab-badge { background-color: #ef4444 !important; color: #fff !important; }
+    .unread-badge, .tab-badge { background: #ef4444 !important; color: #fff !important; }
 
-    // --- 头像占位 ---
-    .avatar, .avatar-placeholder { border-color: #334155 !important; background-color: #334155 !important; }
+    // --- 头像 ---
+    .avatar, .avatar-placeholder { border-color: #334155 !important; background: #334155 !important; }
     .avatar-text, .avatar-icon { color: #94a3b8 !important; }
 
     // --- 分隔 ---
-    .stat-divider, .menu-divider, hr { background-color: #334155 !important; }
+    .stat-divider, .menu-divider, hr { background: #334155 !important; }
 
     // --- 空状态 ---
     .empty-icon { opacity: 0.4 !important; }
-    .empty-text, .empty-state { color: #475569 !important; }
 
-    // --- 标签 ---
+    // --- 标签色 ---
     .item-tag.lost { color: #fbbf24 !important; background: rgba(251,191,36,0.15) !important; }
     .item-tag.found { color: #94a3b8 !important; background: rgba(148,163,184,0.15) !important; }
     .status-tag.solved { color: #6ee7b7 !important; background: rgba(110,231,183,0.15) !important; }
 
     // --- 遮罩 ---
-    .mask, .mask-top, .mask-bottom, .mask-left, .mask-right { background-color: rgba(0,0,0,0.7) !important; }
+    .mask, .mask-top, .mask-bottom, .mask-left, .mask-right { background: rgba(0,0,0,0.7) !important; }
 
     // --- switch ---
-    switch { background-color: #334155 !important; }
+    switch { background: #334155 !important; }
 
     // --- 导航栏 ---
-    .custom-tabbar { background-color: #0f172a !important; border-top-color: #334155 !important; }
+    .custom-tabbar { background: #0f172a !important; border-top-color: #334155 !important; }
     .tab-bar-item .tab-text { color: #64748b !important; }
     .tab-bar-item.active .tab-text { color: #f1f5f9 !important; }
 
@@ -565,6 +565,13 @@ export default {
     .crop-area { border-color: rgba(255,255,255,0.3) !important; }
     .corner { border-color: rgba(255,255,255,0.6) !important; }
     .grid-line { background: rgba(255,255,255,0.1) !important; }
+
+    // --- 聊天消息气泡 ---
+    .message-item.self .message-content { background: #334155 !important; }
+    .message-item.other .message-content { background: #0f172a !important; }
+
+    // --- 物品标签 ---
+    .item-tag { border-color: #334155 !important; }
   }
   /* #endif */
 </style>
