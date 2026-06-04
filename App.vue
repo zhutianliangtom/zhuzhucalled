@@ -60,13 +60,8 @@ export default {
     this.applyTheme()
 
     // 监听主题切换
-    uni.$on('theme-change', ({ isDark }) => {
-      const pages = getCurrentPages()
-      const page = pages[pages.length - 1]
-      if (page && page.$el && page.$el.classList) {
-        if (isDark) page.$el.classList.add('theme-dark')
-        else page.$el.classList.remove('theme-dark')
-      }
+    uni.$on('theme-change', () => {
+      this.applyTheme()
     })
 
     // 申请通知权限
@@ -426,29 +421,24 @@ export default {
           if (isDark) {
             plus.navigator.setStatusBarStyle('light')
             plus.navigator.setStatusBarBackground('#1a1a2e')
-            if (plus.navigator.setNavigationBarColor) {
-              plus.navigator.setNavigationBarColor('#1a1a2e')
-            }
+            if (plus.navigator.setNavigationBarColor) plus.navigator.setNavigationBarColor('#1a1a2e')
           } else {
             plus.navigator.setStatusBarStyle('dark')
             plus.navigator.setStatusBarBackground('#ffffff')
-            if (plus.navigator.setNavigationBarColor) {
-              plus.navigator.setNavigationBarColor('#ffffff')
-            }
+            if (plus.navigator.setNavigationBarColor) plus.navigator.setNavigationBarColor('#ffffff')
           }
         }
       } catch (e) {}
       // #endif
 
-      // 延迟给当前页面加主题类（等页面渲染完成）
+      // 直接操作 document page 元素，确保全局生效
       setTimeout(() => {
-        const pages = getCurrentPages()
-        const page = pages[pages.length - 1]
-        if (page && page.$el && page.$el.classList) {
-          if (isDark) page.$el.classList.add('theme-dark')
-          else page.$el.classList.remove('theme-dark')
+        const pageEl = document.querySelector('page') || document.body
+        if (pageEl) {
+          if (isDark) pageEl.classList.add('theme-dark')
+          else pageEl.classList.remove('theme-dark')
         }
-      }, 300)
+      }, 200)
     }
   }
 }
@@ -469,43 +459,44 @@ export default {
   /* #endif */
 
   // ========== 深色模式全局覆盖 ==========
-  page.theme-dark {
+  // 同时匹配 page.theme-dark（全局）和 .theme-dark（页面级class）
+  .theme-dark, page.theme-dark {
     background-color: #0f0f1a;
     /* #ifdef APP-PLUS */
     .uni-app--showleftwindow, .uni-page-body, .uni-app,
     uni-page-wrapper, uni-page-body { background-color: #0f0f1a !important; }
     /* #endif */
-
-    // 容器
-    .container { background-color: #0f0f1a; }
-    // 卡片
+    .container, &.container { background-color: #0f0f1a; }
     .item-card, .form, .menu-list, .menu-item, .conversation-item,
     .settings-list, .settings-item, .stats-section, .guest-card,
-    .user-header, .detail-card, .publish-form { background-color: #1a1a2e; }
-    // 头部
+    .user-header, .detail-card, .publish-form, .info-card { background-color: #1a1a2e; }
     .header, .fixed-header { background: #1a1a2e; }
-    // 分隔
     .stat-divider { background: #2a2a3e; }
     .tabbar-container .custom-tabbar { background: #1a1a2e; border-top-color: #2a2a3e; }
-    // 文字
     .item-title, .title, .user-name, .label, .menu-text, .conv-name,
     .settings-text, .header-title, .detail-title, .guest-title { color: #e0e0e0; }
     .item-desc, .item-time, .tab-text, .user-class, .menu-count,
     .conv-time, .conv-preview, .stat-label, .guest-desc, .empty-text,
     .settings-arrow, .version-text, .search-placeholder { color: #999; }
-    // 边框
-    .input, .form-item input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
-    // 搜索
-    .search-bar { background: rgba(26, 26, 46, 0.95); }
+    .input, .form-item input, .message-input { border-color: #2a2a3e; background: #1a1a2e; color: #e0e0e0; }
+    .search-bar { background: rgba(26, 26, 46, 0.95) !important; }
     .search-placeholder { color: #999; }
-    // 标签/筛选
     .tabs, .time-filter { background: #1a1a2e; border-bottom-color: #2a2a3e; }
     .tab-item { color: #999; }
     .time-filter-item { background: #2a2a3e; color: #999; }
-    // 导航栏
     .tab-text { color: #666; }
-    // 空状态
     .empty-icon { opacity: 0.6; }
+    .image-gallery, .content { background-color: #0f0f1a; }
+    .footer { background: #1a1a2e; border-top-color: #2a2a3e; }
+    .chat-btn { background: #2563eb; }
+    .solve-btn { background: #10b981; }
+    .delete-btn { background: #dc2626; }
+    .contact-info { background: #2a2a3e; }
+    .submit-btn { background: #2563eb; }
+    .send-btn { background: #2563eb; }
+    .publish-form input, .publish-form textarea { background: #1a1a2e; border-color: #2a2a3e; color: #e0e0e0; }
+    .input-area, .input-tools { background: #1a1a2e; border-color: #2a2a3e; }
+    .context-menu { background: #1a1a2e; border-color: #2a2a3e; }
   }
   /* #endif */
 </style>

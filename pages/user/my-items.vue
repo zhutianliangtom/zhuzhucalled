@@ -159,7 +159,7 @@ export default {
 }
 
 .tab-item.active {
-  color: #4f8cff;
+  color: #2563eb;
 }
 
 .tab-item.active::after {
@@ -170,7 +170,7 @@ export default {
   transform: translateX(-50%);
   width: 40rpx;
   height: 4rpx;
-  background: #4f8cff;
+  background: #2563eb;
   border-radius: 2rpx;
 }
 

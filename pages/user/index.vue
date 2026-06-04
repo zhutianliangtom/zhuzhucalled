@@ -388,7 +388,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 40rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
 }
 
 .avatar-wrapper {
@@ -415,7 +415,7 @@ export default {
 
 .avatar-text {
   font-size: 48rpx;
-  color: #4f8cff;
+  color: #2563eb;
   font-weight: bold;
 }
 
@@ -484,7 +484,7 @@ export default {
 .stat-num {
   font-size: 40rpx;
   font-weight: bold;
-  color: #4f8cff;
+  color: #2563eb;
   display: block;
 }
 
@@ -580,7 +580,7 @@ export default {
 .guest-btn {
   width: 200rpx;
   height: 70rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   color: #fff;
   border-radius: 35rpx;
   font-size: 28rpx;
@@ -629,7 +629,7 @@ export default {
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #4f8cff;
+  color: #2563eb;
 }
 
 /* 消息角标 */

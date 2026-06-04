@@ -296,7 +296,7 @@ export default {
         title: '取消拉黑',
         content: '取消拉黑后，对方将可以再次给你发送消息',
         confirmText: '取消拉黑',
-        confirmColor: '#4f8cff',
+        confirmColor: '#2563eb',
         success: async (res) => {
           if (res.confirm) {
             try {
@@ -607,7 +607,7 @@ export default {
 .avatar {
   width: 72rpx;
   height: 72rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -698,7 +698,7 @@ export default {
 
 /* ── Text Message ─── */
 .text-message {
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   color: #fff;
   padding: 20rpx 25rpx;
   border-radius: 24rpx 8rpx 24rpx 24rpx;
@@ -766,7 +766,7 @@ export default {
   
   text {
     font-size: 40rpx;
-    color: #4f8cff;
+    color: #2563eb;
     margin-left: 6rpx;
   }
 }
@@ -877,7 +877,7 @@ export default {
 }
 
 .send-btn {
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   color: #fff;
   border-radius: 30rpx;
   padding: 15rpx 30rpx;
@@ -950,7 +950,7 @@ export default {
 
 .scroll-icon {
   font-size: 32rpx;
-  color: #4f8cff;
+  color: #2563eb;
 }
 
 .scroll-count {

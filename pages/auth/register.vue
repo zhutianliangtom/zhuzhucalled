@@ -268,7 +268,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
@@ -286,6 +286,6 @@ export default {
 
 .link {
   font-size: 26rpx;
-  color: #4f8cff;
+  color: #2563eb;
 }
 </style>

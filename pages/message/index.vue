@@ -305,7 +305,7 @@ export default {
 .avatar {
   width: 80rpx;
   height: 80rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -438,6 +438,6 @@ export default {
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #4f8cff;
+  color: #2563eb;
 }
 </style>

@@ -11,13 +11,13 @@
       <view class="settings-item">
         <text class="settings-icon">🔔</text>
         <text class="settings-text">消息通知</text>
-        <switch :checked="notifications" @change="toggleNotifications" color="#4f8cff" />
+        <switch :checked="notifications" @change="toggleNotifications" color="#2563eb" />
       </view>
       
       <view class="settings-item">
         <text class="settings-icon">🌙</text>
         <text class="settings-text">深色模式</text>
-        <switch :checked="darkMode" @change="toggleDarkMode" color="#4f8cff" />
+        <switch :checked="darkMode" @change="toggleDarkMode" color="#2563eb" />
       </view>
       
       <view class="settings-item" @click="clearCache">

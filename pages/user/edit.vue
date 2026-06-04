@@ -230,7 +230,7 @@ export default {
 .avatar {
   width: 120rpx;
   height: 120rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -270,7 +270,7 @@ export default {
 .submit-btn {
   width: 100%;
   height: 90rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
   color: #fff;
   border-radius: 45rpx;
   font-size: 32rpx;

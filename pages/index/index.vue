@@ -389,7 +389,7 @@ export default {
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(135deg, #4f8cff 0%, #6c63ff 100%);
+  background: #2563eb;
 }
 
 .header {
@@ -441,7 +441,7 @@ export default {
 }
 
 .tab-item.active {
-  background: #4f8cff;
+  background: #2563eb;
   color: #fff;
 }
 
@@ -464,7 +464,7 @@ export default {
 }
 
 .time-filter-item.active {
-  background: #4f8cff;
+  background: #2563eb;
   color: #fff;
 }
 
@@ -746,7 +746,7 @@ export default {
 
 .tab-bar-item.active .tab-icon,
 .tab-bar-item.active .tab-text {
-  color: #4f8cff;
+  color: #2563eb;
 }
 
 /* 消息角标 */
