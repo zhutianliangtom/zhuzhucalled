@@ -79,7 +79,8 @@ export default {
       currentTabBarIndex: 1,
       unreadTotal: 0,
       pollTimer: null,
-      _notified: {},
+      _lastUnread: {},
+      _appInForeground: true,
       statusBarHeight: 0
     }
   },
@@ -98,11 +99,13 @@ export default {
     uni.$off('theme-change')
   },
   onShow() {
+    this._appInForeground = true
     this.checkLoginAndLoad()
     this.updateBadge()
     this.currentTabBarIndex = 1
   },
   onHide() {
+    this._appInForeground = false
     // 不停止轮询：后台继续检测新消息并推送通知
   },
   onUnload() {
@@ -145,85 +148,86 @@ export default {
     async loadConversations(force) {
       try {
         const userId = (storage.getUser() || {}).id || 'anon'
+        const isFirst = Object.keys(this._lastUnread).length === 0
         await cache.fetch('conv_' + userId, () => api.getMessages(), {
           ttl: cache.TTL.messages,
           force,
           onLoad: (cached) => {
-            // 秒显缓存
             if (cached && cached.data) {
               this.conversations = cached.data
-              this.updateUnreadTotal()
+              if (isFirst) this._seedUnread()
+              this.updateUnreadTotal(true)
             }
           },
           onRefresh: (fresh) => {
-            this._notified = {}
             this.conversations = (fresh && fresh.data) ? fresh.data : []
-            this.updateUnreadTotal()
+            if (isFirst) this._seedUnread()
+            this.updateUnreadTotal(false)
           }
         })
       } catch (err) {
         if (err.message !== '登录已过期') console.error(err)
       }
     },
-
-    // 轮询：每 3 秒刷新一次
-    startPoll() {
-      this.stopPoll()
-      this.pollTimer = setInterval(() => {
-        // 只有登录状态下才轮询
-        const token = storage.getToken()
-        if (token) {
-          this.loadConversations()
-        }
-      }, 3000)
-    },
-    stopPoll() {
-      if (this.pollTimer) {
-        clearInterval(this.pollTimer)
-        this.pollTimer = null
-      }
-    },
-
-    // 更新未读总数 + Android 角标
-    updateUnreadTotal() {
-      const total = this.conversations.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
-      this.unreadTotal = total
-      this.updateBadge()
-      // 对每条有未读的对话发通知（仅第一次发现未读时）
+    // 种子化 _lastUnread，避免首次加载把已有未读当新消息
+    _seedUnread() {
       this.conversations.forEach(c => {
-        if (c.unread > 0 && !this._notified[c.userId]) {
-          this._notified[c.userId] = true
-          this.showLocalNotification(c)
-        }
+        this._lastUnread[c.userId] = parseInt(c.unread) || 0
       })
     },
 
-    // Android 原生角标
+    startPoll() {
+      this.stopPoll()
+      this.pollTimer = setInterval(() => {
+        const token = storage.getToken()
+        if (token) this.loadConversations()
+      }, 3000)
+    },
+    stopPoll() {
+      if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
+    },
+
+    // 更新未读总数 + 增量通知
+    updateUnreadTotal(skipNotify) {
+      const total = this.conversations.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
+      this.unreadTotal = total
+      this.updateBadge()
+
+      if (skipNotify) return
+
+      this.conversations.forEach(c => {
+        const cur = parseInt(c.unread) || 0
+        const prev = parseInt(this._lastUnread[c.userId]) || 0
+        if (cur > prev) {
+          // 只在新消息到达时弹一次
+          this.showLocalNotification(c)
+        }
+        this._lastUnread[c.userId] = cur
+      })
+    },
+
     updateBadge() {
       const total = this.unreadTotal
-      // HBuilderX plus API（只在 App 环境下可用）
       if (typeof plus !== 'undefined' && plus.runtime) {
         plus.runtime.setBadgeNumber(total)
       }
     },
 
     showLocalNotification(conversation) {
-      // 前台：可点击弹窗
-      uni.showToast({
-        title: `${conversation.userName}: ${conversation.lastMessage || '新消息'}`,
-        icon: 'none',
-        duration: 2500
-      })
-      // 后台：系统通知，携带跳转信息
-      // #ifdef APP-PLUS
-      if (typeof plus !== 'undefined' && plus.push) {
-        plus.push.createMessage(
-          `${conversation.userName}: ${conversation.lastMessage || '发来一条新消息'}`,
-          JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
-          { title: '校园失物招领', sound: 'system', cover: false }
-        )
+      const text = `${conversation.userName}: ${conversation.lastMessage || '新消息'}`
+      // 前台弹窗，后台系统推送（不重复）
+      if (this._appInForeground) {
+        uni.showToast({ title: text, icon: 'none', duration: 3000 })
+      } else {
+        // #ifdef APP-PLUS
+        if (typeof plus !== 'undefined' && plus.push) {
+          plus.push.createMessage(text,
+            JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
+            { title: '校园失物招领', sound: 'system', cover: false }
+          )
+        }
+        // #endif
       }
-      // #endif
     },
 
     goChat(userId, userName, userAvatar) {
