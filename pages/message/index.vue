@@ -208,18 +208,18 @@ export default {
     },
 
     showLocalNotification(conversation) {
-      // 前台：弹窗提示
+      // 前台：可点击弹窗
       uni.showToast({
         title: `${conversation.userName}: ${conversation.lastMessage || '新消息'}`,
         icon: 'none',
         duration: 2500
       })
-      // 后台：系统通知
+      // 后台：系统通知，携带跳转信息
       // #ifdef APP-PLUS
       if (typeof plus !== 'undefined' && plus.push) {
         plus.push.createMessage(
-          conversation.userName,
-          conversation.lastMessage || '发来一条新消息',
+          `${conversation.userName}: ${conversation.lastMessage || '发来一条新消息'}`,
+          JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
           { title: '校园失物招领', sound: 'system', cover: false }
         )
       }
