@@ -519,6 +519,17 @@ export default {
           .search-placeholder { color: #94a3b8 !important; }
           .tab-icon, .menu-icon, .settings-icon { color: inherit !important; }
           .menu-item.logout { border-top-color: #334155 !important; }
+          .ico-home, .ico-chat, .ico-person { border-color: #94a3b8 !important; }
+          .ico-home::before { border-bottom-color: #94a3b8 !important; }
+          .ico-chat::after { border-top-color: #94a3b8 !important; }
+          .ico-person::after { border-color: #94a3b8 !important; }
+          .ico-plus { color: #94a3b8 !important; }
+          .tab-bar-item.active .ico-home, .tab-bar-item.active .ico-chat,
+          .tab-bar-item.active .ico-person { border-color: #f1f5f9 !important; }
+          .tab-bar-item.active .ico-home::before { border-bottom-color: #f1f5f9 !important; }
+          .tab-bar-item.active .ico-chat::after { border-top-color: #f1f5f9 !important; }
+          .tab-bar-item.active .ico-person::after { border-color: #f1f5f9 !important; }
+          .tab-bar-item.active .ico-plus { color: #f1f5f9 !important; }
         `
           document.head.appendChild(s)
           document.body.classList.add('theme-dark')

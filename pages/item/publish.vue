@@ -101,8 +101,10 @@
             <view v-if="index === 1 && unreadTotal > 0" class="tab-badge">
               <text>{{ unreadTotal > 99 ? '99+' : unreadTotal }}</text>
             </view>
-            <text class="tab-icon">{{ item.icon }}</text>
-            <text class="tab-text">{{ item.text }}</text>
+            <view v-if="index === 0" class="ico ico-home"></view>
+            <view v-else-if="index === 1" class="ico ico-chat"></view>
+            <view v-else-if="index === 2" class="ico ico-plus">＋</view>
+            <view v-else class="ico ico-person"></view>
           </view>
         </view>
       </view>
@@ -129,10 +131,10 @@ export default {
       uploadProgress: 0,
       uploadingText: '准备中...',
       tabBarItems: [
-        { pagePath: '/pages/index/index', text: '首页', icon: '🏠' },
-        { pagePath: '/pages/message/index', text: '消息', icon: '💬' },
-        { pagePath: '/pages/item/publish', text: '发布', icon: '+' },
-        { pagePath: '/pages/user/index', text: '我的', icon: '👤' }
+        { pagePath: '/pages/index/index' },
+        { pagePath: '/pages/message/index' },
+        { pagePath: '/pages/item/publish' },
+        { pagePath: '/pages/user/index' }
       ],
       currentTabBarIndex: 2,
       unreadTotal: 0,
@@ -548,32 +550,32 @@ export default {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  height: 80rpx;
+  height: 56rpx;
 }
 
 .tab-bar-item {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
 }
 
-.tab-icon {
-  font-size: 40rpx;
-}
-
-.tab-text {
-  font-size: 24rpx;
-  color: #666999;
-  margin-top: 4rpx;
-}
-
-.tab-bar-item.active .tab-icon,
-.tab-bar-item.active .tab-text {
-  color: #334155;
-}
+.ico { transition: opacity 0.2s; opacity: 0.35; }
+.tab-bar-item.active .ico { opacity: 1; }
+.ico-home { width:36rpx; height:30rpx; border:4rpx solid #334155; border-top:none; border-radius:0 0 4rpx 4rpx; position:relative; top:6rpx; }
+.ico-home::before { content:''; position:absolute; top:-18rpx; left:-8rpx; border-left:26rpx solid transparent; border-right:26rpx solid transparent; border-bottom:20rpx solid #334155; }
+.tab-bar-item.active .ico-home { border-color:#111; }
+.tab-bar-item.active .ico-home::before { border-bottom-color:#111; }
+.ico-chat { width:34rpx; height:28rpx; border:4rpx solid #334155; border-radius:8rpx; position:relative; top:4rpx; }
+.ico-chat::after { content:''; position:absolute; bottom:-12rpx; left:14rpx; border-left:8rpx solid transparent; border-right:8rpx solid transparent; border-top:12rpx solid #334155; }
+.tab-bar-item.active .ico-chat { border-color:#111; }
+.tab-bar-item.active .ico-chat::after { border-top-color:#111; }
+.ico-plus { font-size:56rpx; font-weight:300; line-height:1; color:#334155; text-align:center; }
+.ico-person { width:22rpx; height:22rpx; border:4rpx solid #334155; border-radius:50%; position:relative; top:6rpx; }
+.ico-person::after { content:''; position:absolute; top:24rpx; left:50%; transform:translateX(-50%); width:40rpx; height:20rpx; border:4rpx solid #334155; border-top:none; border-radius:0 0 20rpx 20rpx; }
+.tab-bar-item.active .ico-person { border-color:#111; }
+.tab-bar-item.active .ico-person::after { border-color:#111; }
 
 /* 消息角标 */
 .tab-badge {
