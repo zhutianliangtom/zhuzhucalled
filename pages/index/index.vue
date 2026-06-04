@@ -224,7 +224,7 @@ export default {
     this.startPoll()
   },
   onHide() {
-    this.stopPoll()
+    // 不停止轮询：后台继续检测未读数
   },
   methods: {
     applyTheme() {

@@ -103,7 +103,7 @@ export default {
     this.currentTabBarIndex = 1
   },
   onHide() {
-    this.stopPoll()
+    // 不停止轮询：后台继续检测新消息并推送通知
   },
   onUnload() {
     this.stopPoll()
@@ -208,13 +208,21 @@ export default {
     },
 
     showLocalNotification(conversation) {
+      // 前台：弹窗提示
+      uni.showToast({
+        title: `${conversation.userName}: ${conversation.lastMessage || '新消息'}`,
+        icon: 'none',
+        duration: 2500
+      })
+      // 后台：系统通知
       // #ifdef APP-PLUS
-      if (typeof plus === 'undefined' || !plus.push) return
-      plus.push.createMessage(
-        conversation.userName,
-        conversation.lastMessage || '发来一条新消息',
-        { title: '校园失物招领', sound: 'system', cover: false }
-      )
+      if (typeof plus !== 'undefined' && plus.push) {
+        plus.push.createMessage(
+          conversation.userName,
+          conversation.lastMessage || '发来一条新消息',
+          { title: '校园失物招领', sound: 'system', cover: false }
+        )
+      }
       // #endif
     },
 
