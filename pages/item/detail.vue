@@ -166,9 +166,6 @@ export default {
         this.isOwnItem = true
       }
     },
-        uni.hideLoading()
-      }
-    },
     goChat() {
       const user = storage.getUser()
       if (!user) {

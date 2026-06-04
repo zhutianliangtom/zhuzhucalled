@@ -121,7 +121,6 @@
               <text>{{ unreadTotal > 99 ? '99+' : unreadTotal }}</text>
             </view>
             <text class="tab-icon">{{ item.icon }}</text>
-            <text class="tab-text">{{ item.text }}</text>
           </view>
         </view>
       </view>
@@ -606,31 +605,25 @@ export default {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  height: 80rpx;
+  height: 56rpx;
 }
 
 .tab-bar-item {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
 }
 
 .tab-icon {
-  font-size: 40rpx;
+  font-size: 44rpx;
+  opacity: 0.5;
 }
 
-.tab-text {
-  font-size: 24rpx;
-  color: #666999;
-  margin-top: 4rpx;
-}
-
-.tab-bar-item.active .tab-icon,
-.tab-bar-item.active .tab-text {
+.tab-bar-item.active .tab-icon {
   color: #334155;
+  opacity: 1;
 }
 
 /* 消息角标 */
