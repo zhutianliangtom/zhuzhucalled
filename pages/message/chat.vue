@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="container">
     <view class="header">
       <view class="back-btn" @click="goBack">
@@ -368,14 +368,14 @@ export default {
         sourceType: ['album', 'camera'],
         success: async (res) => {
           const filePaths = res.tempFilePaths
-          console.log('[聊天] 选择图片成功，数量:', filePaths.length)
+          // console.log('[聊天] 选择图片成功，数量:', filePaths.length)
           uni.showLoading({ title: '上传中...' })
           
           try {
             for (let filePath of filePaths) {
-              console.log('[聊天] 上传图片:', filePath)
+              // console.log('[聊天] 上传图片:', filePath)
               const result = await api.uploadImage(filePath)
-              console.log('[聊天] 图片上传成功:', result.url)
+              // console.log('[聊天] 图片上传成功:', result.url)
               await api.sendMessage(this.userId, '', 'image', result.url)
             }
             uni.hideLoading()
@@ -407,7 +407,7 @@ export default {
         compressed: false,
         success: async (res) => {
           const { tempFilePath, size } = res
-          console.log('[聊天] 选择视频成功:', tempFilePath, '大小:', size)
+          // console.log('[聊天] 选择视频成功:', tempFilePath, '大小:', size)
           
           if (size > 1024 * 1024 * 1024) {
             uni.showToast({ title: '视频大小不能超过1GB', icon: 'none' })
@@ -417,9 +417,9 @@ export default {
           uni.showLoading({ title: '上传视频中...' })
           
           try {
-            console.log('[聊天] 开始上传视频')
+            // console.log('[聊天] 开始上传视频')
             const result = await api.uploadVideo(tempFilePath)
-            console.log('[聊天] 视频上传成功:', result.url)
+            // console.log('[聊天] 视频上传成功:', result.url)
             await api.sendMessage(this.userId, '', 'video', result.url)
             uni.hideLoading()
             uni.showToast({ title: '发送成功', icon: 'success' })
