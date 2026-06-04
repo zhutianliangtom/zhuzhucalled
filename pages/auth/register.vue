@@ -116,27 +116,29 @@ export default {
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: async (res) => {
-          console.log('[注册] 选择图片成功:', res.tempFilePaths[0])
-          const filePath = res.tempFilePaths[0]
-          uni.showLoading({ title: '上传中...' })
-          try {
-            const result = await api.uploadAvatarImage(filePath)
-            console.log('[注册] 上传成功:', result.url)
-            this.form.avatar = result.url
-            uni.hideLoading()
-            uni.showToast({ title: '头像已设置', icon: 'success' })
-          } catch (err) {
-            uni.hideLoading()
-            console.error('[注册] 上传失败:', err)
-            uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
-          }
+        success: (res) => {
+          // 跳转到裁剪页
+          uni.navigateTo({
+            url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(res.tempFilePaths[0])}`
+          })
         },
         fail: (err) => {
           console.error('[注册] 选择图片失败:', err)
-          uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
+    },
+    // 裁剪页回调：接收裁剪后的图片路径
+    async handleCropResult(tempFilePath) {
+      uni.showLoading({ title: '上传中...' })
+      try {
+        const result = await api.uploadAvatarImage(tempFilePath)
+        this.form.avatar = result.url
+        uni.hideLoading()
+        uni.showToast({ title: '头像已设置', icon: 'success' })
+      } catch (err) {
+        uni.hideLoading()
+        uni.showToast({ title: err.message || '上传失败', icon: 'none' })
+      }
     },
     async handleRegister() {
       if (!this.canSubmit) {
