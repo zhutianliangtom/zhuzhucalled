@@ -17,9 +17,9 @@
         @click="goChat(conv.userId, conv.userName, conv.userAvatar)"
       >
         <view class="avatar">
-          <image v-if="conv.userAvatar" :src="getFullImageUrl(conv.userAvatar)" mode="aspectFill" class="avatar-img" />
-          <text v-else class="avatar-text">{{ (conv.userName || '?').charAt(0) }}</text>
-        </view>
+        <cached-image v-if="conv.userAvatar" :src="getFullImageUrl(conv.userAvatar)" mode="aspectFill" class="avatar-img" />
+        <text v-else class="avatar-text">{{ (conv.userName || '?').charAt(0) }}</text>
+      </view>
         <view class="conv-info">
           <view class="conv-header">
             <text class="conv-name">{{ conv.userName }}</text>
@@ -62,8 +62,12 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
+import CachedImage from '@/components/CachedImage.vue'
 
 export default {
+  components: {
+    CachedImage
+  },
   data() {
     return {
       format,

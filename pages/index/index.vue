@@ -61,7 +61,7 @@
           <!-- 图片区域 -->
           <view v-if="item.images && item.images.length > 0" class="image-wrapper">
             <!-- 单张图片 -->
-            <image 
+            <cached-image 
               v-if="item.images.length === 1"
               :src="getFullImageUrl(item.images[0])" 
               mode="aspectFill" 
@@ -69,9 +69,9 @@
             />
             <!-- 多张图片 -->
             <view v-else class="image-container-multiple">
-              <image 
+              <cached-image 
                 v-for="(img, idx) in item.images.slice(0, 3)" 
-                :key="idx" 
+                :key="getFullImageUrl(img)" 
                 :src="getFullImageUrl(img)" 
                 mode="aspectFill" 
                 class="item-image-multiple"
@@ -84,7 +84,7 @@
           </view>
           <!-- 没有图片时显示默认图 -->
           <view v-else class="image-wrapper">
-            <image :src="'https://neeko-copilot.bytedance.net/api/text-to-image?prompt=lost%20and%20found%20item&image-size=square'" mode="aspectFill" class="item-image default-image" />
+            <cached-image :src="'https://neeko-copilot.bytedance.net/api/text-to-image?prompt=lost%20and%20found%20item&image-size=square'" mode="aspectFill" class="item-image default-image" />
           </view>
           
           <!-- 信息区域 -->
@@ -102,7 +102,7 @@
       </view>
     </view>
 
-    <view v-if="showSearch" class="search-modal" @click="showSearch = false">
+    <view v-if="showSearch" class="search-modal" :class="{ 'search-modal-show': showSearch }" @click="showSearch = false">
       <view class="search-content" :style="{ paddingTop: (statusBarHeight + 30) + 'px' }" @click.stop>
         <view class="search-input-wrap">
           <text class="search-icon">🔍</text>
@@ -161,11 +161,13 @@ import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import GuideModal from '@/components/GuideModal.vue'
+import CachedImage from '@/components/CachedImage.vue'
 
 export default {
   components: {
     OfflineBanner,
-    GuideModal
+    GuideModal,
+    CachedImage
   },
   data() {
     return {
@@ -223,6 +225,8 @@ export default {
   },
   onShow() {
     this.currentTabBarIndex = 0
+    // 重新加载物品列表（确保切换页面时刷新数据）
+    this.loadItems()
     // 只有登录状态下才加载未读数
     this.checkLoginAndLoadUnread()
     this.startPoll()
@@ -250,14 +254,19 @@ export default {
       }
     },
     getFullImageUrl(url) {
-      if (!url) return ''
+      if (!url) {
+        console.warn('[图片] URL为空')
+        return ''
+      }
       // 如果已经是完整URL，直接返回
       if (url.startsWith('http://') || url.startsWith('https://')) {
         return url
       }
       // 如果是相对路径，拼接baseUrl
       const baseUrl = 'https://chentian.dpdns.org'
-      return baseUrl + url
+      const fullUrl = baseUrl + url
+      console.log('[图片] 拼接URL:', fullUrl)
+      return fullUrl
     },
     async loadItems() {
       if (this.loading) return
@@ -278,14 +287,24 @@ export default {
           ttl: cache.TTL.items,
           onLoad: (cached) => {
             // 秒显缓存数据
+            console.log('[缓存数据]', cached)
             if (cached && cached.data && cached.data.length > 0) {
               this.items = cached.data
+              console.log('[加载缓存] 物品数量:', this.items.length)
+              if (this.items.length > 0) {
+                console.log('[第一个物品]', this.items[0])
+              }
             }
           },
           onRefresh: (fresh) => {
             // 后台刷新拿到新数据
+            console.log('[新数据]', fresh)
             if (fresh && fresh.data && fresh.data.length > 0) {
               this.items = fresh.data
+              console.log('[加载新数据] 物品数量:', this.items.length)
+              if (this.items.length > 0) {
+                console.log('[第一个物品]', this.items[0])
+              }
             } else {
               this.items = []
             }
@@ -646,11 +665,33 @@ export default {
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  opacity: 0;
+  animation: searchModalFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes searchModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .search-content {
   background: #ffffff;
   padding: 30rpx;
+  transform: translateY(-100%);
+  animation: searchContentSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes searchContentSlideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .theme-dark .search-content {

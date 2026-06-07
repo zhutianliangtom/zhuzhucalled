@@ -2,7 +2,7 @@
   <view class="container" :class="{ 'theme-dark': isDark }">
     <view v-if="item" class="content">
       <view class="image-gallery">
-        <image 
+        <cached-image 
           v-for="(img, index) in item.images" 
           :key="index" 
           :src="getFullImageUrl(img)" 
@@ -77,8 +77,12 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
+import CachedImage from '@/components/CachedImage.vue'
 
 export default {
+  components: {
+    CachedImage
+  },
   data() {
     return {
       format,
@@ -139,7 +143,7 @@ export default {
     async loadItem() {
       try {
         await cache.fetch('item_' + this.itemId, () => api.getItem(this.itemId), {
-          ttl: 30,
+          ttl: cache.TTL.itemDetail,
           onLoad: (cached) => {
             // 缓存秒显
             if (cached && cached.data) {

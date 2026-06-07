@@ -2,7 +2,7 @@
   <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="user-header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <view class="avatar-wrapper" @click="chooseAvatar">
-        <image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
+        <cached-image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
         <view v-else class="avatar">
           <text class="avatar-text">{{ user?.name?.charAt(0) || '?' }}</text>
         </view>
@@ -132,8 +132,12 @@
 import { storage } from '@/utils/storage'
 import { api } from '@/utils/api'
 import { cache } from '@/utils/cache'
+import CachedImage from '@/components/CachedImage.vue'
 
 export default {
+  components: {
+    CachedImage
+  },
   data() {
     return {
       user: null,
@@ -201,10 +205,23 @@ export default {
       }
     },
     async loadUnreadCount() {
+      const userId = (storage.getUser() || {}).id || 'anon'
       try {
-        const res = await api.getMessages()
-        const total = res.data.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
-        this.unreadTotal = total
+        await cache.fetch('unread_' + userId, () => api.getMessages(), {
+          ttl: cache.TTL.messages,
+          onLoad: (cached) => {
+            if (cached && cached.data) {
+              const total = cached.data.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
+              this.unreadTotal = total
+            }
+          },
+          onRefresh: (fresh) => {
+            if (fresh && fresh.data) {
+              const total = fresh.data.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
+              this.unreadTotal = total
+            }
+          }
+        })
       } catch (e) {
         // 静默失败
       }
