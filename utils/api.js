@@ -1,10 +1,6 @@
-﻿import { storage } from './storage'
+﻿﻿import { storage } from './storage'
 
 const baseUrl = 'https://chentian.dpdns.org'
-
-// 生产环境关闭 debug 日志（云打包后 process.env.NODE_ENV === 'production'）
-const __DEV__ = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production'
-const debug = (...args) => { if (__DEV__) console.log(...args) }
 
 // 心跳检测配置
 let heartbeatTimer = null
@@ -14,39 +10,21 @@ const MAX_FAIL_COUNT = 3 // 最大允许连续失败次数（3次 = 45秒）
 let offlineBannerTimer = null // 断网提示定时器
 let offlineBannerShown = false // 标记断网提示是否已显示
 
-// 显示断网提示（持久化的顶部提示条）
+// 显示断网提示（不显示Toast，只更新状态）
 const showOfflineBanner = () => {
-  // 如果已经显示过，不再重复显示
   if (offlineBannerShown) {
     return
   }
   
-  console.log('🔴 显示断网提示')
   offlineBannerShown = true
   
-  // 清除之前的定时器
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
-  }
-  
-  // 使用uni.showToast显示持久提示
-  try {
-    uni.showToast({
-      title: '⚠️ 无法连接服务器',
-      icon: 'none',
-      duration: 999999, // 持久显示
-      mask: false
-    })
-    console.log('✅ Toast已调用')
-  } catch (e) {
-    console.error('显示Toast失败:', e)
   }
 }
 
 // 隐藏断网提示
 const hideOfflineBanner = () => {
-  console.log('🟢 隐藏断网提示')
-  
   // 清除重试定时器
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
@@ -58,10 +36,7 @@ const hideOfflineBanner = () => {
   
   try {
     uni.hideToast()
-    console.log('✅ Toast已隐藏')
-  } catch (e) {
-    console.error('隐藏Toast失败:', e)
-  }
+  } catch (e) {}
 }
 
 // 显示网络恢复提示
@@ -72,34 +47,24 @@ const showOnlineToast = () => {
       icon: 'success',
       duration: 2000
     })
-    console.log('✅ 网络恢复提示已显示')
-  } catch (e) {
-    console.error('显示恢复提示失败:', e)
-  }
+  } catch (e) {}
 }
 
 export const api = {
   // 启动心跳检测
   startHeartbeat() {
     if (heartbeatTimer) {
-      console.log('心跳检测已在运行')
       return
     }
     
-    console.log('启动15秒心跳检测...')
-    
     // 立即执行一次心跳检测（处理 Promise）
-    this.checkHeartbeat().catch(err => {
-      console.error('初始心跳检测失败:', err)
-    })
+    this.checkHeartbeat().catch(() => {})
     
     // 然后每15秒执行一次（处理 Promise）
     heartbeatTimer = setInterval(async () => {
       try {
         await this.checkHeartbeat()
-      } catch (err) {
-        console.error('心跳检测失败:', err)
-      }
+      } catch (err) {}
     }, 15000) // 15秒间隔
   },
   
@@ -113,7 +78,6 @@ export const api = {
       
       // 心跳成功，如果之前是断网状态则隐藏断网提示并显示恢复提示
       if (!isOnline) {
-        console.log('✅ 网络已恢复')
         hideOfflineBanner()
         showOnlineToast()
         // 通知全局网络恢复（通过事件总线）
@@ -123,12 +87,9 @@ export const api = {
       isOnline = true
     } catch (error) {
       heartbeatFailCount++
-      const errorMsg = error.errMsg || error.message || 'Unknown error'
-      console.warn(`心跳检测失败 (${heartbeatFailCount}/${MAX_FAIL_COUNT})`, errorMsg)
       
       // 连续失败超过阈值，显示断网提示
       if (heartbeatFailCount >= MAX_FAIL_COUNT) {
-        console.error('连续心跳失败，显示断网提示')
         isOnline = false
         showOfflineBanner()
         // 通知全局断网（通过事件总线）
@@ -142,7 +103,6 @@ export const api = {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer)
       heartbeatTimer = null
-      console.log('心跳检测已停止')
     }
   },
   
@@ -166,11 +126,6 @@ export const api = {
       'Authorization': token ? `Bearer ${token}` : ''
     }
     
-    debug('[API] 请求URL:', baseUrl + url)
-    debug('[API] 请求方法:', method)
-    debug('[API] 请求数据:', data)
-    debug('[API] 请求头:', { ...defaultHeader, ...header })
-    
     return new Promise((resolve, reject) => {
       uni.request({
         url: baseUrl + url,
@@ -178,8 +133,6 @@ export const api = {
         data,
         header: { ...defaultHeader, ...header },
         success: (res) => {
-          debug('[API] 响应状态:', res.statusCode)
-          debug('[API] 响应数据:', res.data)
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
@@ -195,7 +148,6 @@ export const api = {
           }
         },
         fail: (err) => {
-          console.error('[API] 请求失败:', err)
           reject(err)
         }
       })
@@ -302,11 +254,9 @@ export const api = {
   },
   
   async uploadImage(filePath) {
-    debug('[上传图片] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
       if (!token) {
-        console.error('[上传图片] 未登录，无法上传')
         reject(new Error('请先登录'))
         return
       }
@@ -319,35 +269,27 @@ export const api = {
           'Authorization': `Bearer ${token}`
         },
         success: (res) => {
-          debug('[上传图片] 响应状态码:', res.statusCode)
-          debug('[上传图片] 响应数据:', res.data)
           if (res.statusCode === 200) {
             try {
               const data = JSON.parse(res.data)
-              debug('[上传图片] 上传成功:', data.url)
               resolve(data)
             } catch (e) {
-              console.error('[上传图片] 解析响应失败:', e)
               reject(new Error('服务器响应格式错误'))
             }
           } else if (res.statusCode === 401) {
-            console.error('[上传图片] token无效')
             storage.clearUser()
             uni.reLaunch({ url: '/pages/auth/login' })
             reject(new Error('登录已过期，请重新登录'))
           } else {
             try {
               const errData = JSON.parse(res.data)
-              console.error('[上传图片] 上传失败:', errData.message)
               reject(new Error(errData.message || '上传失败'))
             } catch (e) {
-              console.error('[上传图片] 上传失败，状态码:', res.statusCode)
               reject(new Error(`上传失败 (${res.statusCode})`))
             }
           }
         },
         fail: (err) => {
-          console.error('[上传图片] 网络请求失败:', err.errMsg || err)
           reject(new Error(err.errMsg || '网络请求失败'))
         }
       })
@@ -356,21 +298,17 @@ export const api = {
   
   // 注册用头像上传（无需登录，调用 /upload/avatar）
   async uploadAvatarImage(filePath) {
-    debug('[上传头像] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       uni.uploadFile({
         url: baseUrl + '/upload/avatar',
         filePath,
         name: 'image',
         success: (res) => {
-          debug('[上传头像] 响应状态码:', res.statusCode)
           if (res.statusCode === 200) {
             try {
               const data = JSON.parse(res.data)
-              debug('[上传头像] 上传成功:', data.url)
               resolve(data)
             } catch (e) {
-              console.error('[上传头像] 解析响应失败:', e)
               reject(new Error('服务器响应格式错误'))
             }
           } else {
@@ -383,7 +321,6 @@ export const api = {
           }
         },
         fail: (err) => {
-          console.error('[上传头像] 网络请求失败:', err.errMsg || err)
           reject(new Error(err.errMsg || '网络请求失败'))
         }
       })
@@ -404,11 +341,9 @@ export const api = {
   },
 
   async uploadVideo(filePath) {
-    debug('[上传视频] 开始上传:', filePath)
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
       if (!token) {
-        console.error('[上传视频] 未登录，无法上传')
         reject(new Error('请先登录'))
         return
       }
@@ -419,40 +354,34 @@ export const api = {
         filePath,
         name: 'video',
         header: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
         },
+        formData: {},
         success: (res) => {
           uni.hideLoading()
-          debug('[上传视频] 响应状态码:', res.statusCode)
-          debug('[上传视频] 响应数据:', res.data)
           if (res.statusCode === 200) {
             try {
-              const data = JSON.parse(res.data)
-              debug('[上传视频] 上传成功:', data.url)
+              const data = typeof res.data === 'object' ? res.data : JSON.parse(res.data)
               resolve(data)
             } catch (e) {
-              console.error('[上传视频] 解析响应失败:', e)
               reject(new Error('服务器响应格式错误'))
             }
           } else if (res.statusCode === 401) {
-            console.error('[上传视频] token无效')
             storage.clearUser()
             uni.reLaunch({ url: '/pages/auth/login' })
             reject(new Error('登录已过期，请重新登录'))
           } else {
             try {
-              const errData = JSON.parse(res.data)
-              console.error('[上传视频] 上传失败:', errData.message)
+              const errData = typeof res.data === 'object' ? res.data : JSON.parse(res.data)
               reject(new Error(errData.message || '视频上传失败'))
             } catch (e) {
-              console.error('[上传视频] 上传失败，状态码:', res.statusCode)
               reject(new Error(`视频上传失败 (${res.statusCode})`))
             }
           }
         },
         fail: (err) => {
           uni.hideLoading()
-          console.error('[上传视频] 网络请求失败:', err.errMsg || err)
           reject(new Error(err.errMsg || '网络请求失败'))
         }
       })

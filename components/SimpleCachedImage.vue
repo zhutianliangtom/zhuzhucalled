@@ -1,18 +1,18 @@
 <template>
   <image 
-    :src="displayUrl" 
+    :src="displaySrc" 
     :mode="mode" 
-    :class="['cached-image', className]"
+    :class="['simple-cached-image', className]"
     @load="handleLoad"
     @error="handleError"
   />
 </template>
 
 <script>
-import { imageCache } from '@/utils/imageCache'
+import { simpleImageCache } from '@/utils/simpleImageCache'
 
 export default {
-  name: 'CachedImage',
+  name: 'SimpleCachedImage',
   props: {
     src: {
       type: String,
@@ -29,8 +29,8 @@ export default {
   },
   data() {
     return {
-      displayUrl: '',
-      hasCache: false
+      displaySrc: '',
+      isLoading: false
     }
   },
   watch: {
@@ -49,41 +49,32 @@ export default {
   methods: {
     async loadImage(url) {
       if (!url) {
-        this.displayUrl = ''
+        this.displaySrc = ''
         return
       }
 
-      // 先尝试获取缓存
-      const cachedUrl = imageCache.getCachedUrl(url)
-      
-      if (cachedUrl) {
-        // 有缓存，直接使用缓存路径
-        this.displayUrl = cachedUrl
-        this.hasCache = true
-      } else {
-        // 没有缓存，先用原始URL显示，后台下载缓存
-        this.displayUrl = url
-        this.hasCache = false
-        
-        // 后台异步下载缓存
-        this.cacheImageAsync(url)
-      }
-    },
+      // 立即显示原始URL（保证图片能显示）
+      this.displaySrc = url
+      this.isLoading = true
 
-    async cacheImageAsync(url) {
+      // 后台异步获取缓存
       try {
-        const cachedPath = await imageCache.getImage(url)
+        const cachedPath = await simpleImageCache.get(url)
         if (cachedPath && cachedPath !== url) {
           // 缓存成功，更新显示
-          this.displayUrl = cachedPath
-          this.hasCache = true
+          this.displaySrc = cachedPath
         }
-      } catch (e) {}
+      } catch (e) {
+        // 缓存失败不影响显示
+      } finally {
+        this.isLoading = false
+      }
     },
 
     handleLoad() {
       this.$emit('load')
     },
+
     handleError() {
       this.$emit('error')
     }
@@ -92,7 +83,8 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.cached-image {
+.simple-cached-image {
   display: block;
+  background: #f5f5f5;
 }
 </style>

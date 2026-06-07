@@ -1,5 +1,5 @@
 <template>
-  <view class="container" :class="{ dark: darkMode }">
+  <view class="container">
     <view class="header">
       <text class="header-title">设置</text>
       <view class="back-btn" @click="goBack">
@@ -14,10 +14,16 @@
         <switch :checked="notifications" @change="toggleNotifications" color="#334155" />
       </view>
       
-      <view class="settings-item">
-        <text class="settings-icon">🌙</text>
-        <text class="settings-text">深色模式</text>
-        <switch :checked="darkMode" @change="toggleDarkMode" color="#334155" />
+      <view class="settings-item" @click="checkUpdate">
+        <text class="settings-icon">🔄</text>
+        <text class="settings-text">检查更新</text>
+        <text class="settings-arrow">›</text>
+      </view>
+      
+      <view class="settings-item" @click="playGame">
+        <text class="settings-icon">🎮</text>
+        <text class="settings-text">玩玩游戏吧</text>
+        <text class="settings-arrow">›</text>
       </view>
       
       <view class="settings-item" @click="clearCache">
@@ -34,29 +40,19 @@
     </view>
     
     <view class="version-info">
-      <text class="version-text">版本 1.0.0</text>
+      <text class="version-text">版本 1.1.4</text>
     </view>
   </view>
 </template>
 
 <script>
-import { storage } from '@/utils/storage'
-
 export default {
   data() {
     return {
-      notifications: true,
-      darkMode: false
+      notifications: true
     }
   },
-  onLoad() {
-    this.loadSettings()
-  },
   methods: {
-    loadSettings() {
-      const settings = storage.getSettings() || {}
-      this.darkMode = settings.theme === 'dark'
-    },
     goBack() {
       uni.navigateBack()
     },
@@ -67,19 +63,21 @@ export default {
         icon: 'none'
       })
     },
-    toggleDarkMode(e) {
-      this.darkMode = e.detail.value
-      const settings = storage.getSettings() || {}
-      settings.theme = this.darkMode ? 'dark' : 'light'
-      storage.setSettings(settings)
-
-      // 通知 App.vue 切换主题
-      uni.$emit('theme-change', { isDark: this.darkMode })
-
-      uni.showToast({
-        title: this.darkMode ? '已切换到深色模式' : '已切换到浅色模式',
-        icon: 'none'
+    playGame() {
+      uni.navigateTo({
+        url: '/pages/offline-game/offline-game?fromSettings=true'
       })
+    },
+    checkUpdate() {
+      uni.showLoading({ title: '检查更新中...' })
+      setTimeout(() => {
+        uni.hideLoading()
+        uni.showModal({
+          title: '检查完成',
+          content: '当前已是最新版本（v1.1.4）',
+          showCancel: false
+        })
+      }, 1500)
     },
     clearCache() {
       uni.showModal({
@@ -114,19 +112,11 @@ export default {
   background: #f8f9fa;
 }
 
-.container.dark {
-  background: #1a1a1a;
-}
-
 .header {
   display: flex;
   align-items: center;
   padding: 60rpx 30rpx 30rpx;
   background: #ffffff;
-}
-
-.container.dark .header {
-  background: #2a2a2a;
 }
 
 .back-btn {
@@ -143,18 +133,10 @@ export default {
   color: #333;
 }
 
-.container.dark .back-btn text {
-  color: #fff;
-}
-
 .header-title {
   font-size: 34rpx;
   font-weight: bold;
   color: #333;
-}
-
-.container.dark .header-title {
-  color: #fff;
 }
 
 .settings-list {
@@ -164,19 +146,11 @@ export default {
   overflow: hidden;
 }
 
-.container.dark .settings-list {
-  background: #2a2a2a;
-}
-
 .settings-item {
   display: flex;
   align-items: center;
   padding: 30rpx;
   border-bottom: 1rpx solid #eee;
-}
-
-.container.dark .settings-item {
-  border-bottom-color: #3a3a3a;
 }
 
 .settings-item:last-child {
@@ -194,17 +168,9 @@ export default {
   color: #333;
 }
 
-.container.dark .settings-text {
-  color: #fff;
-}
-
 .settings-arrow {
   font-size: 36rpx;
   color: #ccc;
-}
-
-.container.dark .settings-arrow {
-  color: #999;
 }
 
 .version-info {
@@ -214,10 +180,6 @@ export default {
 
 .version-text {
   font-size: 24rpx;
-  color: #999;
-}
-
-.container.dark .version-text {
   color: #999;
 }
 </style>

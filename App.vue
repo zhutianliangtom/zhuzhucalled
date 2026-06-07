@@ -8,6 +8,13 @@ let globalNetworkStatus = {
   listeners: []
 }
 
+// 离线游戏状态
+let showOfflineGame = false
+
+// 网络检测失败计数
+let connectionFailCount = 0
+const MAX_CONNECTION_FAILS = 5 // 连续失败5次才显示离线页面（约25秒）
+
 // 基础API地址
 const baseUrl = 'https://chentian.dpdns.org'
 
@@ -17,15 +24,12 @@ let keepAliveTimer = null
 // 设置网络状态
 export function setNetworkStatus(isOffline) {
   globalNetworkStatus.isOffline = isOffline
-  console.log('全局网络状态:', isOffline ? '离线' : '在线')
   
   // 通知所有监听的页面
   globalNetworkStatus.listeners.forEach(listener => {
     try {
       listener(isOffline)
-    } catch (e) {
-      console.error('通知网络状态失败:', e)
-    }
+    } catch (e) {}
   })
 }
 
@@ -37,6 +41,22 @@ export function onNetworkStatusChange(callback) {
   }
 }
 
+// 显示离线游戏
+export function showOfflineGamePage() {
+  showOfflineGame = true
+  uni.reLaunch({ url: '/pages/offline-game/offline-game' })
+}
+
+// 隐藏离线游戏
+export function hideOfflineGamePage() {
+  showOfflineGame = false
+}
+
+// 检查是否显示离线游戏
+export function isShowingOfflineGame() {
+  return showOfflineGame
+}
+
 // 版本管理：获取当前 App 版本号
 function getAppVersion() {
   try {
@@ -45,17 +65,13 @@ function getAppVersion() {
       return plus.runtime.versionCode || ''
     }
     // #endif
-  } catch (e) {
-    console.error('获取版本号失败:', e)
-  }
+  } catch (e) {}
   return ''
 }
 
 // 监听 Android 通知点击事件，跳转到对应对话
 export default {
   onLaunch: function() {
-    console.log('App Launch')
-
     // 应用主题设置
     this.applyTheme()
 
@@ -69,14 +85,14 @@ export default {
     
     // App启动就启动心跳检测
     try {
-      console.log('启动心跳检测')
       api.resetHeartbeat()
-    } catch (e) {
-      console.error('启动心跳失败:', e)
-    }
+    } catch (e) {}
     
     // 启动Android保活服务
     this.startAndroidKeepAlive()
+    
+    // 启动网络检测（离线游戏）
+    this.initNetworkCheck()
     
     // 不管是否登录，都跳转到主页
     uni.reLaunch({ url: '/pages/index/index' })
@@ -103,7 +119,6 @@ export default {
                 })
               }
             } catch (e) {
-              console.error('push click parse error', e)
             }
           })
         }
@@ -115,9 +130,7 @@ export default {
 
         // ─── 检测版本更新（强制检测）───
         this.checkUpdate()
-      } catch (e) {
-        console.error('初始化plus失败:', e)
-      }
+      } catch (e) {}
     }
     
     // 延迟初始化 plus
@@ -125,7 +138,6 @@ export default {
     // #endif
   },
   onShow: function() {
-    console.log('App Show')
     // 每次显示时确保主题正确
     this.applyTheme()
     // #ifdef APP-PLUS
@@ -134,34 +146,97 @@ export default {
         plus.runtime.setBadgeNumber(0)
       }
       this.checkUpdate()
-    } catch (e) {
-      console.error('onShow设置角标失败:', e)
-    }
+    } catch (e) {}
     // #endif
   },
   onHide: function() {
-    console.log('App Hide')
     // 应用隐藏时继续心跳检测
   },
   onUnload: function() {
-    console.log('App Unload')
     // 应用卸载时停止心跳
     try {
       if (api && api.stopHeartbeat) {
         api.stopHeartbeat()
       }
-    } catch (e) {
-      console.error('停止心跳失败:', e)
-    }
+    } catch (e) {}
     
     // 清理保活定时器
     if (keepAliveTimer) {
       clearInterval(keepAliveTimer)
       keepAliveTimer = null
-      console.log('保活定时器已清理')
     }
   },
   methods: {
+    // 初始化网络检测
+    initNetworkCheck() {
+      // 监听网络状态变化
+      uni.onNetworkStatusChange((res) => {
+        if (!res.isConnected) {
+          this.handleOffline()
+        } else {
+          this.handleOnline()
+        }
+      })
+
+      // 定期检查连接
+      setInterval(() => {
+        this.checkConnection()
+      }, 5000)
+    },
+
+    // 检查连接
+    async checkConnection() {
+      try {
+        const response = await uni.request({
+          url: 'https://chentian.dpdns.org/api/health',
+          method: 'GET',
+          timeout: 5000
+        })
+
+        // 重置失败计数
+        connectionFailCount = 0
+        
+        if (!globalNetworkStatus.isOnline && globalNetworkStatus.isOffline) {
+          this.handleOnline()
+        }
+        globalNetworkStatus.isOnline = true
+        globalNetworkStatus.isOffline = false
+      } catch (error) {
+        globalNetworkStatus.isOnline = false
+        
+        // 增加失败计数
+        connectionFailCount++
+        
+        // 连续失败达到阈值才标记为离线
+        if (connectionFailCount >= MAX_CONNECTION_FAILS) {
+          globalNetworkStatus.isOffline = true
+          
+          // 只有在游戏未显示且未显示过离线页面时才跳转
+          if (!showOfflineGame && !globalNetworkStatus.isOfflineGameShown) {
+            this.handleOffline()
+          }
+        }
+      }
+    },
+
+    // 处理断网
+    handleOffline() {
+      if (showOfflineGame) return
+      showOfflineGame = true
+      globalNetworkStatus.isOfflineGameShown = true
+      setNetworkStatus(true)
+      uni.reLaunch({ url: '/pages/offline-game/offline-game' })
+    },
+
+    // 处理恢复网络
+    handleOnline() {
+      if (!showOfflineGame) return
+      showOfflineGame = false
+      globalNetworkStatus.isOfflineGameShown = false
+      setNetworkStatus(false)
+      uni.reLaunch({ url: '/pages/index/index' })
+    },
+    
     // 启动Android保活服务
     startAndroidKeepAlive() {
       // #ifdef APP-PLUS
@@ -170,7 +245,6 @@ export default {
           return
         }
         
-        console.log('开始初始化Android保活服务')
         const main = plus.android.runtimeMainActivity()
         const Build = plus.android.importClass('android.os.Build')
         const Intent = plus.android.importClass('android.content.Intent')
@@ -189,10 +263,7 @@ export default {
         // 3. 定时任务保持活跃
         this.setupKeepAliveTasks()
         
-        console.log('Android保活服务初始化完成')
-      } catch (e) {
-        console.error('Android保活服务初始化失败:', e)
-      }
+      } catch (e) {}
       // #endif
     },
     
@@ -251,11 +322,7 @@ export default {
         
         // 显示通知
         notificationManager.notify(10001, builder.build())
-        
-        console.log('前台保活通知已创建')
-      } catch (e) {
-        console.log('创建前台通知失败:', e)
-      }
+      } catch (e) {}
       // #endif
     },
     
@@ -280,10 +347,7 @@ export default {
         wakeLock.setReferenceCounted(false)
         wakeLock.acquire(10 * 60 * 60 * 1000) // 10小时
         
-        console.log('WakeLock已获取')
-      } catch (e) {
-        console.log('获取WakeLock失败:', e)
-      }
+      } catch (e) {}
       // #endif
     },
     
@@ -305,16 +369,10 @@ export default {
             // 3. 刷新前台通知（防止被系统杀掉）
             this.createForegroundNotification()
             
-            console.log('保活任务执行:', new Date().toISOString())
-          } catch (e) {
-            console.log('保活任务执行失败:', e)
-          }
+          } catch (e) {}
         }, 30000)
         
-        console.log('保活定时任务已设置')
-      } catch (e) {
-        console.log('设置保活定时任务失败:', e)
-      }
+      } catch (e) {}
       // #endif
     },
     
@@ -341,9 +399,8 @@ export default {
                 nc.enableVibration(true)
                 nc.setShowBadge(true)
                 notificationManager.createNotificationChannel(nc)
-                console.log('[通知] 渠道已创建')
               }
-            } catch (e) { console.log('[通知] 渠道创建失败:', e) }
+            } catch (e) {}
           }
 
           // 静默检查权限，不弹窗不跳转（首次打开由系统自动询问）
@@ -385,9 +442,8 @@ export default {
                   if (typeof plus !== 'undefined' && plus && plus.runtime) {
                     plus.runtime.openURL(downloadPageUrl)
                   }
-                }).catch(e => {
+                }).catch(() => {
                   // 如果获取加密地址失败，直接跳转到普通下载页
-                  console.error('获取加密下载地址失败，使用普通下载:', e)
                   const downloadUrl = `${baseUrl}/download`
                   if (typeof plus !== 'undefined' && plus && plus.runtime) {
                     plus.runtime.openURL(downloadUrl)
@@ -400,16 +456,12 @@ export default {
                   if (typeof plus !== 'undefined' && plus && plus.runtime) {
                     plus.runtime.quit()
                   }
-                } catch (e) {
-                  console.error('退出App失败:', e)
-                }
+                } catch (e) {}
               }
             }
           })
         }
-      } catch (e) {
-        console.error('版本检测失败', e)
-      }
+      } catch (e) {}
       // #endif
     },
     // 深色模式 —— 直接注入 style 标签到 head，最高优先级
@@ -432,6 +484,7 @@ export default {
       } catch (e) {}
       // #endif
 
+      // #ifdef H5
       // 移除旧注入
       const old = document.getElementById('dark-theme-style')
       if (old) old.remove()
@@ -540,6 +593,7 @@ export default {
       } else {
         document.body.classList.remove('theme-dark')
       }
+      // #endif
     }
   }
 }

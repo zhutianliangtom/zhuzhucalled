@@ -23,7 +23,6 @@ export default {
   },
   methods: {
     handleNetworkChange(data) {
-      console.log('OfflineBanner收到网络状态变化:', data)
       this.showOfflineBanner = !data.isOnline
     }
   }

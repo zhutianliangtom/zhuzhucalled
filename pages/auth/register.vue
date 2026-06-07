@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>
@@ -122,9 +122,7 @@ export default {
             url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(res.tempFilePaths[0])}`
           })
         },
-        fail: (err) => {
-          console.error('[注册] 选择图片失败:', err)
-        }
+        fail: () => {}
       })
     },
     // 裁剪页回调：接收裁剪后的图片路径

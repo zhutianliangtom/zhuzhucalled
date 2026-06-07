@@ -2,7 +2,7 @@
   <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="user-header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <view class="avatar-wrapper" @click="chooseAvatar">
-        <cached-image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
+        <simple-cached-image v-if="user?.avatar" :src="getFullImageUrl(user.avatar)" class="avatar" />
         <view v-else class="avatar">
           <text class="avatar-text">{{ user?.name?.charAt(0) || '?' }}</text>
         </view>
@@ -132,11 +132,11 @@
 import { storage } from '@/utils/storage'
 import { api } from '@/utils/api'
 import { cache } from '@/utils/cache'
-import CachedImage from '@/components/CachedImage.vue'
+import SimpleCachedImage from '@/components/SimpleCachedImage.vue'
 
 export default {
   components: {
-    CachedImage
+    SimpleCachedImage
   },
   data() {
     return {
@@ -282,7 +282,6 @@ export default {
           }
         })
       } catch (err) {
-        console.error('加载统计数据失败', err)
         await this.loadStatsFallback()
       }
     },
@@ -295,9 +294,7 @@ export default {
         this.stats.foundCount = items.filter(item => item.type === 'found' && item.status === 'active').length
         this.stats.solvedCount = items.filter(item => item.status === 'solved').length
         this.stats.totalCount = items.length
-      } catch (err) {
-        console.error('加载统计数据失败(备用)', err)
-      }
+      } catch (err) {}
     },
     chooseAvatar() {
       if (!this.user) {
@@ -310,12 +307,10 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: async (res) => {
-          console.log('[用户中心] 选择图片成功:', res.tempFilePaths[0])
           const filePath = res.tempFilePaths[0]
           uni.showLoading({ title: '上传中...' })
           try {
             const result = await api.uploadImage(filePath)
-            console.log('[用户中心] 上传成功:', result.url)
             
             await api.updateUserInfo({ avatar: result.url })
             
@@ -326,12 +321,10 @@ export default {
             uni.showToast({ title: '头像更新成功', icon: 'success' })
           } catch (err) {
             uni.hideLoading()
-            console.error('[用户中心] 上传失败:', err)
             uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
           }
         },
-        fail: (err) => {
-          console.error('[用户中心] 选择图片失败:', err)
+        fail: () => {
           uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })

@@ -2,7 +2,7 @@
   <view class="container" :class="{ 'theme-dark': isDark }">
     <view v-if="item" class="content">
       <view class="image-gallery">
-        <cached-image 
+        <simple-cached-image 
           v-for="(img, index) in item.images" 
           :key="index" 
           :src="getFullImageUrl(img)" 
@@ -77,11 +77,11 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
-import CachedImage from '@/components/CachedImage.vue'
+import SimpleCachedImage from '@/components/SimpleCachedImage.vue'
 
 export default {
   components: {
-    CachedImage
+    SimpleCachedImage
   },
   data() {
     return {
@@ -161,7 +161,6 @@ export default {
         })
       } catch (err) {
         uni.hideLoading()
-        console.error(err)
       }
     },
     checkOwnership() {

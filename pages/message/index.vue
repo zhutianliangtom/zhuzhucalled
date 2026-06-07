@@ -17,7 +17,7 @@
         @click="goChat(conv.userId, conv.userName, conv.userAvatar)"
       >
         <view class="avatar">
-        <cached-image v-if="conv.userAvatar" :src="getFullImageUrl(conv.userAvatar)" mode="aspectFill" class="avatar-img" />
+        <simple-cached-image v-if="conv.userAvatar" :src="getFullImageUrl(conv.userAvatar)" mode="aspectFill" class="avatar-img" />
         <text v-else class="avatar-text">{{ (conv.userName || '?').charAt(0) }}</text>
       </view>
         <view class="conv-info">
@@ -30,7 +30,7 @@
               </view>
             </view>
           </view>
-          <text class="conv-preview">{{ conv.lastMessage }}</text>
+          <text class="conv-preview">{{ getLastMessagePreview(conv) }}</text>
         </view>
       </view>
     </view>
@@ -62,11 +62,11 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
-import CachedImage from '@/components/CachedImage.vue'
+import SimpleCachedImage from '@/components/SimpleCachedImage.vue'
 
 export default {
   components: {
-    CachedImage
+    SimpleCachedImage
   },
   data() {
     return {
@@ -169,7 +169,7 @@ export default {
           }
         })
       } catch (err) {
-        if (err.message !== '登录已过期') console.error(err)
+        // 静默失败
       } finally {
         this._loading = false
       }
@@ -237,7 +237,11 @@ export default {
       // #endif
     },
 
-    goChat(userId, userName, userAvatar) {
+    async goChat(userId, userName, userAvatar) {
+      try {
+        await api.markConversationRead(userId)
+      } catch (e) {}
+      
       const encodedName = encodeURIComponent(userName || '未知用户')
       const avatar = userAvatar || ''
       uni.navigateTo({ url: `/pages/message/chat?userId=${userId}&userName=${encodedName}&userAvatar=${avatar}` })
@@ -250,6 +254,83 @@ export default {
     },
     handleTabClick(index) {
       this.switchTab(index)
+    },
+    /**
+     * 获取最后一条消息的预览文本
+     * 如果是图片或视频，显示对应的标签
+     */
+    getLastMessagePreview(conv) {
+      // 先尝试获取所有可能的字段
+      const lastMsg = conv.lastMessage || conv.lastMsg || conv.last_message || ''
+      const msgType = conv.lastMessageType || conv.lastMsgType || conv.last_message_type || conv.type || ''
+      const mediaUrl = conv.lastMediaUrl || conv.mediaUrl || conv.media_url || conv.thumbUrl || conv.thumb_url || conv.picUrl || conv.pic_url || conv.videoUrl || conv.video_url || ''
+      
+      // 如果内容已经包含标签，直接返回
+      if (typeof lastMsg === 'string') {
+        const lowerMsg = lastMsg.toLowerCase()
+        if (lowerMsg.includes('[图片]') || lowerMsg.includes('[照片]')) {
+          return '[图片]'
+        }
+        if (lowerMsg.includes('[视频]')) {
+          return '[视频]'
+        }
+      }
+      
+      // 如果明确有消息类型
+      if (msgType === 'image') {
+        return '[图片]'
+      }
+      if (msgType === 'video') {
+        return '[视频]'
+      }
+      
+      // 如果内容为空或只有空格
+      if (!lastMsg || (typeof lastMsg === 'string' && lastMsg.trim() === '')) {
+        // 检查是否有媒体URL
+        if (mediaUrl && typeof mediaUrl === 'string') {
+          const url = mediaUrl.toLowerCase()
+          // 判断是否是视频
+          if (url.includes('.mp4') || url.includes('.mov') || url.includes('.avi') || url.includes('.mkv') || url.includes('.webm') || url.includes('.3gp')) {
+            return '[视频]'
+          }
+          // 判断是否是图片
+          if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp') || url.includes('.bmp')) {
+            return '[图片]'
+          }
+          // 有URL但无法判断类型，默认显示[图片]
+          return '[图片]'
+        }
+        // 如果有 lastMessage 是对象但内容为空
+        if (lastMsg && typeof lastMsg === 'object') {
+          // 尝试从对象中获取类型
+          const objType = lastMsg.type || lastMsg.msgType || ''
+          if (objType === 'image') return '[图片]'
+          if (objType === 'video') return '[视频]'
+          // 尝试判断对象中是否有媒体URL
+          const objMediaUrl = lastMsg.mediaUrl || lastMsg.media_url || lastMsg.thumbUrl || lastMsg.thumb_url || lastMsg.url || ''
+          if (objMediaUrl) {
+            const url = objMediaUrl.toLowerCase()
+            if (url.includes('.mp4') || url.includes('.mov') || url.includes('.avi')) return '[视频]'
+            return '[图片]'
+          }
+        }
+        // 完全没有内容但在聊天列表中，默认显示[图片]
+        return '[图片]'
+      }
+      
+      // 如果有内容但可能是图片/视频的路径
+      if (typeof lastMsg === 'string') {
+        const lowerMsg = lastMsg.toLowerCase()
+        if (lowerMsg.includes('.jpg') || lowerMsg.includes('.jpeg') || lowerMsg.includes('.png') || lowerMsg.includes('.gif')) {
+          return '[图片]'
+        }
+        if (lowerMsg.includes('.mp4') || lowerMsg.includes('.mov') || lowerMsg.includes('.avi')) {
+          return '[视频]'
+        }
+      }
+      
+      // 正常返回文本内容
+      return lastMsg
     }
   }
 }

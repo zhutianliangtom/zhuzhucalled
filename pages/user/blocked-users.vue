@@ -73,9 +73,7 @@ export default {
             if (fresh && fresh.data) this.blockedUsers = fresh.data
           }
         })
-      } catch (err) {
-        console.error('加载黑名单失败:', err)
-      } finally {
+      } catch (err) {} finally {
         this.loading = false
       }
     },
@@ -99,7 +97,6 @@ export default {
         // 重新加载列表
         this.loadBlockedUsers()
       } catch (err) {
-        console.error('取消拉黑失败:', err)
         uni.showToast({ title: '操作失败', icon: 'none' })
       }
     }

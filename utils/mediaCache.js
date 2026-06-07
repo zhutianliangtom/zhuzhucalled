@@ -32,9 +32,7 @@ export const mediaCache = {
       if (cached && cached.expire > Date.now()) {
         return cached.path
       }
-    } catch (e) {
-      console.warn('[MediaCache] 获取缓存失败:', e)
-    }
+    } catch (e) {}
     return null
   },
 
@@ -66,9 +64,7 @@ export const mediaCache = {
         })
         return result.tempFilePath
       }
-    } catch (e) {
-      console.warn('[MediaCache] 下载失败，使用原始URL:', e)
-    }
+    } catch (e) {}
     
     return url
   },
@@ -125,9 +121,7 @@ export const mediaCache = {
         })
       }
       uni.removeStorageSync('media_cache_' + cacheKey)
-    } catch (e) {
-      console.warn('[MediaCache] 清除缓存失败:', e)
-    }
+    } catch (e) {}
   },
 
   /**
@@ -148,9 +142,7 @@ export const mediaCache = {
           uni.removeStorageSync(key)
         } catch (e) {}
       })
-    } catch (e) {
-      console.warn('[MediaCache] 清除所有缓存失败:', e)
-    }
+    } catch (e) {}
   },
 
   /**

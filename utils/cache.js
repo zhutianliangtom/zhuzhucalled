@@ -104,9 +104,7 @@ export const cache = {
     memCache[key] = entry
     try {
       uni.setStorageSync('cache_' + key, entry)
-    } catch (e) {
-      console.warn('[Cache] 写入存储失败:', e)
-    }
+    } catch (e) {}
   },
 
   /**
@@ -133,9 +131,7 @@ export const cache = {
     if (hasCache && onLoad) {
       try {
         onLoad(cachedInfo.data)
-      } catch (e) {
-        console.error('[Cache] onLoad回调执行失败:', e)
-      }
+      } catch (e) {}
     }
 
     // 3. 如果不需要刷新，直接返回缓存
@@ -167,16 +163,13 @@ export const cache = {
         if (onRefresh) {
           try {
             onRefresh(fresh)
-          } catch (e) {
-            console.error('[Cache] onRefresh回调执行失败:', e)
-          }
+          } catch (e) {}
         }
       }
       return fresh
     } catch (e) {
       // 请求失败但有缓存，继续用缓存
       if (hasCache) {
-        console.warn('[Cache] 请求失败，使用缓存数据:', key)
         return cachedInfo.data
       }
       throw e
@@ -212,9 +205,7 @@ export const cache = {
     delete memCache[key]
     try {
       uni.removeStorageSync('cache_' + key)
-    } catch (e) {
-      console.warn('[Cache] 删除缓存失败:', e)
-    }
+    } catch (e) {}
   },
 
   /**
@@ -229,9 +220,7 @@ export const cache = {
           uni.removeStorageSync(k)
         } catch (e) {}
       })
-    } catch (e) {
-      console.warn('[Cache] 清除所有缓存失败:', e)
-    }
+    } catch (e) {}
   },
 
   /**

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="container">
     <view class="header">
       <view class="back-btn" @click="goBack">
@@ -51,6 +51,9 @@
               class="media-img"
               @click="previewImage(msg.mediaUrl)"
             />
+            <view class="media-tag">
+              <text>[图片]</text>
+            </view>
           </view>
 
           <!-- 视频消息 -->
@@ -64,6 +67,9 @@
               <view class="video-play-icon">
                 <text>▶</text>
               </view>
+            </view>
+            <view class="media-tag">
+              <text>[视频]</text>
             </view>
           </view>
 
@@ -133,6 +139,7 @@
 import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
+import { cache } from '@/utils/cache'
 
 export default {
   data() {
@@ -266,9 +273,7 @@ export default {
             }
           }
         })
-      } catch (err) {
-        console.error('获取拉黑列表失败:', err)
-      }
+      } catch (err) {}
     },
     confirmBlock() {
       uni.showModal({
@@ -310,34 +315,49 @@ export default {
       })
     },
     async loadMessages(silent = false) {
+      const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+      const oldLen = this.messages.length
+      
       try {
-        const res = await api.getConversation(this.userId)
-        const oldLen = this.messages.length
-        this.messages = res.data
-
-        if (!silent) {
-          // 非静默：滚到底
-          setTimeout(() => {
-            const lastIndex = this.messages.length - 1
-            if (lastIndex >= 0) {
-              // 使用scroll-into-view
-              this.scrollToId = `msg-${lastIndex}`
-              setTimeout(() => {
-                this.scrollToId = ''
-              }, 500)
+        await cache.fetch(cacheKey, () => api.getConversation(this.userId), {
+          ttl: cache.TTL.conversation,
+          force: silent, // 静默刷新时强制刷新
+          onLoad: (cached) => {
+            // 立即显示缓存数据
+            if (cached && cached.data) {
+              this.messages = cached.data
+              if (!silent) {
+                this.scrollToBottom()
+              }
             }
-          }, 100)
-          this.newMsgCount = 0
-          this.showScrollBtn = false
-        } else {
-          // 静默刷新：有新消息时显示回底按钮
-          if (res.data.length > oldLen) {
-            this.newMsgCount = res.data.length - oldLen
-            this.showScrollBtn = true
+          },
+          onRefresh: (fresh) => {
+            // 后台刷新完成后更新
+            if (fresh && fresh.data) {
+              this.messages = fresh.data
+              
+              if (!silent) {
+                this.newMsgCount = 0
+                this.showScrollBtn = false
+              } else {
+                // 静默刷新：有新消息时显示回底按钮
+                if (fresh.data.length > oldLen) {
+                  this.newMsgCount = fresh.data.length - oldLen
+                  this.showScrollBtn = true
+                }
+              }
+            }
+          }
+        })
+      } catch (err) {
+        // 如果网络请求失败，使用缓存数据
+        const cachedData = cache.getSync(cacheKey, cache.TTL.conversation)
+        if (cachedData && cachedData.data) {
+          this.messages = cachedData.data
+          if (!silent) {
+            this.scrollToBottom()
           }
         }
-      } catch (err) {
-        console.error(err)
       }
     },
     async sendMessage() {
@@ -345,6 +365,10 @@ export default {
       
       const content = this.inputText.trim()
       this.inputText = ''
+      
+      // 发送消息前清除缓存，确保新消息能立即显示
+      const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+      cache.set(cacheKey, null)
       
       try {
         await api.sendMessage(this.userId, content)
@@ -368,14 +392,15 @@ export default {
         sourceType: ['album', 'camera'],
         success: async (res) => {
           const filePaths = res.tempFilePaths
-          // console.log('[聊天] 选择图片成功，数量:', filePaths.length)
           uni.showLoading({ title: '上传中...' })
+          
+          // 清除缓存，确保新消息能立即显示
+          const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+          cache.set(cacheKey, null)
           
           try {
             for (let filePath of filePaths) {
-              // console.log('[聊天] 上传图片:', filePath)
               const result = await api.uploadImage(filePath)
-              // console.log('[聊天] 图片上传成功:', result.url)
               await api.sendMessage(this.userId, '', 'image', result.url)
             }
             uni.hideLoading()
@@ -383,12 +408,10 @@ export default {
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
-            console.error('[聊天] 图片发送失败:', err)
             uni.showToast({ title: err.message || '图片发送失败', icon: 'none', duration: 3000 })
           }
         },
-        fail: (err) => {
-          console.error('[聊天] 选择图片失败:', err)
+        fail: () => {
           uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
@@ -407,7 +430,6 @@ export default {
         compressed: false,
         success: async (res) => {
           const { tempFilePath, size } = res
-          // console.log('[聊天] 选择视频成功:', tempFilePath, '大小:', size)
           
           if (size > 1024 * 1024 * 1024) {
             uni.showToast({ title: '视频大小不能超过1GB', icon: 'none' })
@@ -416,22 +438,22 @@ export default {
           
           uni.showLoading({ title: '上传视频中...' })
           
+          // 清除缓存，确保新消息能立即显示
+          const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+          cache.set(cacheKey, null)
+          
           try {
-            // console.log('[聊天] 开始上传视频')
             const result = await api.uploadVideo(tempFilePath)
-            // console.log('[聊天] 视频上传成功:', result.url)
             await api.sendMessage(this.userId, '', 'video', result.url)
             uni.hideLoading()
             uni.showToast({ title: '发送成功', icon: 'success' })
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
-            console.error('[聊天] 视频发送失败:', err)
             uni.showToast({ title: err.message || '视频发送失败', icon: 'none', duration: 3000 })
           }
         },
-        fail: (err) => {
-          console.error('[聊天] 选择视频失败:', err)
+        fail: () => {
           uni.showToast({ title: '选择视频失败', icon: 'none' })
         }
       })
@@ -544,9 +566,7 @@ export default {
     async markAsRead() {
       try {
         await api.markConversationRead(this.userId)
-      } catch (err) {
-        console.error('标记已读失败:', err)
-      }
+      } catch (err) {}
     },
     // 清除当前对话的未读角标（退出时调用）
     async clearUnreadBadge() {
@@ -554,7 +574,6 @@ export default {
         // 再次确保标记为已读（防止onShow时失败）
         await api.markConversationRead(this.userId)
       } catch (err) {
-        console.error('清除未读数失败:', err)
       }
     }
   }
@@ -814,6 +833,24 @@ export default {
   color: #fff;
   font-size: 34rpx;
   margin-left: 6rpx; /* 视觉居中 */
+}
+
+/* ─── Media Tag ─── */
+.media-tag {
+  position: absolute;
+  bottom: 8rpx;
+  right: 8rpx;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  text {
+    font-size: 20rpx;
+    color: #fff;
+  }
+}
+
+.image-message, .video-message {
+  position: relative;
 }
 
 /* ─── Recalled ─── */

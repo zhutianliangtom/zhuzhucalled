@@ -41,7 +41,7 @@
       </view>
     </view>
 
-    <view class="content" :style="{ marginTop: (statusBarHeight + 200) + 'px' }">
+    <view class="content" :style="{ marginTop: (statusBarHeight + 170) + 'px' }">
       <view v-if="items.length === 0" class="empty">
         <text class="empty-icon">📦</text>
         <text class="empty-text">暂无相关物品</text>
@@ -61,7 +61,7 @@
           <!-- 图片区域 -->
           <view v-if="item.images && item.images.length > 0" class="image-wrapper">
             <!-- 单张图片 -->
-            <cached-image 
+            <simple-cached-image 
               v-if="item.images.length === 1"
               :src="getFullImageUrl(item.images[0])" 
               mode="aspectFill" 
@@ -69,7 +69,7 @@
             />
             <!-- 多张图片 -->
             <view v-else class="image-container-multiple">
-              <cached-image 
+              <simple-cached-image 
                 v-for="(img, idx) in item.images.slice(0, 3)" 
                 :key="getFullImageUrl(img)" 
                 :src="getFullImageUrl(img)" 
@@ -84,7 +84,7 @@
           </view>
           <!-- 没有图片时显示默认图 -->
           <view v-else class="image-wrapper">
-            <cached-image :src="'https://neeko-copilot.bytedance.net/api/text-to-image?prompt=lost%20and%20found%20item&image-size=square'" mode="aspectFill" class="item-image default-image" />
+            <simple-cached-image :src="'https://neeko-copilot.bytedance.net/api/text-to-image?prompt=lost%20and%20found%20item&image-size=square'" mode="aspectFill" class="item-image default-image" />
           </view>
           
           <!-- 信息区域 -->
@@ -116,6 +116,9 @@
             @confirm="handleSearch"
           />
           <text v-if="searchKeyword" class="clear-btn" @click="searchKeyword = ''">✕</text>
+          <view class="search-btn" @click="handleSearch">
+            <text>搜索</text>
+          </view>
         </view>
         
         <view class="search-tags">
@@ -161,13 +164,14 @@ import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import GuideModal from '@/components/GuideModal.vue'
-import CachedImage from '@/components/CachedImage.vue'
+import SimpleCachedImage from '@/components/SimpleCachedImage.vue'
+
 
 export default {
   components: {
     OfflineBanner,
     GuideModal,
-    CachedImage
+    SimpleCachedImage
   },
   data() {
     return {
@@ -255,7 +259,6 @@ export default {
     },
     getFullImageUrl(url) {
       if (!url) {
-        console.warn('[图片] URL为空')
         return ''
       }
       // 如果已经是完整URL，直接返回
@@ -264,9 +267,7 @@ export default {
       }
       // 如果是相对路径，拼接baseUrl
       const baseUrl = 'https://chentian.dpdns.org'
-      const fullUrl = baseUrl + url
-      console.log('[图片] 拼接URL:', fullUrl)
-      return fullUrl
+      return baseUrl + url
     },
     async loadItems() {
       if (this.loading) return
@@ -287,31 +288,20 @@ export default {
           ttl: cache.TTL.items,
           onLoad: (cached) => {
             // 秒显缓存数据
-            console.log('[缓存数据]', cached)
             if (cached && cached.data && cached.data.length > 0) {
               this.items = cached.data
-              console.log('[加载缓存] 物品数量:', this.items.length)
-              if (this.items.length > 0) {
-                console.log('[第一个物品]', this.items[0])
-              }
             }
           },
           onRefresh: (fresh) => {
             // 后台刷新拿到新数据
-            console.log('[新数据]', fresh)
             if (fresh && fresh.data && fresh.data.length > 0) {
               this.items = fresh.data
-              console.log('[加载新数据] 物品数量:', this.items.length)
-              if (this.items.length > 0) {
-                console.log('[第一个物品]', this.items[0])
-              }
             } else {
               this.items = []
             }
           }
         })
       } catch (err) {
-        console.error('[首页] 加载失败:', err)
         if (this.items.length === 0) this.items = []
       } finally {
         this.loading = false
@@ -370,10 +360,7 @@ export default {
         const total = res.data.reduce((s, c) => s + (parseInt(c.unread) || 0), 0)
         this.unreadTotal = total
       } catch (err) {
-        // 静默失败，不打印错误（避免未登录时刷屏）
-        if (err.message !== '登录已过期') {
-          console.error('获取未读数失败:', err)
-        }
+        // 静默失败
       }
     },
     // 轮询未读数
@@ -460,12 +447,14 @@ export default {
   background: #ffffff;
   padding: 20rpx;
   border-bottom: 1rpx solid #eee;
+  gap: 50rpx;
+  justify-content: center;
 }
 
 .tab-item {
-  flex: 1;
+  flex: none;
   text-align: center;
-  padding: 15rpx 0;
+  padding: 15rpx 60rpx;
   font-size: 28rpx;
   color: #999;
   border-radius: 30rpx;
@@ -483,14 +472,14 @@ export default {
   background: #ffffff;
   padding: 15rpx 20rpx;
   border-bottom: 1rpx solid #eee;
-  gap: 15rpx;
+  gap: 30rpx;
 }
 
 .time-filter-item {
-  padding: 8rpx 20rpx;
-  font-size: 24rpx;
+  padding: 12rpx 30rpx;
+  font-size: 28rpx;
   color: #999;
-  border-radius: 20rpx;
+  border-radius: 25rpx;
   background: #f8f9fa;
   transition: all 0.3s;
 }
@@ -726,6 +715,15 @@ export default {
   font-size: 28rpx;
   color: #999;
   padding: 10rpx;
+}
+
+.search-btn {
+  background: #334155;
+  color: #fff;
+  padding: 12rpx 25rpx;
+  border-radius: 20rpx;
+  font-size: 26rpx;
+  margin-left: 15rpx;
 }
 
 .search-tags {

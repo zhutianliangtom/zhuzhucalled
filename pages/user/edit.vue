@@ -101,30 +101,25 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          console.log('[头像] 选择图片成功:', res.tempFilePaths[0])
           const filePath = res.tempFilePaths[0]
           uni.navigateTo({
             url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(filePath)}`
           })
         },
-        fail: (err) => {
-          console.error('[头像] 选择图片失败:', err)
+        fail: () => {
           uni.showToast({ title: '选择图片失败', icon: 'none' })
         }
       })
     },
     async handleCropResult(imagePath) {
-      console.log('[头像] 裁剪完成，准备上传:', imagePath)
       uni.showLoading({ title: '上传中...' })
       try {
         const result = await api.uploadImage(imagePath)
-        console.log('[头像] 上传成功:', result.url)
         this.formData.avatar = result.url
         uni.hideLoading()
         uni.showToast({ title: '头像已更新', icon: 'success' })
       } catch (err) {
         uni.hideLoading()
-        console.error('[头像] 上传失败:', err)
         uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
       }
     },

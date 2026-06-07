@@ -4,7 +4,9 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "校园失物招领"
+				"navigationBarTitleText": "校园失物招领",
+				"enablePullDownRefresh": true,
+				"backgroundColor": "#f8f9fa"
 			}
 		},
 		{
@@ -100,6 +102,13 @@
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "视频播放"
+			}
+		},
+		{
+			"path": "pages/offline-game/offline-game",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "离线游戏"
 			}
 		}
 	],
