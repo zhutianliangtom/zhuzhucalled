@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 今日人品</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 220px;
+      background: #1e293b;
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 28px 18px;
+      color: #cbd5e1;
+      transition: transform 0.3s;
+      z-index: 1000;
+    }
+    .sidebar h2 { font-size: 16px; color: #fff; margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid #334155; font-weight: 600; }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 4px; }
+    .sidebar a { display: block; padding: 10px 14px; color: #94a3b8; text-decoration: none; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+    .sidebar a:hover, .sidebar a.active { background: #334155; color: #fff; }
+    .sidebar .logout-link { position: absolute; bottom: 24px; left: 18px; right: 18px; display: block; padding: 10px 14px; color: #64748b; text-decoration: none; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #334155; transition: all 0.2s; }
+    .sidebar .logout-link:hover { background: #334155; color: #fff; }
+    .main-content { margin-left: 220px; padding: 32px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .header h1 { font-size: 22px; color: #111; font-weight: 600; }
+    .header .sub { color: #6b7280; font-size: 13px; margin-top: 4px; }
+    
+    .luck-card {
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 48px 32px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+    .luck-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+    }
+    .luck-value {
+      font-size: 100px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 16px;
+      transition: color 0.3s;
+    }
+    .luck-comment {
+      font-size: 18px;
+      color: #64748b;
+      margin-bottom: 32px;
+      min-height: 28px;
+    }
+    .btn { padding: 12px 28px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .luck-tip {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 16px;
+    }
+
+    .notif-c { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+    .notif { background: #fff; padding: 14px 18px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-left: 3px solid #2563eb; animation: slideIn 0.3s; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .notif.warn { border-left-color: #f59e0b; }
+    .notif.ok { border-left-color: #10b981; }
+    .notif .title { font-weight: 600; font-size: 13px; color: #111; margin-bottom: 4px; }
+    .notif .msg { font-size: 12px; color: #6b7280; }
+    .notif .cls { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 16px; line-height: 1; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+    .notif.out { animation: slideOut 0.3s forwards; }
+
+    .hb { display: none; position: fixed; top: 12px; left: 12px; z-index: 1001; background: #1e293b; color: #fff; border: none; width: 38px; height: 38px; border-radius: 6px; font-size: 20px; cursor: pointer; }
+    .sb-cls { display: none; position: absolute; top: 14px; right: 14px; background: none; border: none; color: #94a3b8; font-size: 22px; cursor: pointer; }
+    @media (max-width: 768px) {
+      .hb { display: block; }
+      .sb-cls { display: block; }
+      .sidebar { transform: translateX(-100%); padding-top: 54px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0 !important; padding: 20px 14px; padding-top: 58px; }
+      .luck-value { font-size: 72px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="notif-c" id="nc"></div>
+  <button class="hb" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sb">
+    <button class="sb-cls" onclick="toggleSidebar()">✕</button>
+    <h2>管理后台</h2>
+    <ul>
+      <li><a href="/admin/dashboard">数据概览</a></li>
+      <li><a href="/admin/items">物品管理</a></li>
+      <li><a href="/admin/users">用户管理</a></li>
+      <li><a href="/admin/versions">版本管理</a></li>
+      <li><a href="/admin/luck" class="active">今日人品</a></li>
+    </ul>
+    <a href="/admin/logout" class="logout-link">退出登录</a>
+  </div>
+  <div class="main-content">
+    <div class="header">
+      <div>
+        <h1>今日人品</h1>
+        <p class="sub"><%= greeting %>，<%= adminName %> · 服务器时间 <%= serverTime %></p>
+      </div>
+    </div>
+    
+    <div class="luck-card">
+      <div class="luck-icon" id="luckIcon">🍀</div>
+      <div class="luck-value" id="luckValue">-</div>
+      <div class="luck-comment" id="luckComment">点击获取今日人品</div>
+      <button class="btn btn-primary" onclick="getTodayLuck()" id="luckBtn">获取人品</button>
+      <div class="luck-tip" id="luckTip">每个账号每天只能查看一次</div>
+    </div>
+  </div>
+  
+  <script>
+    function toggleSidebar() {
+      document.getElementById('sb').classList.toggle('open');
+      let ov = document.getElementById('sb-ov');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'sb-ov';
+        ov.onclick = toggleSidebar;
+        ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:999;';
+        document.body.appendChild(ov);
+      }
+      ov.style.display = document.getElementById('sb').classList.contains('open') ? 'block' : 'none';
+    }
+    function notify(title, msg, type) {
+      type = type || 'info';
+      var c = document.getElementById('nc');
+      var n = document.createElement('div');
+      n.className = 'notif ' + (type === 'success' ? 'ok' : type === 'warning' ? 'warn' : '');
+      n.innerHTML = '<div><div class="title">' + title + '</div><div class="msg">' + msg + '</div></div><button class="cls" onclick="this.parentElement.classList.add(\'out\');setTimeout(function(){if(this.parentElement.parentElement)this.parentElement.parentElement.removeChild(this.parentElement)},300)">×</button>';
+      n.querySelector('.cls').onclick = function() {
+        n.classList.add('out');
+        setTimeout(function() {
+          if (n.parentElement) n.parentElement.removeChild(n);
+        }, 300);
+      };
+      c.appendChild(n);
+      setTimeout(function() {
+        if (n.parentElement) {
+          n.classList.add('out');
+          setTimeout(function() {
+            if (n.parentElement) n.parentElement.removeChild(n);
+          }, 300);
+        }
+      }, 5000);
+    }
+
+    let luckFetched = false
+    
+    async function getTodayLuck() {
+      if (luckFetched) {
+        return
+      }
+      
+      const btn = document.getElementById('luckBtn');
+      const luckValue = document.getElementById('luckValue');
+      const luckComment = document.getElementById('luckComment');
+      const luckIcon = document.getElementById('luckIcon');
+      const luckTip = document.getElementById('luckTip');
+      
+      btn.disabled = true;
+      btn.textContent = '获取中...';
+      
+      try {
+        const res = await fetch('/admin/luck/today');
+        const json = await res.json();
+        
+        if (json.data) {
+          luckValue.textContent = json.data.luck;
+          luckValue.style.color = json.data.color;
+          luckComment.textContent = json.data.comment;
+          
+          // 根据人品值选择图标
+          if (json.data.luck >= 96) luckIcon.textContent = '👑';
+          else if (json.data.luck >= 81) luckIcon.textContent = '🌟';
+          else if (json.data.luck >= 61) luckIcon.textContent = '😊';
+          else if (json.data.luck >= 41) luckIcon.textContent = '😐';
+          else if (json.data.luck >= 21) luckIcon.textContent = '😕';
+          else luckIcon.textContent = '💀';
+          
+          luckFetched = true;
+          btn.textContent = '今日已查看';
+          luckTip.textContent = '明天再来看看吧！';
+        }
+      } catch (e) {
+        luckComment.textContent = '获取失败，请重试';
+      } finally {
+        // 保持禁用状态，因为每天只能查看一次
+      }
+    }
+  </script>
+</body>
+</html>

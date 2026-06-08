@@ -825,6 +825,22 @@ app.get('/admin/dashboard', authMiddleware, async (req, res) => {
   })
 })
 
+app.get('/admin/luck', authMiddleware, async (req, res) => {
+  // 获取服务器时间和问候语
+  const now = new Date()
+  const hour = now.getHours()
+  let greeting = '你好'
+  if (hour < 12) greeting = '早上好'
+  else if (hour < 18) greeting = '下午好'
+  else greeting = '晚上好'
+
+  res.render('luck', {
+    adminName: req.user.name,
+    greeting: greeting,
+    serverTime: now.toLocaleString('zh-CN')
+  })
+})
+
 app.get('/admin/items', authMiddleware, async (req, res) => {
   const { page = 1, type = 'all', status = 'all', keyword = '' } = req.query
   const pageSize = 10
