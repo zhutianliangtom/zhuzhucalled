@@ -98,6 +98,51 @@
     .footer a { color: #6b7280; text-decoration: none; }
     .footer a:hover { color: #2563eb; }
 
+    /* 人品卡片样式 */
+    .luck-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #f1f5f9 100%);
+      border-top: 1px solid #e5e7eb;
+    }
+    .luck-card {
+      max-width: 400px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 40px 32px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .luck-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    .luck-value {
+      font-size: 72px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 16px;
+      transition: color 0.3s;
+    }
+    .luck-comment {
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 24px;
+      min-height: 24px;
+    }
+    .luck-btn {
+      min-width: 160px;
+      margin-bottom: 16px;
+    }
+    .luck-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .luck-tip {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
     @media (max-width: 640px) {
       .hero { padding: 56px 20px 40px; }
       .hero h1 { font-size: 28px; }
@@ -105,6 +150,7 @@
       .section { padding: 48px 0; }
       .stats-grid { gap: 32px; }
       .stat-num { font-size: 28px; }
+      .luck-value { font-size: 56px; }
     }
   </style>
 </head>
@@ -175,6 +221,20 @@
           <div class="download-meta">Android 5.0+ · 安全无毒 · 实时更新</div>
         </div>
         <div v-else class="status-msg error"><p>暂未发布版本</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 今日人品 -->
+  <section class="section luck-section">
+    <div class="container">
+      <div class="section-title"><h2>🍀 今日人品</h2><p>看看今天的运气如何</p></div>
+      <div class="luck-card" id="luckCard">
+        <div class="luck-icon">🍀</div>
+        <div class="luck-value" id="luckValue">-</div>
+        <div class="luck-comment" id="luckComment">点击获取今日人品</div>
+        <button class="btn btn-primary luck-btn" onclick="getTodayLuck()">获取人品</button>
+        <div class="luck-tip" id="luckTip">每个IP每天只能查看一次</div>
       </div>
     </div>
   </section>
@@ -253,6 +313,51 @@
         this.fetchStats()
       }
     }).mount('#downloadApp')
+
+    // 今日人品功能
+    let luckFetched = false
+    
+    async function getTodayLuck() {
+      if (luckFetched) {
+        return
+      }
+      
+      const btn = document.querySelector('.luck-btn');
+      const luckValue = document.getElementById('luckValue');
+      const luckComment = document.getElementById('luckComment');
+      const luckTip = document.getElementById('luckTip');
+      
+      btn.disabled = true;
+      btn.textContent = '获取中...';
+      
+      try {
+        const res = await fetch('/luck/today');
+        const json = await res.json();
+        
+        if (json.data) {
+          luckValue.textContent = json.data.luck;
+          luckValue.style.color = json.data.color;
+          luckComment.textContent = json.data.comment;
+          
+          // 根据人品值选择图标
+          const icon = document.querySelector('.luck-icon');
+          if (json.data.luck >= 96) icon.textContent = '👑';
+          else if (json.data.luck >= 81) icon.textContent = '🌟';
+          else if (json.data.luck >= 61) icon.textContent = '😊';
+          else if (json.data.luck >= 41) icon.textContent = '😐';
+          else if (json.data.luck >= 21) icon.textContent = '😕';
+          else icon.textContent = '💀';
+          
+          luckFetched = true;
+          btn.textContent = '今日已查看';
+          luckTip.textContent = '明天再来看看吧！';
+        }
+      } catch (e) {
+        luckComment.textContent = '获取失败，请重试';
+      } finally {
+        // 保持禁用状态，因为每天只能查看一次
+      }
+    }
   </script>
 </body>
 </html>

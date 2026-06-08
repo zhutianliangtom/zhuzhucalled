@@ -2,8 +2,8 @@
     "name" : "校园失物招领",
     "appid" : "__UNI__5AB411F",
     "description" : "校园失物招领App，帮助同学们快速找回丢失的物品",
-    "versionName" : "1.1.5",
-    "versionCode" : 700,
+    "versionName" : "1.1.6",
+    "versionCode" : 800,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
@@ -76,7 +76,12 @@
             "sdkConfigs" : {},
             "splashscreen" : {
                 "useOriginalMsgbox" : true,
-                "androidStyle" : "common"
+                "androidStyle" : "default",
+                "android" : {
+                    "hdpi" : "C:/Users/zhuzhu/Desktop/drawable-xhdpi/1780830243135.9.png",
+                    "xhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxhdpi/1780830243135.9.png",
+                    "xxhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxxhdpi/1780830243135.9.png"
+                }
             },
             "icons" : {
                 "android" : {

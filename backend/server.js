@@ -1826,6 +1826,182 @@ app.get('/api/heartbeat', (req, res) => {
   })
 })
 
+// ==================== 今日人品功能 ====================
+
+// 人品缓存（内存存储，每天自动清理）
+const luckCache = new Map()
+
+// 获取今日日期字符串
+function getTodayStr() {
+  const now = new Date()
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+}
+
+// 根据人品值获取评语
+function getLuckComment(luckValue) {
+  if (luckValue >= 96) return '天选之子，快去买彩票'
+  if (luckValue >= 81) return '欧皇降临，大吉大利'
+  if (luckValue >= 61) return '运气不错，可以一试'
+  if (luckValue >= 41) return '普普通通，一切正常'
+  if (luckValue >= 21) return '运气平平，出门小心'
+  return '非酋附体，建议今天宅家'
+}
+
+// 获取人品颜色（用于显示）
+function getLuckColor(luckValue) {
+  if (luckValue >= 96) return '#FFD700'
+  if (luckValue >= 81) return '#4CAF50'
+  if (luckValue >= 61) return '#2196F3'
+  if (luckValue >= 41) return '#9E9E9E'
+  if (luckValue >= 21) return '#FF9800'
+  return '#F44336'
+}
+
+// 清理过期缓存（每天执行）
+function cleanExpiredCache() {
+  const today = getTodayStr()
+  for (const key of luckCache.keys()) {
+    if (!key.startsWith(`luck_${today}_`)) {
+      luckCache.delete(key)
+    }
+  }
+}
+
+// 定时清理缓存（每小时检查一次）
+setInterval(cleanExpiredCache, 60 * 60 * 1000)
+
+// 公共接口：基于IP获取今日人品（每天每个IP只能查看一次）
+app.get('/luck/today', async (req, res) => {
+  try {
+    // 获取客户端IP（支持代理）
+    const ip = req.headers['x-forwarded-for'] || 
+               req.connection.remoteAddress || 
+               req.socket.remoteAddress ||
+               (req.connection.socket ? req.connection.socket.remoteAddress : null)
+    
+    // 处理IPv6格式
+    const clientIP = ip ? (ip.split(',')[0] || ip).replace('::ffff:', '') : 'unknown'
+    
+    const today = getTodayStr()
+    const cacheKey = `luck_${today}_${clientIP}`
+    
+    // 检查是否已经查询过
+    if (luckCache.has(cacheKey)) {
+      const cached = luckCache.get(cacheKey)
+      return res.json({ 
+        data: {
+          luck: cached.luck,
+          comment: cached.comment,
+          color: cached.color,
+          today: true
+        } 
+      })
+    }
+    
+    // 生成今日人品（0-100的整数）
+    const luckValue = Math.floor(Math.random() * 101)
+    const comment = getLuckComment(luckValue)
+    const color = getLuckColor(luckValue)
+    
+    // 缓存结果
+    luckCache.set(cacheKey, { luck: luckValue, comment, color })
+    
+    res.json({ 
+      data: {
+        luck: luckValue,
+        comment,
+        color,
+        today: true
+      } 
+    })
+  } catch (e) {
+    console.error('[API] /luck/today 错误:', e)
+    res.status(500).json({ message: '获取人品失败' })
+  }
+})
+
+// 用户接口：基于用户ID获取今日人品（每天每个用户只能查看一次）
+app.get('/luck/today/user', authenticateToken, async (req, res) => {
+  try {
+    const today = getTodayStr()
+    const cacheKey = `luck_${today}_user_${req.user.id}`
+    
+    // 检查是否已经查询过
+    if (luckCache.has(cacheKey)) {
+      const cached = luckCache.get(cacheKey)
+      return res.json({ 
+        data: {
+          luck: cached.luck,
+          comment: cached.comment,
+          color: cached.color,
+          today: true
+        } 
+      })
+    }
+    
+    // 生成今日人品（0-100的整数）
+    const luckValue = Math.floor(Math.random() * 101)
+    const comment = getLuckComment(luckValue)
+    const color = getLuckColor(luckValue)
+    
+    // 缓存结果
+    luckCache.set(cacheKey, { luck: luckValue, comment, color })
+    
+    res.json({ 
+      data: {
+        luck: luckValue,
+        comment,
+        color,
+        today: true
+      } 
+    })
+  } catch (e) {
+    console.error('[API] /luck/today/user 错误:', e)
+    res.status(500).json({ message: '获取人品失败' })
+  }
+})
+
+// 管理后台接口：获取今日人品（每个管理员每天只能查看一次）
+app.get('/admin/luck/today', authMiddleware, async (req, res) => {
+  try {
+    const today = getTodayStr()
+    const cacheKey = `luck_${today}_admin_${req.user.id}`
+    
+    // 检查是否已经查询过
+    if (luckCache.has(cacheKey)) {
+      const cached = luckCache.get(cacheKey)
+      return res.json({ 
+        data: {
+          luck: cached.luck,
+          comment: cached.comment,
+          color: cached.color,
+          today: true
+        } 
+      })
+    }
+    
+    // 生成今日人品（0-100的整数）
+    const luckValue = Math.floor(Math.random() * 101)
+    const comment = getLuckComment(luckValue)
+    const color = getLuckColor(luckValue)
+    
+    // 缓存结果
+    luckCache.set(cacheKey, { luck: luckValue, comment, color })
+    
+    res.json({ 
+      data: {
+        luck: luckValue,
+        comment,
+        color,
+        today: true
+      } 
+    })
+  } catch (e) {
+    console.error('[API] /admin/luck/today 错误:', e)
+    res.status(500).json({ message: '获取人品失败' })
+  }
+})
+
 // 全局错误处理（捕获 async handler 和 multer 的错误）
 app.use((err, req, res, next) => {
   console.error('[Express 错误]', err.message || err)

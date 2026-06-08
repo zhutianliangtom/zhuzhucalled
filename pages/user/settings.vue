@@ -26,6 +26,12 @@
         <text class="settings-arrow">›</text>
       </view>
       
+      <view class="settings-item" @click="checkLuck">
+        <text class="settings-icon">🍀</text>
+        <text class="settings-text">今日人品</text>
+        <text class="settings-arrow">›</text>
+      </view>
+      
       <view class="settings-item" @click="clearCache">
         <text class="settings-icon">🗑️</text>
         <text class="settings-text">清除缓存</text>
@@ -40,16 +46,45 @@
     </view>
     
     <view class="version-info">
-      <text class="version-text">版本 1.1.4</text>
+      <text class="version-text">版本 1.1.6</text>
+    </view>
+    
+    <!-- 人品弹窗 -->
+    <view v-if="luckVisible" class="luck-modal" @click="closeLuckModal">
+      <view class="luck-modal-content" @click.stop>
+        <view class="luck-modal-header">
+          <text class="luck-modal-title">🍀 今日人品</text>
+          <text class="luck-modal-close" @click="closeLuckModal">✕</text>
+        </view>
+        
+        <view class="luck-modal-body">
+          <view v-if="luckLoading" class="luck-loading">
+            <text class="loading-text">获取中...</text>
+          </view>
+          
+          <view v-else-if="luckData" class="luck-content">
+            <text class="luck-icon-big">{{ getLuckIcon(luckData.luck) }}</text>
+            <text class="luck-value-big" :style="{ color: luckData.color }">{{ luckData.luck }}</text>
+            <text class="luck-comment-text">{{ luckData.comment }}</text>
+            <text class="luck-tip-text">每个账号每天只能查看一次</text>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
+import { api } from '@/utils/api.js'
+
 export default {
   data() {
     return {
-      notifications: true
+      notifications: true,
+      luckVisible: false,
+      luckData: null,
+      luckLoading: false,
+      luckToday: false
     }
   },
   methods: {
@@ -68,16 +103,88 @@ export default {
         url: '/pages/offline-game/offline-game?fromSettings=true'
       })
     },
-    checkUpdate() {
+    async checkUpdate() {
       uni.showLoading({ title: '检查更新中...' })
-      setTimeout(() => {
+      
+      try {
+        // #ifdef APP-PLUS
+        let currentVersion = '1.1.6'
+        let currentVersionCode = 0
+        
+        // 尝试获取真实版本号
+        try {
+          if (typeof plus !== 'undefined' && plus && plus.runtime) {
+            currentVersionCode = parseInt(plus.runtime.versionCode) || 0
+          }
+        } catch (e) {}
+        
+        const res = await api.getLatestVersion()
+        
+        if (res && res.data) {
+          const latest = res.data
+          
+          if (latest.versionCode > currentVersionCode) {
+            uni.hideLoading()
+            uni.showModal({
+              title: `发现新版本 v${latest.version}`,
+              content: latest.changelog || '点击确定前往下载页面',
+              confirmText: '立即更新',
+              showCancel: !latest.forceUpdate,
+              success: (modalRes) => {
+                if (modalRes.confirm) {
+                  api.getEncryptedDownloadUrl(latest.id).then(downloadRes => {
+                    const encryptedUrl = downloadRes?.data?.url || ''
+                    const downloadPageUrl = `https://chentian.dpdns.org/download?token=${encodeURIComponent(encryptedUrl)}`
+                    
+                    if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                      plus.runtime.openURL(downloadPageUrl)
+                    }
+                  }).catch(() => {
+                    const downloadUrl = 'https://chentian.dpdns.org/download'
+                    if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                      plus.runtime.openURL(downloadUrl)
+                    }
+                  })
+                }
+                if (latest.forceUpdate && !modalRes.confirm) {
+                  try {
+                    if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                      plus.runtime.quit()
+                    }
+                  } catch (e) {}
+                }
+              }
+            })
+          } else {
+            uni.hideLoading()
+            uni.showModal({
+              title: '检查完成',
+              content: '当前已是最新版本（v1.1.6）',
+              showCancel: false
+            })
+          }
+        } else {
+          throw new Error('获取版本信息失败')
+        }
+        // #endif
+        
+        // #ifndef APP-PLUS
+        // 非APP平台的处理
         uni.hideLoading()
         uni.showModal({
           title: '检查完成',
-          content: '当前已是最新版本（v1.1.4）',
+          content: '当前已是最新版本（v1.1.6）',
           showCancel: false
         })
-      }, 1500)
+        // #endif
+      } catch (e) {
+        uni.hideLoading()
+        uni.showModal({
+          title: '检查完成',
+          content: '当前已是最新版本（v1.1.6）',
+          showCancel: false
+        })
+      }
     },
     clearCache() {
       uni.showModal({
@@ -101,6 +208,41 @@ export default {
         content: '校园失物招领App帮助同学们快速找回丢失的物品，让每一件失物都能回家。',
         showCancel: false
       })
+    },
+    async checkLuck() {
+      if (this.luckToday) {
+        this.luckVisible = true
+        return
+      }
+      
+      this.luckLoading = true
+      
+      try {
+        const res = await api.getTodayLuckUser()
+        if (res && res.data) {
+          this.luckData = res.data
+          this.luckToday = true
+        }
+      } catch (e) {
+        uni.showToast({
+          title: '获取失败',
+          icon: 'none'
+        })
+      } finally {
+        this.luckLoading = false
+        this.luckVisible = true
+      }
+    },
+    closeLuckModal() {
+      this.luckVisible = false
+    },
+    getLuckIcon(luck) {
+      if (luck >= 96) return '👑'
+      if (luck >= 81) return '🌟'
+      if (luck >= 61) return '😊'
+      if (luck >= 41) return '😐'
+      if (luck >= 21) return '😕'
+      return '💀'
     }
   }
 }
@@ -179,7 +321,91 @@ export default {
 }
 
 .version-text {
-  font-size: 24rpx;
-  color: #999;
-}
+    font-size: 24rpx;
+    color: #999;
+  }
+  
+  /* 人品弹窗样式 */
+  .luck-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .luck-modal-content {
+    width: 600rpx;
+    background: #fff;
+    border-radius: 24rpx;
+    overflow: hidden;
+    box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.2);
+  }
+  
+  .luck-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 30rpx;
+    border-bottom: 1rpx solid #eee;
+  }
+  
+  .luck-modal-title {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .luck-modal-close {
+    font-size: 36rpx;
+    color: #999;
+    padding: 10rpx;
+  }
+  
+  .luck-modal-body {
+    padding: 40rpx 30rpx;
+  }
+  
+  .luck-loading {
+    text-align: center;
+    padding: 40rpx;
+  }
+  
+  .loading-text {
+    font-size: 28rpx;
+    color: #999;
+  }
+  
+  .luck-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .luck-icon-big {
+    font-size: 100rpx;
+    margin-bottom: 20rpx;
+  }
+  
+  .luck-value-big {
+    font-size: 80rpx;
+    font-weight: 700;
+    margin-bottom: 20rpx;
+  }
+  
+  .luck-comment-text {
+    font-size: 28rpx;
+    color: #666;
+    margin-bottom: 20rpx;
+  }
+  
+  .luck-tip-text {
+    font-size: 24rpx;
+    color: #999;
+  }
 </style>

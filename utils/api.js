@@ -330,5 +330,11 @@ export const api = {
   },
   async getEncryptedDownloadUrl(versionId) {
     return await this.request('/version/' + versionId + '/download-url', 'GET')
+  },
+  async getTodayLuck() {
+    return await this.request('/luck/today', 'GET')
+  },
+  async getTodayLuckUser() {
+    return await this.request('/luck/today/user', 'GET')
   }
 }
