@@ -2,46 +2,38 @@
   <view class="game-container" @click="handleClick">
     <view v-if="!gameStarted && !gameOver" class="start-screen">
       <view class="start-content">
-        <text v-if="!fromSettings" class="network-error">网络错误，来玩玩游戏吧</text>
-        <view class="logo-wrapper">
-          <image src="/uniapp_1145114/person.png" class="logo" mode="aspectFit" />
-        </view>
+        <image src="/uniapp_1145114/person.png" class="logo" mode="aspectFit" />
         <text class="start-title">跳跃游戏</text>
-        <text class="start-hint">点击屏幕开始</text>
+        <text class="start-hint">点击开始</text>
       </view>
     </view>
 
     <view v-if="gameStarted && !gameOver" class="game-area">
-      <view class="score-panel">
-        <text class="score-value">{{ score }}</text>
-      </view>
-
-      <view class="high-score">
-        <text>{{ highScore }}</text>
-      </view>
-
+      <text class="score">{{ score }}</text>
+      <text class="high-score">最高分: {{ highScore }}</text>
+      
       <view class="dino" :style="{ bottom: (groundY + dinoY) + 'px' }">
         <image src="/uniapp_1145114/person.png" class="dino-img" mode="aspectFit" />
       </view>
-
+      
       <view 
         v-for="obstacle in obstacles" 
         :key="obstacle.id"
         class="obstacle"
         :class="obstacle.type"
         :style="{ left: obstacle.x + 'px', height: obstacle.height + 'px', width: obstacle.width + 'px', bottom: obstacle.bottom + 'px' }"
-      ></view>
-
+      >
+        <text v-if="obstacle.type === 'bird'" class="bird-emoji">🐦</text>
+      </view>
+      
       <view class="ground"></view>
     </view>
 
     <view v-if="gameOver" class="game-over">
       <view class="game-over-content">
         <text class="game-over-title">游戏结束</text>
-        <text class="final-score-value">{{ score }}</text>
-        <view v-if="score >= highScore && score > 0" class="new-record">
-          <text>新纪录!</text>
-        </view>
+        <text class="final-score">{{ score }}</text>
+        <text v-if="score >= highScore && score > 0" class="new-record">新纪录!</text>
         <text class="restart-hint">点击重新开始</text>
       </view>
     </view>
@@ -59,38 +51,23 @@ export default {
       isJumping: false,
       obstacles: [],
       gameLoop: null,
-      baseSpeed: 6,
-      currentSpeed: 6,
-      groundY: 30,
+      baseSpeed: 5,
+      currentSpeed: 5,
+      groundY: 24,
       gameAreaWidth: 375,
       dinoY: 0,
-      fromSettings: false,
-      obstacleTimer: null,
-      scoreTimer: null,
       jumpTimer: null,
-      sysWidth: 375,
-      obstacleIdCounter: 0,
-      availableObstacles: ['cactus']
+      sysWidth: 375
     }
   },
   onLoad(options) {
-    if (options && options.fromSettings === 'true') {
-      this.fromSettings = true
-    }
-    
     const systemInfo = uni.getSystemInfoSync()
     this.sysWidth = systemInfo.windowWidth
     this.gameAreaWidth = this.sysWidth
     
     try {
       const saved = uni.getStorageSync('dino_high_score')
-      if (saved) {
-        try {
-          this.highScore = parseInt(saved) || 0
-        } catch (e) {
-          this.highScore = 0
-        }
-      }
+      this.highScore = saved ? parseInt(saved) || 0 : 0
     } catch (e) {
       this.highScore = 0
     }
@@ -121,9 +98,7 @@ export default {
       this.obstacles = []
       this.currentSpeed = this.baseSpeed
       this.dinoY = 0
-      this.availableObstacles = ['cactus']
 
-      let lastTime = Date.now()
       let lastObstacleTime = Date.now()
       let lastScoreTime = Date.now()
       
@@ -133,22 +108,29 @@ export default {
           
           this.update()
           
-          if (now - lastObstacleTime > 1500) {
+          if (now - lastObstacleTime > this.getObstacleInterval()) {
             this.generateObstacle()
             lastObstacleTime = now
           }
           
           if (now - lastScoreTime > 100) {
             this.score++
+            
             if (this.score % 30 === 0 && this.currentSpeed < 15) {
-              this.currentSpeed += 0.5
+              this.currentSpeed += 0.3
             }
+            
             lastScoreTime = now
           }
-          
-          lastTime = now
         }
-      }, 50)
+      }, 30)
+    },
+
+    getObstacleInterval() {
+      const baseInterval = 1800
+      const minInterval = 800
+      const speedFactor = this.currentSpeed / this.baseSpeed
+      return Math.max(minInterval, baseInterval / speedFactor)
     },
 
     stopGame() {
@@ -167,13 +149,13 @@ export default {
       if (this.isJumping) return
       
       this.isJumping = true
-      let velocity = 22
+      let velocity = 18
       let position = 0
 
       if (this.jumpTimer) clearInterval(this.jumpTimer)
       
       this.jumpTimer = setInterval(() => {
-        velocity -= 0.85
+        velocity -= 0.75
         position += velocity
         
         if (position <= 0) {
@@ -197,49 +179,30 @@ export default {
     },
 
     generateObstacle() {
-      let newUnlockType = null
+      const types = ['cactus']
       
-      if (this.score >= 600 && this.availableObstacles.indexOf('tiger') === -1) {
-        this.availableObstacles.push('tiger')
-        newUnlockType = 'tiger'
-      } else if (this.score >= 300 && this.availableObstacles.indexOf('bird') === -1) {
-        this.availableObstacles.push('bird')
-        newUnlockType = 'bird'
-      } else if (this.score >= 100 && this.availableObstacles.indexOf('rock') === -1) {
-        this.availableObstacles.push('rock')
-        newUnlockType = 'rock'
+      if (this.score >= 200) {
+        types.push('bird')
       }
       
-      let type
-      if (newUnlockType) {
-        type = newUnlockType
-      } else {
-        type = this.availableObstacles[Math.floor(Math.random() * this.availableObstacles.length)]
-      }
+      const type = types[Math.floor(Math.random() * types.length)]
       
-      let height = 50 + Math.random() * 30
-      let width = 35
-      let bottom = 30
+      let height, width, bottom
       
       if (type === 'cactus') {
         width = 25
-        height = 50 + Math.random() * 30
-      } else if (type === 'rock') {
-        width = 40
-        height = 35 + Math.random() * 15
-      } else if (type === 'bird') {
-        width = 50
-        height = 30
-        bottom = 60 + Math.random() * 60
-      } else if (type === 'tiger') {
-        width = 55
-        height = 40
+        height = 40 + Math.random() * 25
+        bottom = this.groundY
+      } else {
+        width = 35
+        height = 20
+        bottom = this.groundY + 60 + Math.random() * 40
       }
       
       this.obstacles.push({
         id: Date.now() + Math.random(),
         type: type,
-        x: this.gameAreaWidth + 50,
+        x: this.gameAreaWidth + 30,
         height: height,
         width: width,
         bottom: bottom
@@ -253,13 +216,13 @@ export default {
       const dinoTop = dinoBottom + 60
 
       for (let obstacle of this.obstacles) {
-        const obsLeft = obstacle.x
-        const obsRight = obstacle.x + obstacle.width
+        const obsLeft = obstacle.x + 5
+        const obsRight = obstacle.x + obstacle.width - 5
         const obsBottom = obstacle.bottom || this.groundY
         const obsTop = obsBottom + obstacle.height
 
-        if (dinoRight > obsLeft + 3 && dinoLeft < obsRight - 3 && 
-            dinoTop > obsBottom + 3 && dinoBottom < obsTop - 3) {
+        if (dinoRight > obsLeft && dinoLeft < obsRight && 
+            dinoTop > obsBottom && dinoBottom < obsTop) {
           this.endGame()
           return
         }
@@ -300,7 +263,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: #fafafa;
   overflow: hidden;
   z-index: 9999;
   user-select: none;
@@ -312,81 +275,54 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+  background: #fff;
 }
 
 .start-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30rpx;
-}
-
-.network-error {
-  font-size: 28rpx;
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
-  padding: 15rpx 30rpx;
-  border-radius: 30rpx;
-  border: 2rpx solid rgba(255, 107, 107, 0.3);
-}
-
-.logo-wrapper {
-  width: 160rpx;
-  height: 160rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
+  gap: 40rpx;
 }
 
 .logo {
-  width: 120rpx;
-  height: 120rpx;
+  width: 160rpx;
+  height: 160rpx;
 }
 
 .start-title {
-  font-size: 40rpx;
-  font-weight: 600;
+  font-size: 36rpx;
+  font-weight: 500;
   color: #333;
 }
 
 .start-hint {
-  font-size: 26rpx;
-  color: #666;
+  font-size: 24rpx;
+  color: #999;
 }
 
 .game-area {
   position: relative;
   width: 100%;
   height: 100%;
+  background: #fff;
 }
 
-.score-panel {
+.score {
   position: absolute;
-  top: 60rpx;
+  top: 40rpx;
   right: 30rpx;
-  padding: 15rpx 25rpx;
-  border: 2rpx solid rgba(0, 0, 0, 0.1);
-  border-radius: 15rpx;
   font-size: 36rpx;
   font-weight: 600;
   color: #333;
-  background: rgba(255, 255, 255, 0.8);
 }
 
 .high-score {
   position: absolute;
-  top: 60rpx;
+  top: 40rpx;
   left: 30rpx;
-  padding: 15rpx 25rpx;
-  border: 2rpx solid rgba(0, 0, 0, 0.1);
-  border-radius: 15rpx;
-  font-size: 26rpx;
-  color: #666;
-  background: rgba(255, 255, 255, 0.8);
+  font-size: 22rpx;
+  color: #999;
 }
 
 .dino {
@@ -403,66 +339,30 @@ export default {
 
 .obstacle {
   position: absolute;
-  border-radius: 6rpx;
-  background: #4CAF50;
-
-  &.rock {
-    background: #795548;
-    border-radius: 8rpx 8rpx 4rpx 4rpx;
+  
+  &.cactus {
+    background: #4a7c23;
   }
   
   &.bird {
-    background: linear-gradient(135deg, #5D4E6D 0%, #3D3447 100%);
-    border-radius: 50% 50% 50% 50%;
-    position: relative;
-    
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      background: #5D4E6D;
-      width: 15px;
-      height: 8px;
-      border-radius: 50%;
-      top: 5px;
-    }
-    
-    &::before {
-      left: -10px;
-      transform: rotate(-30deg);
-    }
-    
-    &::after {
-      right: -10px;
-      transform: rotate(30deg);
-    }
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  
-  &.tiger {
-    background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
-    border-radius: 10rpx 10rpx 5rpx 5rpx;
-    position: relative;
-    
-    &::before {
-      content: '';
-      position: absolute;
-      top: 5px;
-      left: 8px;
-      width: 8px;
-      height: 8px;
-      background: #000;
-      border-radius: 50%;
-    }
-    
-    &::after {
-      content: '';
-      position: absolute;
-      top: 5px;
-      right: 8px;
-      width: 8px;
-      height: 8px;
-      background: #000;
-      border-radius: 50%;
-    }
+}
+
+.bird-emoji {
+  font-size: 28px;
+  animation: birdFloat 0.8s ease-in-out infinite;
+}
+
+@keyframes birdFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
   }
 }
 
@@ -471,9 +371,9 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 30px;
-  background: #e0e0e0;
-  border-top: 4px solid #c0c0c0;
+  height: 24px;
+  background: #fff;
+  border-top: 2px solid #ccc;
 }
 
 .game-over {
@@ -482,43 +382,39 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .game-over-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30rpx;
-  padding: 60rpx 80rpx;
+  gap: 20rpx;
+  padding: 40rpx 60rpx;
   background: #fff;
-  border: 2rpx solid rgba(0, 0, 0, 0.1);
-  border-radius: 30rpx;
+  border-radius: 16rpx;
 }
 
 .game-over-title {
-  font-size: 40rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.final-score {
+  font-size: 56rpx;
   font-weight: 600;
   color: #333;
 }
 
-.final-score-value {
-  font-size: 70rpx;
-  font-weight: bold;
-  color: #ff6b6b;
-}
-
 .new-record {
-  padding: 10rpx 25rpx;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  border-radius: 25rpx;
-  font-size: 28rpx;
-  color: #fff;
-  font-weight: 600;
+  font-size: 24rpx;
+  color: #ff6b6b;
+  font-weight: 500;
 }
 
 .restart-hint {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #999;
 }
 </style>
