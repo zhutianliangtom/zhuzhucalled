@@ -24,6 +24,8 @@
         <text>{{ highScore }}</text>
       </view>
 
+      
+
       <!-- 恐龙 -->
       <view class="dino" :style="{ bottom: (groundY + dinoY) + 'px' }">
         <image src="/uniapp_1145114/person.png" class="dino-img" mode="aspectFit" />
@@ -35,11 +37,14 @@
         :key="obstacle.id"
         class="obstacle"
         :class="[obstacle.type, { night: isNight }]"
-        :style="{ left: obstacle.x + 'px', height: obstacle.height + 'px' }"
+        :style="{ left: obstacle.x + 'px', height: obstacle.height + 'px', bottom: obstacle.y + 'px', width: obstacle.width + 'px' }"
       ></view>
 
       <!-- 地面 -->
       <view class="ground"></view>
+
+      <!-- 云 -->
+      <view v-for="cloud in clouds" :key="cloud.id" class="cloud" :style="{ left: cloud.x + 'px', top: cloud.y + 'px', width: cloud.width + 'px' }"></view>
     </view>
 
     <!-- 游戏结束 -->
@@ -67,36 +72,37 @@ export default {
       isJumping: false,
       isNight: false,
       obstacles: [],
+      clouds: [],
       gameLoop: null,
       baseSpeed: 6,
       currentSpeed: 6,
-      speedLevel: 1,
-      jumpHeight: 150,
       groundY: 30,
       gameAreaWidth: 375,
       gameAreaHeight: 500,
       obstacleId: 0,
-      scoreTimer: null,
-      obstacleTimer: null,
-      jumpTimer: null,
+      cloudId: 0,
       jumpVelocity: 0,
       dinoY: 0,
       isJumpingUp: false,
-      fromSettings: false
+      fromSettings: false,
+      difficultyLevel: 1,
+      
+      _lastScoreTime: 0,
+      _lastObstacleTime: 0,
+      _lastCloudTime: 0,
+      _targetObstacleInterval: 1800,
+      _targetCloudInterval: 4000
     }
   },
   onLoad(options) {
-    // 检查是否从设置页面跳转过来
     if (options && options.fromSettings === 'true') {
       this.fromSettings = true
     }
     
-    // 获取屏幕信息
     const systemInfo = uni.getSystemInfoSync()
     this.gameAreaWidth = systemInfo.windowWidth
     this.gameAreaHeight = systemInfo.windowHeight - 100
     
-    // 获取最高分
     try {
       const saved = uni.getStorageSync('dino_high_score')
       if (saved) this.highScore = parseInt(saved) || 0
@@ -121,54 +127,30 @@ export default {
       this.gameOver = false
       this.score = 0
       this.obstacles = []
+      this.clouds = []
       this.currentSpeed = this.baseSpeed
-      this.speedLevel = 1
       this.isNight = false
       this.dinoY = 0
-
-      // 开始游戏循环
-      this.gameLoop = setInterval(() => this.update(), 30)
+      this.difficultyLevel = 1
+      this._lastScoreTime = Date.now()
+      this._lastObstacleTime = Date.now()
+      this._lastCloudTime = Date.now()
       
-      // 生成障碍物
-      this.obstacleTimer = setInterval(() => {
-        if (!this.gameOver) {
-          this.generateObstacle()
-        }
-      }, 1800)
+      this.generateCloud()
       
-      // 计分
-      this.scoreTimer = setInterval(() => {
-        this.score++
-        
-        // 每30分加速
-        if (this.score % 30 === 0 && this.currentSpeed < 15) {
-          this.currentSpeed += 0.5
-          this.speedLevel = this.currentSpeed / this.baseSpeed
-        }
-        
-        // 每100分再加速
-        if (this.score % 100 === 0 && this.currentSpeed < 18) {
-          this.currentSpeed += 1
-          this.speedLevel = this.currentSpeed / this.baseSpeed
-        }
-        
-        // 每1000分切换白天/黑夜
-        if (this.score % 1000 === 0) {
-          this.isNight = !this.isNight
-        }
-      }, 100)
+      const loop = () => {
+        if (this.gameOver) return
+        this.update()
+        this.gameLoop = requestAnimationFrame(loop)
+      }
+      this.gameLoop = requestAnimationFrame(loop)
     },
 
     stopGame() {
-      if (this.gameLoop) clearInterval(this.gameLoop)
-      if (this.obstacleTimer) clearInterval(this.obstacleTimer)
-      if (this.scoreTimer) clearInterval(this.scoreTimer)
-      if (this.jumpTimer) clearInterval(this.jumpTimer)
-      
-      this.gameLoop = null
-      this.obstacleTimer = null
-      this.scoreTimer = null
-      this.jumpTimer = null
+      if (this.gameLoop) {
+        cancelAnimationFrame(this.gameLoop)
+        this.gameLoop = null
+      }
     },
 
     jump() {
@@ -179,62 +161,182 @@ export default {
       this.jumpVelocity = 24
       this.dinoY = 0
 
+      const gravity = 0.4
       const jumpInterval = setInterval(() => {
-        if (this.isJumpingUp) {
-          this.jumpVelocity -= 1.2
-          this.dinoY += this.jumpVelocity
-          
-          if (this.jumpVelocity <= 0) {
-            this.isJumpingUp = false
-          }
-        } else {
-          this.jumpVelocity -= 1.2
-          this.dinoY += this.jumpVelocity
-          
-          if (this.dinoY <= 0) {
-            this.dinoY = 0
-            this.isJumping = false
-            clearInterval(jumpInterval)
-            return
-          }
+        if (this.gameOver) {
+          clearInterval(jumpInterval)
+          return
         }
         
-        if (this.dinoY < 0) {
+        this.jumpVelocity -= gravity
+        this.dinoY += this.jumpVelocity
+        
+        if (this.dinoY <= 0) {
           this.dinoY = 0
           this.isJumping = false
           clearInterval(jumpInterval)
         }
-      }, 30)
+      }, 16)
     },
 
     update() {
+      const now = Date.now()
+      
+      // 计分逻辑
+      if (now - this._lastScoreTime >= 100) {
+        this._lastScoreTime = now
+        this.score++
+        
+        if (this.score % 200 === 0) {
+          this.difficultyLevel = Math.min(5, Math.floor(this.score / 200) + 1)
+        }
+        
+        if (this.score % 30 === 0 && this.currentSpeed < 15) {
+          this.currentSpeed += 0.5
+        }
+        
+        if (this.score % 100 === 0 && this.currentSpeed < 18) {
+          this.currentSpeed += 1
+        }
+        
+        if (this.score % 1000 === 0) {
+          this.isNight = !this.isNight
+        }
+        
+        // 动态调整障碍物生成间隔
+        this._targetObstacleInterval = Math.max(800, 1800 - this.score * 2)
+      }
+      
+      // 生成障碍物
+      if (now - this._lastObstacleTime >= this._targetObstacleInterval) {
+        this._lastObstacleTime = now
+        this.generateObstacle()
+      }
+      
+      // 生成云
+      if (now - this._lastCloudTime >= this._targetCloudInterval) {
+        this._lastCloudTime = now
+        this.generateCloud()
+      }
+      
       // 移动障碍物
-      this.obstacles = this.obstacles.filter(obstacle => {
-        obstacle.x -= this.currentSpeed
-        return obstacle.x > -50
-      })
-
+      const speed = this.currentSpeed
+      const obstacles = this.obstacles
+      let obstacleCount = obstacles.length
+      for (let i = obstacleCount - 1; i >= 0; i--) {
+        obstacles[i].x -= speed
+        if (obstacles[i].x < -100) {
+          obstacles.splice(i, 1)
+          obstacleCount--
+        }
+      }
+      
+      // 移动云
+      const clouds = this.clouds
+      const cloudSpeed = speed * 0.3
+      for (let i = clouds.length - 1; i >= 0; i--) {
+        clouds[i].x -= cloudSpeed
+        if (clouds[i].x < -200) {
+          clouds.splice(i, 1)
+        }
+      }
+      
+      // 限制障碍物数量
+      if (obstacles.length > 10) {
+        obstacles.shift()
+      }
+      
+      // 限制云数量
+      if (clouds.length > 5) {
+        clouds.shift()
+      }
+      
       // 碰撞检测
       this.checkCollision()
     },
 
     generateObstacle() {
       const types = ['cactus', 'rock']
+      
+      if (this.difficultyLevel >= 2) types.push('bird')
+      if (this.difficultyLevel >= 3) types.push('spike')
+      if (this.difficultyLevel >= 4) types.push('flying-rock')
+      
       const type = types[Math.floor(Math.random() * types.length)]
       
-      let height = 60 + Math.random() * 40
+      let height, width, y
+      
+      switch(type) {
+        case 'cactus':
+          height = 60 + Math.random() * 30
+          width = 25
+          y = this.groundY
+          break
+        case 'rock':
+          height = 40 + Math.random() * 20
+          width = 35
+          y = this.groundY
+          break
+        case 'spike':
+          height = 30 + Math.random() * 15
+          width = 20
+          y = this.groundY
+          break
+        case 'bird':
+          height = 28
+          width = 38
+          const birdHeight = Math.random()
+          y = birdHeight < 0.33 ? this.groundY + 40 : (birdHeight < 0.66 ? this.groundY + 80 : this.groundY + 120)
+          break
+        case 'flying-rock':
+          height = 22
+          width = 28
+          y = this.groundY + 60 + Math.random() * 40
+          break
+        default:
+          height = 50
+          width = 25
+          y = this.groundY
+      }
       
       this.obstacles.push({
         id: this.obstacleId++,
         type: type,
         x: this.gameAreaWidth + 50,
-        height: height,
-        width: type === 'cactus' ? 25 : 35
+        y: y,
+        width: width,
+        height: height
       })
+      
+      if (this.difficultyLevel >= 3 && Math.random() > 0.75) {
+        const followTypes = ['cactus', 'rock', 'spike']
+        const followType = followTypes[Math.floor(Math.random() * followTypes.length)]
+        const followWidth = followType === 'spike' ? 20 : (followType === 'cactus' ? 25 : 35)
+        
+        setTimeout(() => {
+          if (!this.gameOver) {
+            this.obstacles.push({
+              id: this.obstacleId++,
+              type: followType,
+              x: this.gameAreaWidth + 50,
+              y: this.groundY,
+              width: followWidth,
+              height: 40 + Math.random() * 20
+            })
+          }
+        }, 400)
+      }
     },
 
-    getObstacleHeight(obstacle) {
-      return obstacle.height
+    generateCloud() {
+      if (this.clouds.length < 5) {
+        this.clouds.push({
+          id: this.cloudId++,
+          x: this.gameAreaWidth + 100,
+          y: 50 + Math.random() * 80,
+          width: 50 + Math.random() * 30
+        })
+      }
     },
 
     checkCollision() {
@@ -243,11 +345,12 @@ export default {
       const dinoTop = this.gameAreaHeight - this.groundY - 60 - this.dinoY
       const dinoBottom = this.gameAreaHeight - this.groundY - this.dinoY
 
-      for (let obstacle of this.obstacles) {
-        const obsLeft = obstacle.x
-        const obsRight = obstacle.x + obstacle.width
-        const obsTop = this.gameAreaHeight - this.groundY - obstacle.height
-        const obsBottom = this.gameAreaHeight - this.groundY
+      for (let i = this.obstacles.length - 1; i >= 0; i--) {
+        const obs = this.obstacles[i]
+        const obsLeft = obs.x
+        const obsRight = obs.x + obs.width
+        const obsTop = this.gameAreaHeight - obs.y - obs.height
+        const obsBottom = this.gameAreaHeight - obs.y
 
         if (dinoRight > obsLeft + 5 && dinoLeft < obsRight - 5 && 
             dinoBottom > obsTop + 5 && dinoTop < obsBottom - 5) {
@@ -261,7 +364,6 @@ export default {
       this.gameOver = true
       this.stopGame()
       
-      // 保存最高分
       if (this.score > this.highScore) {
         this.highScore = this.score
         try {
@@ -275,10 +377,12 @@ export default {
       this.gameOver = false
       this.score = 0
       this.obstacles = []
+      this.clouds = []
       this.currentSpeed = this.baseSpeed
-      this.speedLevel = 1
       this.dinoY = 0
       this.isJumping = false
+      this.difficultyLevel = 1
+      this._targetObstacleInterval = 1800
     }
   }
 }
@@ -291,8 +395,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
-  transition: background 1s ease;
+  background: #f0f0f0;
   overflow: hidden;
   z-index: 9999;
   user-select: none;
@@ -302,11 +405,13 @@ export default {
 
     .ground {
       background: #2d2d44;
+      border-top: 4px solid #1a1a2e;
     }
 
     .score-panel, .high-score {
       color: #fff;
       border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .game-over-content {
@@ -315,6 +420,10 @@ export default {
       .game-over-title, .final-score-value, .restart-hint {
         color: #fff;
       }
+    }
+
+    .cloud {
+      background: rgba(255, 255, 255, 0.1);
     }
   }
 }
@@ -326,6 +435,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
 }
 
 .start-content {
@@ -368,7 +478,7 @@ export default {
 
 .start-hint {
   font-size: 26rpx;
-  color: #999;
+  color: #666;
 }
 
 /* 游戏区域 */
@@ -388,6 +498,8 @@ export default {
   font-size: 36rpx;
   font-weight: 600;
   color: #333;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
 }
 
 .high-score {
@@ -399,6 +511,18 @@ export default {
   border-radius: 15rpx;
   font-size: 26rpx;
   color: #666;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+/* 云 */
+.cloud {
+  position: absolute;
+  height: 30px;
+  background: #fff;
+  border-radius: 50px;
+  opacity: 0.8;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* 恐龙 */
@@ -420,31 +544,60 @@ export default {
   position: absolute;
   bottom: 30px;
   width: 25px;
-  border-radius: 6rpx;
-  transition: background 1s ease;
+  border-radius: 4rpx;
 
   &.cactus {
     background: #4CAF50;
-    box-shadow: 0 0 20rpx rgba(76, 175, 80, 0.6);
   }
 
   &.rock {
     background: #795548;
-    width: 30px;
-    border-radius: 8rpx 8rpx 4rpx 4rpx;
-    box-shadow: 0 0 20rpx rgba(121, 85, 72, 0.6);
+    width: 35px;
+    border-radius: 6rpx 6rpx 3rpx 3rpx;
+  }
+
+  &.spike {
+    background: transparent;
+    border-radius: 0;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 35px solid #ff4757;
+  }
+
+  &.bird {
+    background: #FF9800;
+    border-radius: 50% 50% 30% 30%;
+  }
+
+  &.flying-rock {
+    background: #9E9E9E;
+    border-radius: 50%;
   }
 
   &.night.cactus {
     background: #81C784;
-    box-shadow: 0 0 25rpx rgba(129, 199, 132, 0.8), inset 0 0 15rpx rgba(255, 255, 255, 0.3);
   }
 
   &.night.rock {
     background: #8D6E63;
-    box-shadow: 0 0 25rpx rgba(141, 110, 99, 0.8), inset 0 0 15rpx rgba(255, 255, 255, 0.3);
+  }
+
+  &.night.spike {
+    border-bottom-color: #ff6b6b;
+  }
+
+  &.night.bird {
+    background: #FFB74D;
+  }
+
+  &.night.flying-rock {
+    background: #BDBDBD;
   }
 }
+
+
 
 /* 地面 */
 .ground {
@@ -453,7 +606,8 @@ export default {
   left: 0;
   right: 0;
   height: 30px;
-  background: #e0e0e0;
+  background: linear-gradient(180deg, #C8E6C9 0%, #A5D6A7 100%);
+  border-top: 4px solid #81C784;
 }
 
 /* 游戏结束 */
@@ -464,6 +618,7 @@ export default {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
 }
 
 .game-over-content {
@@ -475,6 +630,7 @@ export default {
   background: #fff;
   border: 2rpx solid rgba(0, 0, 0, 0.1);
   border-radius: 30rpx;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
 }
 
 .game-over-title {
@@ -496,6 +652,16 @@ export default {
   font-size: 28rpx;
   color: #fff;
   font-weight: 600;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 .restart-hint {

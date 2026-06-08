@@ -1,4 +1,4 @@
-﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>

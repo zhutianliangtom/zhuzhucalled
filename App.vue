@@ -5,6 +5,8 @@ import { storage } from '@/utils/storage.js'
 // 全局网络状态
 let globalNetworkStatus = {
   isOffline: false,
+  isOnline: true,
+  isOfflineGameShown: false,
   listeners: []
 }
 

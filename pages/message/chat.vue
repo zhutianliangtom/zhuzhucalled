@@ -46,7 +46,7 @@
           <!-- 图片消息 -->
           <view v-else-if="msg.type === 'image'" class="media-message image-message">
             <image
-              :src="getFullImageUrl(msg.mediaUrl)"
+              :src="getMediaUrl(msg.mediaUrl)"
               mode="widthFix"
               class="media-img"
               @click="previewImage(msg.mediaUrl)"
@@ -59,7 +59,7 @@
           <!-- 视频消息 -->
           <view v-else-if="msg.type === 'video'" class="media-message video-message" @click="playVideo(msg.mediaUrl)">
             <image
-              :src="getFullImageUrl(msg.mediaUrl)"
+              :src="getMediaUrl(msg.mediaUrl, 'video')"
               mode="aspectFill"
               class="video-thumb"
             />
@@ -140,6 +140,7 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
+import { simpleImageCache } from '@/utils/simpleImageCache'
 
 export default {
   data() {
@@ -164,7 +165,8 @@ export default {
         actions: [],
         y: 0,
         x: 0
-      }
+      },
+      mediaCacheMap: {} // 媒体URL缓存映射
     }
   },
   computed: {
@@ -216,6 +218,138 @@ export default {
       // 如果是相对路径，拼接baseUrl
       const baseUrl = 'https://chentian.dpdns.org'
       return baseUrl + url
+    },
+    /**
+     * 获取媒体URL（优先使用缓存）
+     * @param {string} url - 媒体URL
+     * @param {string} type - 媒体类型 ('image' | 'video')
+     */
+    getMediaUrl(url, type = 'image') {
+      if (!url) return ''
+      
+      // 获取完整URL
+      const fullUrl = this.getFullImageUrl(url)
+      
+      // 如果是本地路径或已经是缓存路径，直接返回
+      if (fullUrl.startsWith('file://') || fullUrl.startsWith('/') || fullUrl.startsWith('_doc/')) {
+        return fullUrl
+      }
+      
+      // 检查缓存映射
+      if (this.mediaCacheMap[fullUrl]) {
+        return this.mediaCacheMap[fullUrl]
+      }
+      
+      // 如果是视频类型的URL，检查是否是视频格式
+      if (type === 'video') {
+        const lowerUrl = fullUrl.toLowerCase()
+        // 如果URL是视频格式但还没有缩略图，使用默认图标
+        if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || 
+            lowerUrl.includes('.avi') || lowerUrl.includes('.mkv') || 
+            lowerUrl.includes('.webm') || lowerUrl.includes('.3gp')) {
+          // 返回视频播放图标（使用 base64 或占位图）
+          return this._getVideoPlaceholder()
+        }
+      }
+      
+      // 返回原始URL（异步缓存会在后台进行）
+      // 启动后台缓存
+      if (!this._cachingUrls?.has(fullUrl)) {
+        this._startMediaCache(fullUrl)
+      }
+      
+      return fullUrl
+    },
+    /**
+     * 获取视频占位图
+     */
+    _getVideoPlaceholder() {
+      // 返回一个视频播放图标的 base64 图片
+      return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSIjMzM0MTU1IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MCIvPjxwYXRoIGQ9Ik02MCA0MEw0OCAxMDBMNDIgMTAwIi8+PC9zdmc+'
+    },
+    /**
+     * 后台启动媒体缓存
+     */
+    _startMediaCache(url) {
+      if (!url || this._cachingUrls?.has(url)) return
+      
+      if (!this._cachingUrls) {
+        this._cachingUrls = new Set()
+      }
+      this._cachingUrls.add(url)
+      
+      simpleImageCache.get(url).then(cachedPath => {
+        this._cachingUrls?.delete(url)
+        if (cachedPath && cachedPath !== url) {
+          this.$set(this.mediaCacheMap, url, cachedPath)
+        }
+      }).catch(() => {
+        this._cachingUrls?.delete(url)
+      })
+    },
+    /**
+     * 获取带缓存的媒体URL（用于图片和视频缩略图）
+     */
+    async getCachedMediaUrl(url) {
+      if (!url) return ''
+      
+      // 获取完整URL
+      const fullUrl = this.getFullImageUrl(url)
+      
+      // 如果是本地路径或已经是缓存路径，直接返回
+      if (fullUrl.startsWith('file://') || fullUrl.startsWith('/') || fullUrl.startsWith('_doc/')) {
+        return fullUrl
+      }
+      
+      // 检查是否已有缓存
+      if (this.mediaCacheMap[fullUrl]) {
+        return this.mediaCacheMap[fullUrl]
+      }
+      
+      // 如果URL以 http:// 或 https:// 开头，尝试缓存
+      if (fullUrl.startsWith('http')) {
+        try {
+          // 先返回原始URL，同时异步缓存
+          this.$set(this.mediaCacheMap, fullUrl, fullUrl)
+          
+          // 异步下载并缓存
+          const cachedPath = await simpleImageCache.get(fullUrl)
+          if (cachedPath && cachedPath !== fullUrl) {
+            this.$set(this.mediaCacheMap, fullUrl, cachedPath)
+          }
+        } catch (e) {}
+      }
+      
+      return fullUrl
+    },
+    /**
+     * 预加载消息中的所有媒体（图片和视频缩略图）
+     */
+    async preloadMedia(messages) {
+      if (!messages || messages.length === 0) return
+      
+      const mediaUrls = []
+      messages.forEach(msg => {
+        if (msg.type === 'image' && msg.mediaUrl) {
+          mediaUrls.push(this.getFullImageUrl(msg.mediaUrl))
+        } else if (msg.type === 'video' && msg.mediaUrl) {
+          mediaUrls.push(this.getFullImageUrl(msg.mediaUrl))
+        }
+      })
+      
+      if (mediaUrls.length > 0) {
+        // 批量预加载媒体
+        for (const url of mediaUrls) {
+          if (!this.mediaCacheMap[url]) {
+            this.$set(this.mediaCacheMap, url, url)
+            simpleImageCache.get(url).then(cachedPath => {
+              if (cachedPath && cachedPath !== url) {
+                this.$set(this.mediaCacheMap, url, cachedPath)
+              }
+            }).catch(() => {})
+          }
+        }
+      }
     },
     formatMessageTime(timestamp) {
       // 将毫秒时间戳格式化为 HH:mm
@@ -322,21 +456,24 @@ export default {
         await cache.fetch(cacheKey, () => api.getConversation(this.userId), {
           ttl: cache.TTL.conversation,
           force: silent, // 静默刷新时强制刷新
-          onLoad: (cached) => {
+          onLoad: async (cached) => {
             // 立即显示缓存数据
             if (cached && cached.data) {
               this.messages = cached.data
+              // 预加载媒体文件并等待完成（确保秒显示）
               if (!silent) {
+                await this._preloadAllMediaAndWait(cached.data)
                 this.scrollToBottom()
               }
             }
           },
-          onRefresh: (fresh) => {
+          onRefresh: async (fresh) => {
             // 后台刷新完成后更新
             if (fresh && fresh.data) {
               this.messages = fresh.data
-              
+              // 预加载媒体文件并等待完成
               if (!silent) {
+                await this._preloadAllMediaAndWait(fresh.data)
                 this.newMsgCount = 0
                 this.showScrollBtn = false
               } else {
@@ -345,6 +482,8 @@ export default {
                   this.newMsgCount = fresh.data.length - oldLen
                   this.showScrollBtn = true
                 }
+                // 静默模式下也预加载但不等待
+                this._preloadAllMedia(fresh.data)
               }
             }
           }
@@ -354,11 +493,95 @@ export default {
         const cachedData = cache.getSync(cacheKey, cache.TTL.conversation)
         if (cachedData && cachedData.data) {
           this.messages = cachedData.data
+          // 预加载媒体文件并等待完成
           if (!silent) {
+            await this._preloadAllMediaAndWait(cachedData.data)
             this.scrollToBottom()
           }
         }
       }
+    },
+    /**
+     * 预加载所有媒体文件（图片和视频缩略图）
+     */
+    _preloadAllMedia(messages) {
+      if (!messages || messages.length === 0) return
+      
+      messages.forEach(msg => {
+        if ((msg.type === 'image' || msg.type === 'video') && msg.mediaUrl) {
+          const fullUrl = this.getFullImageUrl(msg.mediaUrl)
+          // 如果是视频格式，跳过缩略图缓存（因为视频URL不是图片）
+          if (msg.type === 'video') return
+          // 如果没有缓存，启动后台缓存
+          if (!this.mediaCacheMap[fullUrl] && !this._cachingUrls?.has(fullUrl)) {
+            this._startMediaCache(fullUrl)
+          }
+        }
+      })
+    },
+    /**
+     * 预加载所有媒体文件并等待完成（确保秒显示）
+     */
+    async _preloadAllMediaAndWait(messages) {
+      if (!messages || messages.length === 0) return
+      
+      const mediaPromises = []
+      
+      messages.forEach(msg => {
+        if ((msg.type === 'image' || msg.type === 'video') && msg.mediaUrl) {
+          const fullUrl = this.getFullImageUrl(msg.mediaUrl)
+          
+          // 如果是视频类型，跳过缩略图缓存（因为视频URL不是图片）
+          if (msg.type === 'video') return
+          
+          // 如果已经有缓存，跳过
+          if (this.mediaCacheMap[fullUrl]) return
+          // 如果正在缓存中，等待它
+          if (this._cachingUrls?.has(fullUrl)) {
+            mediaPromises.push(this._waitForCache(fullUrl))
+          } else {
+            // 启动新的缓存并等待
+            this._startMediaCache(fullUrl)
+            // 等待一小段时间确保缓存真正开始
+            setTimeout(() => {
+              mediaPromises.push(this._waitForCache(fullUrl))
+            }, 50)
+          }
+        }
+      })
+      
+      // 等待所有媒体缓存完成
+      if (mediaPromises.length > 0) {
+        await Promise.all(mediaPromises)
+      }
+    },
+    /**
+     * 等待特定URL的缓存完成
+     */
+    _waitForCache(url) {
+      return new Promise((resolve) => {
+        // 最多等待3秒超时
+        const timeout = setTimeout(() => {
+          resolve()
+        }, 3000)
+        
+        // 轮询检查缓存是否完成
+        const checkCache = () => {
+          if (this.mediaCacheMap[url]) {
+            clearTimeout(timeout)
+            resolve()
+          } else if (!this._cachingUrls?.has(url)) {
+            // 缓存已经失败或被移除，直接resolve
+            clearTimeout(timeout)
+            resolve()
+          } else {
+            setTimeout(checkCache, 50)
+          }
+        }
+        
+        // 开始检查
+        checkCache()
+      })
     },
     async sendMessage() {
       if (!this.inputText.trim()) return

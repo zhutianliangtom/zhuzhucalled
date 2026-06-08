@@ -1,45 +1,35 @@
-﻿﻿import { storage } from './storage'
+import { storage } from './storage'
 
 const baseUrl = 'https://chentian.dpdns.org'
 
-// 心跳检测配置
 let heartbeatTimer = null
 let isOnline = true
-let heartbeatFailCount = 0 // 连续失败次数
-const MAX_FAIL_COUNT = 3 // 最大允许连续失败次数（3次 = 45秒）
-let offlineBannerTimer = null // 断网提示定时器
-let offlineBannerShown = false // 标记断网提示是否已显示
+let heartbeatFailCount = 0
+const MAX_FAIL_COUNT = 3
+let offlineBannerTimer = null
+let offlineBannerShown = false
 
-// 显示断网提示（不显示Toast，只更新状态）
 const showOfflineBanner = () => {
   if (offlineBannerShown) {
     return
   }
-  
   offlineBannerShown = true
-  
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
   }
 }
 
-// 隐藏断网提示
 const hideOfflineBanner = () => {
-  // 清除重试定时器
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
     offlineBannerTimer = null
   }
-  
-  // 重置显示标记
   offlineBannerShown = false
-  
   try {
     uni.hideToast()
   } catch (e) {}
 }
 
-// 显示网络恢复提示
 const showOnlineToast = () => {
   try {
     uni.showToast({
@@ -51,67 +41,47 @@ const showOnlineToast = () => {
 }
 
 export const api = {
-  // 启动心跳检测
   startHeartbeat() {
     if (heartbeatTimer) {
       return
     }
-    
-    // 立即执行一次心跳检测（处理 Promise）
     this.checkHeartbeat().catch(() => {})
-    
-    // 然后每15秒执行一次（处理 Promise）
     heartbeatTimer = setInterval(async () => {
       try {
         await this.checkHeartbeat()
       } catch (err) {}
-    }, 15000) // 15秒间隔
+    }, 15000)
   },
-  
-  // 执行单次心跳检测
   async checkHeartbeat() {
-    // 始终执行心跳检测，不管是否登录
     try {
       await this.request('/api/heartbeat', 'GET', {}, {
-        'X-Heartbeat': 'true' // 标记为心跳请求
+        'X-Heartbeat': 'true'
       })
-      
-      // 心跳成功，如果之前是断网状态则隐藏断网提示并显示恢复提示
       if (!isOnline) {
         hideOfflineBanner()
         showOnlineToast()
-        // 通知全局网络恢复（通过事件总线）
         uni.$emit('network-status-change', { isOnline: true })
       }
       heartbeatFailCount = 0
       isOnline = true
     } catch (error) {
       heartbeatFailCount++
-      
-      // 连续失败超过阈值，显示断网提示
       if (heartbeatFailCount >= MAX_FAIL_COUNT) {
         isOnline = false
         showOfflineBanner()
-        // 通知全局断网（通过事件总线）
         uni.$emit('network-status-change', { isOnline: false })
       }
     }
   },
-  
-  // 停止心跳检测
   stopHeartbeat() {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer)
       heartbeatTimer = null
     }
   },
-  
-  // 获取在线状态
   getOnlineStatus() {
     return isOnline
   },
-  
-  // 重置心跳状态（用户登录时调用）
   resetHeartbeat() {
     heartbeatFailCount = 0
     isOnline = true
@@ -120,12 +90,10 @@ export const api = {
   },
   async request(url, method = 'GET', data = {}, header = {}) {
     const token = storage.getToken()
-    
     const defaultHeader = {
       'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
+      'Authorization': token ? 'Bearer ' + token : ''
     }
-    
     return new Promise((resolve, reject) => {
       uni.request({
         url: baseUrl + url,
@@ -153,106 +121,80 @@ export const api = {
       })
     })
   },
-  
   async register(data) {
     return await this.request('/auth/register', 'POST', data)
   },
-  
   async login(data) {
     return await this.request('/auth/login', 'POST', data)
   },
-  
   async getUserInfo() {
     return await this.request('/user/info')
   },
-  
   async updateUserInfo(data) {
     return await this.request('/user/info', 'PUT', data)
   },
-  
   async searchUsers(keyword) {
-    return await this.request(`/user/search?keyword=${encodeURIComponent(keyword)}`)
+    return await this.request('/user/search?keyword=' + encodeURIComponent(keyword))
   },
-  
   async getItems(params = {}) {
     const query = Object.keys(params)
       .filter(key => params[key] !== undefined && params[key] !== null)
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
       .join('&')
-    
-    return await this.request(`/items${query ? '?' + query : ''}`)
+    return await this.request('/items' + (query ? '?' + query : ''))
   },
-  
   async getItem(id) {
-    return await this.request(`/items/${id}`)
+    return await this.request('/items/' + id)
   },
-  
   async createItem(data) {
     return await this.request('/items', 'POST', data)
   },
-  
   async updateItem(id, data) {
-    return await this.request(`/items/${id}`, 'PUT', data)
+    return await this.request('/items/' + id, 'PUT', data)
   },
-  
   async deleteItem(id) {
-    return await this.request(`/items/${id}`, 'DELETE')
+    return await this.request('/items/' + id, 'DELETE')
   },
-  
   async solveItem(id) {
-    return await this.request(`/items/${id}/solve`, 'POST')
+    return await this.request('/items/' + id + '/solve', 'POST')
   },
-  
   async getUserStats() {
     return await this.request('/user/stats')
   },
-  
   async getStats() {
     return await this.request('/stats')
   },
-  
   async getUserItems(params = {}) {
     const query = Object.keys(params)
       .filter(key => params[key])
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
       .join('&')
-    
-    return await this.request(`/user/items${query ? '?' + query : ''}`)
+    return await this.request('/user/items' + (query ? '?' + query : ''))
   },
-  
   async getMessages() {
     return await this.request('/messages')
   },
-
   async getUnreadCount() {
     return await this.request('/messages/unread/count')
   },
-  
   async getConversation(userId) {
-    return await this.request(`/messages/conversation/${userId}`)
+    return await this.request('/messages/conversation/' + userId)
   },
-  
-  // 标记对话已读（清除未读数）
   async markConversationRead(userId) {
-    return await this.request(`/messages/conversation/${userId}/read`, 'POST')
+    return await this.request('/messages/conversation/' + userId + '/read', 'POST')
   },
-  
   async sendMessage(userId, content, type = 'text', mediaUrl = '') {
     return await this.request('/messages/send', 'POST', { userId, content, type, mediaUrl })
   },
-  
   async blockUser(userId) {
     return await this.request('/user/block', 'POST', { userId })
   },
-  
   async unblockUser(userId) {
     return await this.request('/user/unblock', 'POST', { userId })
   },
-  
   async getBlockedUsers() {
     return await this.request('/user/blocked')
   },
-  
   async uploadImage(filePath) {
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
@@ -260,13 +202,12 @@ export const api = {
         reject(new Error('请先登录'))
         return
       }
-      
       uni.uploadFile({
         url: baseUrl + '/upload/image',
         filePath,
         name: 'image',
         header: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': 'Bearer ' + token
         },
         success: (res) => {
           if (res.statusCode === 200) {
@@ -285,7 +226,7 @@ export const api = {
               const errData = JSON.parse(res.data)
               reject(new Error(errData.message || '上传失败'))
             } catch (e) {
-              reject(new Error(`上传失败 (${res.statusCode})`))
+              reject(new Error('上传失败 (' + res.statusCode + ')'))
             }
           }
         },
@@ -295,8 +236,6 @@ export const api = {
       })
     })
   },
-  
-  // 注册用头像上传（无需登录，调用 /upload/avatar）
   async uploadAvatarImage(filePath) {
     return await new Promise((resolve, reject) => {
       uni.uploadFile({
@@ -316,7 +255,7 @@ export const api = {
               const errData = JSON.parse(res.data)
               reject(new Error(errData.message || '上传失败'))
             } catch (e) {
-              reject(new Error(`上传失败 (${res.statusCode})`))
+              reject(new Error('上传失败 (' + res.statusCode + ')'))
             }
           }
         },
@@ -326,7 +265,6 @@ export const api = {
       })
     })
   },
-
   async uploadImages(filePaths) {
     const results = []
     for (let filePath of filePaths) {
@@ -335,11 +273,9 @@ export const api = {
     }
     return { urls: results }
   },
-  
   async recallMessage(messageId) {
-    return await this.request(`/messages/${messageId}/recall`, 'POST')
+    return await this.request('/messages/' + messageId + '/recall', 'POST')
   },
-
   async uploadVideo(filePath) {
     return await new Promise((resolve, reject) => {
       const token = storage.getToken()
@@ -347,14 +283,13 @@ export const api = {
         reject(new Error('请先登录'))
         return
       }
-      
       uni.showLoading({ title: '上传中...' })
       uni.uploadFile({
         url: baseUrl + '/upload/video',
         filePath,
         name: 'video',
         header: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': 'Bearer ' + token,
           'Content-Type': 'multipart/form-data'
         },
         formData: {},
@@ -376,7 +311,7 @@ export const api = {
               const errData = typeof res.data === 'object' ? res.data : JSON.parse(res.data)
               reject(new Error(errData.message || '视频上传失败'))
             } catch (e) {
-              reject(new Error(`视频上传失败 (${res.statusCode})`))
+              reject(new Error('视频上传失败 (' + res.statusCode + ')'))
             }
           }
         },
@@ -387,18 +322,13 @@ export const api = {
       })
     })
   },
-
-  // ==================== 版本更新 API ====================
   async getLatestVersion() {
     return await this.request('/version/latest', 'GET')
   },
-
   async getVersionList() {
     return await this.request('/version/list', 'GET')
   },
-
-  // 获取加密的下载地址
   async getEncryptedDownloadUrl(versionId) {
-    return await this.request(`/version/${versionId}/download-url`, 'GET')
+    return await this.request('/version/' + versionId + '/download-url', 'GET')
   }
 }
