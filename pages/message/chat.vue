@@ -40,18 +40,26 @@
 
           <!-- 文字消息 -->
           <view v-if="msg.type === 'text'" class="text-message">
-            <text>{{ msg.content }}</text>
-            <!-- 发送失败状态图标 -->
+            <!-- 发送失败状态图标（在消息前面） -->
             <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status">
               <text class="status-icon">!</text>
             </view>
-            <!-- 拉黑提示语 -->
-            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
-            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            <text>{{ msg.content }}</text>
+            <!-- 拉黑提示语（在气泡内下方） -->
+            <view v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">对方已将你拉黑</text>
+            </view>
+            <view v-if="msg.status === 'blocked_by_sender'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            </view>
           </view>
 
           <!-- 图片消息 -->
           <view v-else-if="msg.type === 'image'" class="media-message image-message">
+            <!-- 发送失败状态图标 -->
+            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
+              <text class="status-icon">!</text>
+            </view>
             <image
               :src="getMediaUrl(msg.mediaUrl)"
               mode="widthFix"
@@ -61,17 +69,21 @@
             <view class="media-tag">
               <text>[图片]</text>
             </view>
-            <!-- 发送失败状态图标 -->
-            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
-              <text class="status-icon">!</text>
+            <!-- 拉黑提示语（在气泡内下方） -->
+            <view v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">对方已将你拉黑</text>
             </view>
-            <!-- 拉黑提示语 -->
-            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
-            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            <view v-if="msg.status === 'blocked_by_sender'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            </view>
           </view>
 
           <!-- 视频消息 -->
           <view v-else-if="msg.type === 'video'" class="media-message video-message" @click="playVideo(msg.mediaUrl)">
+            <!-- 发送失败状态图标 -->
+            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
+              <text class="status-icon">!</text>
+            </view>
             <image
               :src="getMediaUrl(msg.mediaUrl, 'video')"
               mode="aspectFill"
@@ -85,13 +97,13 @@
             <view class="media-tag">
               <text>[视频]</text>
             </view>
-            <!-- 发送失败状态图标 -->
-            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
-              <text class="status-icon">!</text>
+            <!-- 拉黑提示语（在气泡内下方） -->
+            <view v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">对方已将你拉黑</text>
             </view>
-            <!-- 拉黑提示语 -->
-            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
-            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            <view v-if="msg.status === 'blocked_by_sender'" class="blocked-tip-wrapper">
+              <text class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
+            </view>
           </view>
 
           <!-- 已撤回提示 -->
@@ -687,6 +699,7 @@ export default {
       
       try {
         const res = await api.sendMessage(this.userId, content)
+        console.log('[发送消息结果]', res)
         // 检查是否有拉黑状态
         if (res.message && res.message.status) {
           // 消息已保存但处于拉黑状态，显示提示
@@ -1215,21 +1228,21 @@ export default {
   margin-top: 8rpx;
 }
 
-/* ─── 发送失败状态 ─── */
+/* ─── 发送失败状态（拉黑消息感叹号）─── */
 .message-status {
-  position: absolute;
-  left: -36rpx;
-  bottom: 0;
-  width: 32rpx;
-  height: 32rpx;
-  background: #ff4757;
-  border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
+  background: #ff4757;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  vertical-align: middle;
+  flex-shrink: 0;
   
   .status-icon {
-    font-size: 20rpx;
+    font-size: 22rpx;
     color: #fff;
     font-weight: bold;
     line-height: 1;
@@ -1237,17 +1250,26 @@ export default {
 }
 
 .media-status {
+  position: absolute;
   left: 8rpx;
   bottom: 8rpx;
+  margin-right: 0;
 }
 
-/* ─── 拉黑提示语 ─── */
+/* ─── 拉黑提示语容器（在气泡内）─── */
+.blocked-tip-wrapper {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid rgba(255, 71, 87, 0.3);
+}
+
+/* ─── 拉黑提示语文本 ─── */
 .blocked-tip {
   display: block;
   font-size: 22rpx;
   color: #ff4757;
-  margin-top: 8rpx;
   text-align: center;
+  line-height: 1.4;
 }
 
 .message-item.self .message-time {

@@ -1620,12 +1620,6 @@ app.get('/messages/conversation/:userId', authenticateToken, async (req, res) =>
   
   console.log(`[消息获取] 请求者: ${req.user.id}, 对方: ${userId}, currentUserBlockedOther: ${currentUserBlockedOther}, otherUserBlockedCurrent: ${otherUserBlockedCurrent}`)
   
-  // 如果当前用户拉黑了对方，不返回任何消息
-  if (currentUserBlockedOther) {
-    console.log(`[消息获取] ${req.user.id} 拉黑了 ${userId}，返回空数组`)
-    return res.json({ data: [] })
-  }
-  
   // 查询消息
   const [rows] = await pool.query(
     'SELECT m.*, u.name AS senderName, u.avatar AS senderAvatar FROM messages m LEFT JOIN users u ON m.senderId = u.id WHERE (m.senderId = ? AND m.receiverId = ?) OR (m.senderId = ? AND m.receiverId = ?) ORDER BY m.createdAt ASC',
@@ -1642,11 +1636,20 @@ app.get('/messages/conversation/:userId', authenticateToken, async (req, res) =>
     status: m.status || 'sent'
   }))
   
-  // 如果对方拉黑了当前用户，只返回当前用户发送的消息（自己发的能看到）
-  if (otherUserBlockedCurrent) {
+  // 如果当前用户拉黑了对方，只返回当前用户发送的消息（自己发的能看到）
+  if (currentUserBlockedOther) {
     const beforeFilter = messages.length
     messages = messages.filter(m => m.senderId === req.user.id)
-    console.log(`[消息获取] ${userId} 拉黑了 ${req.user.id}，过滤消息 ${beforeFilter} -> ${messages.length}`)
+    console.log(`[消息获取] ${req.user.id} 拉黑了 ${userId}，过滤消息 ${beforeFilter} -> ${messages.length}`)
+  }
+  
+  // 如果对方拉黑了当前用户（被拉黑方视角），保留所有消息作为证据，仅对当前用户发的新消息标记为被拉黑状态
+  if (otherUserBlockedCurrent) {
+    messages = messages.map(m => ({
+      ...m,
+      status: m.senderId === req.user.id ? 'blocked_by_receiver' : m.status
+    }))
+    console.log(`[消息获取] ${userId} 拉黑了 ${req.user.id}，保留所有历史消息作为证据`)
   }
   
   res.json({ data: messages })
@@ -1826,13 +1829,7 @@ app.post('/user/block', authenticateToken, async (req, res) => {
   if (!blocked.includes(userId)) {
     blocked.push(userId)
     await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
-    
-    // 删除拉黑方（当前用户）发送的消息（A发的消息）
-    const [deleteResult] = await pool.query(
-      'DELETE FROM messages WHERE senderId = ? AND receiverId = ?',
-      [req.user.id, userId]
-    )
-    console.log(`[拉黑] ${req.user.id} 拉黑了 ${userId}，删除了 ${deleteResult.affectedRows} 条消息`)
+    console.log(`[拉黑] ${req.user.id} 拉黑了 ${userId}，保留所有历史消息作为证据`)
   } else {
     console.log(`[拉黑] ${req.user.id} 已经拉黑了 ${userId}`)
   }
