@@ -64,7 +64,19 @@ export const notification = {
       const NotificationManagerCompat = plus.android.importClass('androidx.core.app.NotificationManagerCompat')
       const Bundle = plus.android.importClass('android.os.Bundle')
 
-      const launchIntent = main.getPackageManager().getLaunchIntentForPackage(main.getPackageName())
+      let launchIntent = null
+      const packageManager = main.getPackageManager()
+      
+      if (packageManager && typeof packageManager.getLaunchIntentForPackage === 'function') {
+        launchIntent = packageManager.getLaunchIntentForPackage(main.getPackageName())
+      }
+      
+      if (!launchIntent) {
+        launchIntent = new Intent(Intent.ACTION_MAIN)
+        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+        launchIntent.setPackage(main.getPackageName())
+      }
+      
       launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)
       
       const bundle = new Bundle()

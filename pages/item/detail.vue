@@ -89,7 +89,8 @@ export default {
       isDark: false,
       item: null,
       itemId: null,
-      isOwnItem: false
+      isOwnItem: false,
+      blockedUsers: [] // 当前用户拉黑的用户列表
     }
   },
   onLoad(options) {
@@ -98,6 +99,7 @@ export default {
       this.loadItem()
     }
     this.applyTheme()
+    this.loadBlockedUsers()
     
     // 监听主题切换
     uni.$on('theme-change', ({ isDark }) => {
@@ -169,6 +171,16 @@ export default {
         this.isOwnItem = true
       }
     },
+    async loadBlockedUsers() {
+      try {
+        const res = await api.getBlockedUsers()
+        if (res && res.data) {
+          this.blockedUsers = res.data.map(u => u.id)
+        }
+      } catch (err) {
+        console.error('加载拉黑列表失败:', err)
+      }
+    },
     goChat() {
       const user = storage.getUser()
       if (!user) {
@@ -181,6 +193,16 @@ export default {
               uni.navigateTo({ url: '/pages/auth/login' })
             }
           }
+        })
+        return
+      }
+      
+      // 检查是否已拉黑对方
+      if (this.item?.userId && this.blockedUsers.includes(this.item.userId)) {
+        uni.showModal({
+          title: '提示',
+          content: '暂不支持与拉黑的联系',
+          showCancel: false
         })
         return
       }

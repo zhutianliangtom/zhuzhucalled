@@ -714,6 +714,12 @@ async function initDatabase() {
     console.log('[数据库] messages 表已添加 mediaUrl 列')
   } catch (e) { /* 列已存在，忽略 */ }
 
+  // 3.11 添加 messages 表的 status 列（用于标记拉黑状态）
+  try {
+    await pool.query("ALTER TABLE messages ADD COLUMN status VARCHAR(50) DEFAULT 'sent'")
+    console.log('[数据库] messages 表已添加 status 列')
+  } catch (e) { /* 列已存在，忽略 */ }
+
   // 3.10 添加 items 表缺少的 contact 和 location 列
   try {
     await pool.query('ALTER TABLE items ADD COLUMN contact VARCHAR(100)')
@@ -1519,7 +1525,8 @@ app.get('/messages/conversation/:userId', authenticateToken, async (req, res) =>
     ...m,
     createdAt: m.createdAt * 1000,
     senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '未知用户',
-    senderAvatar: getPublicUrl(m.senderAvatar)
+    senderAvatar: getPublicUrl(m.senderAvatar),
+    status: m.status || 'sent'
   }))
   res.json({ data: messages })
 })
@@ -1570,8 +1577,8 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
     const createdAt = Math.floor(Date.now() / 1000)
 
     await pool.query(
-      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
-      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt]
+      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt, status) VALUES (?,?,?,?,?,?,?,?,?)',
+      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt, 'blocked_by_receiver']
     )
 
     // 返回特殊状态码，表示消息已保存但对方收不到
@@ -1599,8 +1606,8 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
     const createdAt = Math.floor(Date.now() / 1000)
 
     await pool.query(
-      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
-      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt]
+      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt, status) VALUES (?,?,?,?,?,?,?,?,?)',
+      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt, 'blocked_by_sender']
     )
 
     // 返回特殊状态码，表示消息已保存但对方收不到
@@ -1626,8 +1633,8 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
   const createdAt = Math.floor(Date.now() / 1000)
 
   await pool.query(
-    'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
-    [id, req.user.id, userId, content || '', type, mediaUrl, false, createdAt]
+    'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt, status) VALUES (?,?,?,?,?,?,?,?,?)',
+    [id, req.user.id, userId, content || '', type, mediaUrl, false, createdAt, 'sent']
   )
 
   // 广播新消息通知给所有管理员
@@ -1684,8 +1691,11 @@ app.post('/user/block', authenticateToken, async (req, res) => {
     blocked.push(userId)
     await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
     
-    // 保留被拉黑方的聊天记录，不再删除消息
-    // 拉黑方的对话列表会通过前端逻辑清空
+    // 删除拉黑方（当前用户）与被拉黑方之间的所有聊天记录
+    await pool.query(
+      'DELETE FROM messages WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)',
+      [req.user.id, userId, userId, req.user.id]
+    )
   }
 
   res.json({ success: true })

@@ -2,6 +2,7 @@
 import { api } from '@/utils/api.js'
 import { storage } from '@/utils/storage.js'
 import { notification } from '@/utils/notification.js'
+import { websocket } from '@/utils/websocket.js'
 
 // 全局网络状态
 let globalNetworkStatus = {
@@ -110,6 +111,9 @@ export default {
     // 启动全局消息轮询服务
     this.startGlobalMessagePoll()
     
+    // 启动 WebSocket 连接
+    this.initWebSocket()
+    
     // 不管是否登录，都跳转到主页
     uni.reLaunch({ url: '/pages/index/index' })
     
@@ -184,6 +188,9 @@ export default {
     
     // 停止全局消息轮询
     this.stopGlobalMessagePoll()
+    
+    // 断开 WebSocket 连接
+    websocket.disconnect()
   },
   methods: {
     // 初始化网络检测
@@ -509,6 +516,68 @@ export default {
         conversation.userAvatar
       )
       // #endif
+    },
+    
+    // 初始化 WebSocket 连接
+    initWebSocket() {
+      websocket.addListener((event, data) => {
+        this.handleWebSocketEvent(event, data)
+      })
+      // 延迟连接，等待登录状态就绪
+      setTimeout(() => {
+        websocket.connect()
+      }, 2000)
+    },
+    
+    // 处理 WebSocket 事件
+    handleWebSocketEvent(event, data) {
+      switch (event) {
+        case 'connected':
+          console.log('WebSocket 连接成功')
+          break
+        case 'disconnected':
+          console.log('WebSocket 连接断开')
+          break
+        case 'error':
+          console.error('WebSocket 错误', data)
+          break
+        case 'message':
+          this.handleWebSocketMessage(data)
+          break
+      }
+    },
+    
+    // 处理 WebSocket 消息
+    handleWebSocketMessage(message) {
+      if (!message || !message.userId) {
+        return
+      }
+      
+      const now = Date.now()
+      const userId = message.userId
+      const lastNotify = lastNotifyTimes[userId] || 0
+      
+      if (now - lastNotify >= NOTIFY_COOLDOWN) {
+        const userName = message.userName || '未知用户'
+        const content = message.content || message.lastMessage || '新消息'
+        
+        // #ifdef APP-PLUS
+        notification.showMessageNotification(
+          userId,
+          userName,
+          content,
+          message.userAvatar
+        )
+        // #endif
+        
+        lastNotifyTimes[userId] = now
+      }
+      
+      // 更新本地消息计数
+      lastMessageCounts[userId] = (lastMessageCounts[userId] || 0) + 1
+      
+      // 触发全局事件通知
+      uni.$emit('new-message', message)
     },
     // 检测版本更新（仅 App 平台 - 强制检测）
     async checkUpdate() {

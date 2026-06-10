@@ -32,7 +32,7 @@
       >
         <!-- 对方头像 -->
         <view class="avatar msg-avatar" v-if="msg.senderId !== currentUserId">
-          <image v-if="msg.senderAvatar" :src="getFullImageUrl(msg.senderAvatar)" mode="aspectFill" class="avatar-img" />
+          <image v-if="cachedAvatars[msg.senderId]" :src="cachedAvatars[msg.senderId]" mode="aspectFill" class="avatar-img" />
           <text v-else>{{ (msg.senderName || '?').charAt(0) }}</text>
         </view>
 
@@ -45,6 +45,9 @@
             <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status">
               <text class="status-icon">!</text>
             </view>
+            <!-- 拉黑提示语 -->
+            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
+            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
           </view>
 
           <!-- 图片消息 -->
@@ -62,6 +65,9 @@
             <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
               <text class="status-icon">!</text>
             </view>
+            <!-- 拉黑提示语 -->
+            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
+            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
           </view>
 
           <!-- 视频消息 -->
@@ -83,6 +89,9 @@
             <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
               <text class="status-icon">!</text>
             </view>
+            <!-- 拉黑提示语 -->
+            <text v-if="msg.status === 'blocked_by_receiver'" class="blocked-tip">对方已将你拉黑</text>
+            <text v-if="msg.status === 'blocked_by_sender'" class="blocked-tip">暂不支持给已拉黑的用户发消息</text>
           </view>
 
           <!-- 已撤回提示 -->
@@ -95,7 +104,7 @@
 
         <!-- 自己头像 -->
         <view class="avatar msg-avatar" v-if="msg.senderId === currentUserId">
-          <image v-if="currentUserAvatar" :src="getFullImageUrl(currentUserAvatar)" mode="aspectFill" class="avatar-img" />
+          <image v-if="cachedAvatars[currentUserId]" :src="cachedAvatars[currentUserId]" mode="aspectFill" class="avatar-img" />
           <text v-else>{{ currentUserName?.charAt(0) || '?' }}</text>
         </view>
       </view>
@@ -179,7 +188,8 @@ export default {
         y: 0,
         x: 0
       },
-      mediaCacheMap: {} // 媒体URL缓存映射
+      mediaCacheMap: {}, // 媒体URL缓存映射
+      cachedAvatars: {} // 头像本地缓存 { userId: localPath }
     }
   },
   computed: {
@@ -207,6 +217,7 @@ export default {
     
     this.loadMessages()
     this.startPoll()
+    this.cacheAvatars()
   },
   onShow() {
     this.loadMessages()
@@ -233,6 +244,28 @@ export default {
       // 如果是相对路径，拼接baseUrl
       const baseUrl = 'https://chentian.dpdns.org'
       return baseUrl + url
+    },
+    /**
+     * 缓存双方头像到本地
+     */
+    async cacheAvatars() {
+      // 缓存对方头像
+      if (this.userAvatar) {
+        const fullUrl = this.getFullImageUrl(this.userAvatar)
+        const cachedPath = await simpleImageCache.get(fullUrl)
+        if (cachedPath) {
+          this.$set(this.cachedAvatars, this.userId, cachedPath)
+        }
+      }
+      
+      // 缓存自己头像
+      if (this.currentUserAvatar) {
+        const fullUrl = this.getFullImageUrl(this.currentUserAvatar)
+        const cachedPath = await simpleImageCache.get(fullUrl)
+        if (cachedPath) {
+          this.$set(this.cachedAvatars, this.currentUserId, cachedPath)
+        }
+      }
     },
     /**
      * 获取媒体URL（优先使用缓存）
@@ -475,6 +508,8 @@ export default {
             // 立即显示缓存数据
             if (cached && cached.data) {
               this.messages = cached.data
+              // 缓存消息中的头像
+              this.cacheMessageAvatars(cached.data)
               // 预加载媒体文件并等待完成（确保秒显示）
               if (!silent) {
                 await this._preloadAllMediaAndWait(cached.data)
@@ -486,6 +521,8 @@ export default {
             // 后台刷新完成后更新
             if (fresh && fresh.data) {
               this.messages = fresh.data
+              // 缓存消息中的头像
+              this.cacheMessageAvatars(fresh.data)
               // 预加载媒体文件并等待完成
               if (!silent) {
                 await this._preloadAllMediaAndWait(fresh.data)
@@ -508,10 +545,35 @@ export default {
         const cachedData = cache.getSync(cacheKey, cache.TTL.conversation)
         if (cachedData && cachedData.data) {
           this.messages = cachedData.data
+          // 缓存消息中的头像
+          this.cacheMessageAvatars(cachedData.data)
           // 预加载媒体文件并等待完成
           if (!silent) {
             await this._preloadAllMediaAndWait(cachedData.data)
             this.scrollToBottom()
+          }
+        }
+      }
+    },
+    /**
+     * 缓存消息中涉及的头像
+     */
+    async cacheMessageAvatars(messages) {
+      if (!messages || messages.length === 0) return
+      
+      const avatarUrls = new Map()
+      messages.forEach(msg => {
+        if (msg.senderId && msg.senderAvatar) {
+          avatarUrls.set(msg.senderId, msg.senderAvatar)
+        }
+      })
+      
+      for (const [userId, avatarUrl] of avatarUrls) {
+        if (!this.cachedAvatars[userId]) {
+          const fullUrl = this.getFullImageUrl(avatarUrl)
+          const cachedPath = await simpleImageCache.get(fullUrl)
+          if (cachedPath) {
+            this.$set(this.cachedAvatars, userId, cachedPath)
           }
         }
       }
@@ -1156,7 +1218,7 @@ export default {
 /* ─── 发送失败状态 ─── */
 .message-status {
   position: absolute;
-  right: -36rpx;
+  left: -36rpx;
   bottom: 0;
   width: 32rpx;
   height: 32rpx;
@@ -1175,8 +1237,17 @@ export default {
 }
 
 .media-status {
-  right: 8rpx;
+  left: 8rpx;
   bottom: 8rpx;
+}
+
+/* ─── 拉黑提示语 ─── */
+.blocked-tip {
+  display: block;
+  font-size: 22rpx;
+  color: #ff4757;
+  margin-top: 8rpx;
+  text-align: center;
 }
 
 .message-item.self .message-time {
