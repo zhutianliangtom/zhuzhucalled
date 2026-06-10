@@ -19,7 +19,7 @@
           class="crop-image"
           :src="imageSrc"
           :style="imageStyle"
-          mode="aspectFill"
+          mode="scaleToFill"
         />
         
         <!-- 裁剪框 -->
@@ -71,11 +71,17 @@ export default {
   },
   computed: {
     imageStyle() {
-      // 使用 transformOrigin: center center，缩放以图片中心为原点
-      // translate 用于将图片中心对齐到裁剪框中心
+      // 计算图片在裁剪框内的实际显示尺寸
+      // 使用 aspectFit 模式，确保图片完整显示
+      const displayScale = this.frameSize / Math.max(this.imageWidth, this.imageHeight)
+      const displayWidth = this.imageWidth * displayScale
+      const displayHeight = this.imageHeight * displayScale
+      
       return {
-        width: this.frameSize + 'px',
-        height: this.frameSize + 'px',
+        width: displayWidth + 'px',
+        height: displayHeight + 'px',
+        marginLeft: -displayWidth / 2 + 'px',
+        marginTop: -displayHeight / 2 + 'px',
         transform: `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`,
         transformOrigin: 'center center'
       }
@@ -138,26 +144,19 @@ export default {
   },
   methods: {
     initScale() {
-      const scaleX = this.frameSize / this.imageWidth
-      const scaleY = this.frameSize / this.imageHeight
+      // 计算图片在裁剪框内的基础显示尺寸
+      // 使用 aspectFit 模式，确保图片完整显示在裁剪框内
+      const displayScale = this.frameSize / Math.max(this.imageWidth, this.imageHeight)
+      const displayWidth = this.imageWidth * displayScale
+      const displayHeight = this.imageHeight * displayScale
       
-      // 计算刚好填满裁剪框的缩放比例
-      const fitScale = Math.max(scaleX, scaleY)
+      // 初始缩放为1，图片刚好完整显示在裁剪框内
+      this.scale = 1
       
-      // 计算让图片占满裁剪框70%时的缩放比例
-      const coverScale = Math.min(scaleX, scaleY) * (1 / 0.7)
+      // 最小缩放：允许缩小到0.5倍
+      this.minScale = 0.5
       
-      // 初始缩放：至少占满原图的70%，即不超过fitScale
-      // 取两者中较小的值，确保图片不会小于70%
-      this.scale = Math.min(fitScale, coverScale)
-      
-      // 最小缩放：允许缩小但通过拖动调整位置
-      this.minScale = fitScale * 0.5
-      
-      // 由于 transformOrigin: center center，图片会以其中心为原点进行缩放
-      // translate 用于将图片中心对齐到裁剪框中心
-      // 裁剪框的尺寸是 frameSize，位置是 top:50%; left:50%; margin: -frameSize/2
-      // 所以裁剪框中心相对于 crop-area 顶部左侧是 frameSize/2
+      // translate 初始为0，图片居中
       this.translateX = 0
       this.translateY = 0
       
@@ -165,7 +164,9 @@ export default {
         frameSize: this.frameSize,
         imageWidth: this.imageWidth,
         imageHeight: this.imageHeight,
-        scaleX, scaleY, fitScale, coverScale,
+        displayScale,
+        displayWidth,
+        displayHeight,
         scale: this.scale,
         minScale: this.minScale
       })
@@ -245,27 +246,53 @@ export default {
 
         const outputSize = 400
 
-        const scaleFactor = this.scale * (outputSize / this.frameSize)
-        const offsetX = (this.translateX / this.frameSize) * outputSize
-        const offsetY = (this.translateY / this.frameSize) * outputSize
+        // 计算图片在裁剪框内的基础显示尺寸（aspectFit 模式）
+        const displayScale = this.frameSize / Math.max(this.imageWidth, this.imageHeight)
+        const displayWidth = this.imageWidth * displayScale
+        const displayHeight = this.imageHeight * displayScale
+
+        // 计算裁剪框相对于图片的位置
+        // 裁剪框是 600rpx × 600rpx，图片居中显示
+        // translateX/translateY 是图片中心相对于裁剪框中心的偏移
+        // scale 是图片的缩放比例
+
+        // 计算缩放后的图片尺寸
+        const scaledWidth = displayWidth * this.scale
+        const scaledHeight = displayHeight * this.scale
+
+        // 计算图片左上角相对于裁剪框左上角的位置
+        // 图片居中，所以初始位置是 (frameSize - scaledWidth) / 2
+        const imgLeft = (this.frameSize - scaledWidth) / 2 + this.translateX
+        const imgTop = (this.frameSize - scaledHeight) / 2 + this.translateY
+
+        // 计算裁剪区域在图片上的位置（相对于图片左上角）
+        const cropLeft = -imgLeft
+        const cropTop = -imgTop
+
+        // 将裁剪区域映射到原图坐标
+        const srcX = (cropLeft / scaledWidth) * this.imageWidth
+        const srcY = (cropTop / scaledHeight) * this.imageHeight
+        const srcWidth = (this.frameSize / scaledWidth) * this.imageWidth
+        const srcHeight = (this.frameSize / scaledHeight) * this.imageHeight
+
+        console.log('裁剪参数:', {
+          displayScale, displayWidth, displayHeight,
+          scaledWidth, scaledHeight,
+          imgLeft, imgTop,
+          cropLeft, cropTop,
+          srcX, srcY, srcWidth, srcHeight
+        })
 
         const ctx = uni.createCanvasContext('cropCanvas', this)
 
         ctx.clearRect(0, 0, outputSize, outputSize)
-        ctx.save()
 
-        ctx.translate(outputSize / 2 + offsetX, outputSize / 2 + offsetY)
-        ctx.scale(scaleFactor, scaleFactor)
-
+        // 绘制裁剪区域到 canvas
         ctx.drawImage(
           this.imageSrc,
-          -imageInfo.width / 2,
-          -imageInfo.height / 2,
-          imageInfo.width,
-          imageInfo.height
+          srcX, srcY, srcWidth, srcHeight,
+          0, 0, outputSize, outputSize
         )
-
-        ctx.restore()
 
         ctx.draw(false, () => {
           uni.canvasToTempFilePath({
@@ -289,7 +316,8 @@ export default {
 
               uni.navigateBack()
             },
-            fail: () => {
+            fail: (err) => {
+              console.error('canvasToTempFilePath 失败:', err)
               uni.hideLoading()
               const pages = getCurrentPages()
               const prevPage = pages[pages.length - 2]
@@ -374,10 +402,8 @@ export default {
 
 .crop-image {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 50%;
+  left: 50%;
   transform-origin: center center;
   z-index: 1;
 }
