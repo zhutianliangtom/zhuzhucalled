@@ -467,6 +467,9 @@ export default {
           if (res.confirm) {
             try {
               await api.blockUser(this.userId)
+              // 清理对话缓存
+              const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+              cache.set(cacheKey, null)
               uni.showToast({ title: '拉黑成功', icon: 'success' })
               setTimeout(() => {
                 uni.navigateBack()
@@ -486,6 +489,9 @@ export default {
         confirmColor: '#334155',
         success: async (res) => {
           if (res.confirm) {
+            // 清理对话缓存，确保重新加载消息
+            const cacheKey = `conv_${this.currentUserId}_${this.userId}`
+            cache.set(cacheKey, null)
             try {
               await api.unblockUser(this.userId)
               uni.showToast({ title: '已取消拉黑', icon: 'success' })
@@ -501,9 +507,10 @@ export default {
       const oldLen = this.messages.length
       
       try {
+        // 非静默刷新时总是强制从服务器获取最新数据
         await cache.fetch(cacheKey, () => api.getConversation(this.userId), {
           ttl: cache.TTL.conversation,
-          force: silent, // 静默刷新时强制刷新
+          force: true, // 总是强制刷新，确保拉黑状态能立即生效
           onLoad: async (cached) => {
             // 立即显示缓存数据
             if (cached && cached.data) {
@@ -541,17 +548,10 @@ export default {
           }
         })
       } catch (err) {
-        // 如果网络请求失败，使用缓存数据
-        const cachedData = cache.getSync(cacheKey, cache.TTL.conversation)
-        if (cachedData && cachedData.data) {
-          this.messages = cachedData.data
-          // 缓存消息中的头像
-          this.cacheMessageAvatars(cachedData.data)
-          // 预加载媒体文件并等待完成
-          if (!silent) {
-            await this._preloadAllMediaAndWait(cachedData.data)
-            this.scrollToBottom()
-          }
+        // 网络请求失败时不使用缓存，直接清空消息列表
+        console.error('加载消息失败:', err)
+        if (!silent) {
+          this.messages = []
         }
       }
     },

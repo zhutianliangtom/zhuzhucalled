@@ -277,8 +277,13 @@ wss.on('connection', (ws, req) => {
   console.log('WebSocket 新连接')
 
   // 解析 URL 参数获取 token
-  const urlParams = new URLSearchParams(req.url.slice(1))
-  const token = urlParams.get('token')
+  let token = null
+  try {
+    const urlObj = new URL(req.url, `http://${req.headers.host}`)
+    token = urlObj.searchParams.get('token')
+  } catch (e) {
+    console.error('WebSocket URL 解析失败:', e)
+  }
   
   // 同时支持 cookie 和 URL 参数两种方式
   const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
@@ -1599,18 +1604,51 @@ app.get('/messages/unread/count', authenticateToken, async (req, res) => {
 })
 
 app.get('/messages/conversation/:userId', authenticateToken, async (req, res) => {
+  const userId = req.params.userId
+  
+  // 获取当前用户和对方的拉黑列表
+  const [currentUserRows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
+  const [otherUserRows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [userId])
+  
+  const currentUserBlocked = safeJSONParse(currentUserRows[0]?.blockedUsers || '[]')
+  const otherUserBlocked = safeJSONParse(otherUserRows[0]?.blockedUsers || '[]')
+  
+  // 当前用户是否拉黑了对方
+  const currentUserBlockedOther = currentUserBlocked.includes(userId)
+  // 对方是否拉黑了当前用户
+  const otherUserBlockedCurrent = otherUserBlocked.includes(req.user.id)
+  
+  console.log(`[消息获取] 请求者: ${req.user.id}, 对方: ${userId}, currentUserBlockedOther: ${currentUserBlockedOther}, otherUserBlockedCurrent: ${otherUserBlockedCurrent}`)
+  
+  // 如果当前用户拉黑了对方，不返回任何消息
+  if (currentUserBlockedOther) {
+    console.log(`[消息获取] ${req.user.id} 拉黑了 ${userId}，返回空数组`)
+    return res.json({ data: [] })
+  }
+  
+  // 查询消息
   const [rows] = await pool.query(
     'SELECT m.*, u.name AS senderName, u.avatar AS senderAvatar FROM messages m LEFT JOIN users u ON m.senderId = u.id WHERE (m.senderId = ? AND m.receiverId = ?) OR (m.senderId = ? AND m.receiverId = ?) ORDER BY m.createdAt ASC',
-    [req.user.id, req.params.userId, req.params.userId, req.user.id]
+    [req.user.id, userId, userId, req.user.id]
   )
-
-  const messages = rows.map(m => ({
+  
+  console.log(`[消息获取] 查询到 ${rows.length} 条消息`)
+  
+  let messages = rows.map(m => ({
     ...m,
     createdAt: m.createdAt * 1000,
     senderName: m.senderName && m.senderName.trim() !== '' ? m.senderName : '未知用户',
     senderAvatar: getPublicUrl(m.senderAvatar),
     status: m.status || 'sent'
   }))
+  
+  // 如果对方拉黑了当前用户，只返回当前用户发送的消息（自己发的能看到）
+  if (otherUserBlockedCurrent) {
+    const beforeFilter = messages.length
+    messages = messages.filter(m => m.senderId === req.user.id)
+    console.log(`[消息获取] ${userId} 拉黑了 ${req.user.id}，过滤消息 ${beforeFilter} -> ${messages.length}`)
+  }
+  
   res.json({ data: messages })
 })
 
@@ -1652,6 +1690,8 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
   // 检查发送者是否拉黑了对方
   const senderBlocked = safeJSONParse(sender?.blockedUsers || '[]')
   const isSenderBlockingReceiver = senderBlocked.includes(userId)
+
+  console.log(`[消息发送] 发送者: ${req.user.id}, 接收者: ${userId}, isBlockedByReceiver: ${isBlockedByReceiver}, isSenderBlockingReceiver: ${isSenderBlockingReceiver}`)
 
   // 如果发送者被对方拉黑
   if (isBlockedByReceiver) {
@@ -1744,7 +1784,7 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
     userName: sender.name || sender.studentId || '未知用户',
     userAvatar: sender.avatar || '',
     content: content || '',
-    type: type,
+    messageType: type,
     mediaUrl: mediaUrl,
     createdAt: createdAt * 1000,
     messageId: id
@@ -1787,11 +1827,14 @@ app.post('/user/block', authenticateToken, async (req, res) => {
     blocked.push(userId)
     await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
     
-    // 删除拉黑方（当前用户）与被拉黑方之间的所有聊天记录
-    await pool.query(
-      'DELETE FROM messages WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)',
-      [req.user.id, userId, userId, req.user.id]
+    // 删除拉黑方（当前用户）发送的消息（A发的消息）
+    const [deleteResult] = await pool.query(
+      'DELETE FROM messages WHERE senderId = ? AND receiverId = ?',
+      [req.user.id, userId]
     )
+    console.log(`[拉黑] ${req.user.id} 拉黑了 ${userId}，删除了 ${deleteResult.affectedRows} 条消息`)
+  } else {
+    console.log(`[拉黑] ${req.user.id} 已经拉黑了 ${userId}`)
   }
 
   res.json({ success: true })

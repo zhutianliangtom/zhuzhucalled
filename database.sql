@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS messages (
     mediaUrl TEXT COMMENT '媒体文件URL (图片/视频)',
     `read` BOOLEAN DEFAULT FALSE COMMENT '是否已读',
     createdAt BIGINT NOT NULL COMMENT '发送时间戳 (秒)',
+    status VARCHAR(50) DEFAULT 'sent' COMMENT '消息状态: sent-已发送, blocked_by_receiver-被对方拉黑, blocked_by_sender-被发送者拉黑',
     INDEX idx_senderId (senderId),
     INDEX idx_receiverId (receiverId),
     INDEX idx_createdAt (createdAt),
