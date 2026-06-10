@@ -2,8 +2,8 @@
     "name" : "校园失物招领",
     "appid" : "__UNI__5AB411F",
     "description" : "校园失物招领App，帮助同学们快速找回丢失的物品",
-    "versionName" : "1.1.6",
-    "versionCode" : 800,
+    "versionName" : "1.1.7",
+    "versionCode" : 900,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
