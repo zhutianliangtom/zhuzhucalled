@@ -1,4 +1,4 @@
-﻿﻿<template>
+﻿<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>
@@ -121,7 +121,7 @@ export default {
         sourceType: ['album', 'camera'],
         success: (res) => {
           uni.navigateTo({
-            url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(res.tempFilePaths[0])}`
+            url: `/pages/user/avatar-crop?src=${res.tempFilePaths[0]}`
           })
         },
         fail: () => {}

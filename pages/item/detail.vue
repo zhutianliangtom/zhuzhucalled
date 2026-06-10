@@ -90,7 +90,8 @@ export default {
       item: null,
       itemId: null,
       isOwnItem: false,
-      blockedUsers: [] // 当前用户拉黑的用户列表
+      blockedUsers: [], // 当前用户拉黑的用户列表
+      blockedUsersLoaded: false // 拉黑列表是否已加载
     }
   },
   onLoad(options) {
@@ -176,12 +177,15 @@ export default {
         const res = await api.getBlockedUsers()
         if (res && res.data) {
           this.blockedUsers = res.data.map(u => u.id)
+          console.log('[帖子详情] 拉黑列表已加载:', this.blockedUsers)
         }
+        this.blockedUsersLoaded = true
       } catch (err) {
         console.error('加载拉黑列表失败:', err)
+        this.blockedUsersLoaded = true
       }
     },
-    goChat() {
+    async goChat() {
       const user = storage.getUser()
       if (!user) {
         uni.showModal({
@@ -197,7 +201,20 @@ export default {
         return
       }
       
-      // 检查是否已拉黑对方
+      // 确保拉黑列表已加载
+      if (!this.blockedUsersLoaded) {
+        uni.showLoading({ title: '加载中...' })
+        await this.loadBlockedUsers()
+        uni.hideLoading()
+      }
+      
+      // 检查是否已拉黑对方（我拉黑了对方）
+      console.log('[帖子详情] 检查拉黑状态:', {
+        itemUserId: this.item?.userId,
+        blockedUsers: this.blockedUsers,
+        isBlocked: this.item?.userId && this.blockedUsers.includes(this.item.userId)
+      })
+      
       if (this.item?.userId && this.blockedUsers.includes(this.item.userId)) {
         uni.showModal({
           title: '提示',

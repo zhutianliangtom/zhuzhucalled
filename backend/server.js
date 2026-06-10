@@ -1863,16 +1863,34 @@ app.get('/user/blocked', authenticateToken, async (req, res) => {
 
 app.post('/user/unblock', authenticateToken, async (req, res) => {
   const { userId } = req.body
-  if (!userId) return res.status(400).json({ message: '参数错误' })
+  console.log(`[取消拉黑] 请求: userId=${req.user.id}, target=${userId}`)
+  
+  if (!userId) {
+    console.log('[取消拉黑] 错误: 缺少userId参数')
+    return res.status(400).json({ message: '参数错误' })
+  }
 
-  const [rows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
-  if (rows.length === 0) return res.status(404).json({ message: '用户不存在' })
+  try {
+    const [rows] = await pool.query('SELECT blockedUsers FROM users WHERE id = ?', [req.user.id])
+    if (rows.length === 0) {
+      console.log('[取消拉黑] 错误: 用户不存在')
+      return res.status(404).json({ message: '用户不存在' })
+    }
 
-  let blocked = safeJSONParse(rows[0]?.blockedUsers)
-  blocked = blocked.filter(id => id !== userId)
-  await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
-
-  res.json({ success: true, message: '解除拉黑成功' })
+    let blocked = safeJSONParse(rows[0]?.blockedUsers)
+    console.log(`[取消拉黑] 当前拉黑列表:`, blocked)
+    
+    blocked = blocked.filter(id => id !== userId)
+    console.log(`[取消拉黑] 移除后拉黑列表:`, blocked)
+    
+    await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
+    console.log(`[取消拉黑] 成功: ${userId} 已从拉黑列表移除`)
+    
+    res.json({ success: true, message: '解除拉黑成功' })
+  } catch (err) {
+    console.error('[取消拉黑] 数据库错误:', err)
+    res.status(500).json({ message: '服务器错误' })
+  }
 })
 
 app.get('/user/search', authenticateToken, async (req, res) => {

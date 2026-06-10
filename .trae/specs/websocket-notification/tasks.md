@@ -49,7 +49,7 @@
   - `human-judgment` TR-4.1: 在 Android 8.0+ 设备上通知正常显示
   - `human-judgment` TR-4.2: 点击通知能跳转到聊天页面
 
-## [ ] Task 5: 测试与验证
+## [x] Task 5: 测试与验证
 - **Priority**: P2
 - **Depends On**: 所有任务
 - **Description**: 

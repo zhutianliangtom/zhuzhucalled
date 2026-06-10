@@ -201,7 +201,8 @@ export default {
         x: 0
       },
       mediaCacheMap: {}, // 媒体URL缓存映射
-      cachedAvatars: {} // 头像本地缓存 { userId: localPath }
+      cachedAvatars: {}, // 头像本地缓存 { userId: localPath }
+      isUserBlocked: false // 当前用户是否拉黑了对方
     }
   },
   computed: {
@@ -226,6 +227,9 @@ export default {
       this.currentUserName = user.name
       this.currentUserAvatar = user.avatar || ''
     }
+    
+    // 加载拉黑列表
+    this.loadBlockedUsers()
     
     this.loadMessages()
     this.startPoll()
@@ -496,7 +500,7 @@ export default {
     confirmUnblock() {
       uni.showModal({
         title: '取消拉黑',
-        content: '取消拉黑后，对方将可以再次给你发送消息',
+        content: '取消拉黑后，双方将可以正常收发消息',
         confirmText: '取消拉黑',
         confirmColor: '#334155',
         success: async (res) => {
@@ -507,12 +511,29 @@ export default {
             try {
               await api.unblockUser(this.userId)
               uni.showToast({ title: '已取消拉黑', icon: 'success' })
+              // 重新加载消息
+              this.loadMessages()
+              // 更新拉黑状态
+              this.isUserBlocked = false
             } catch (err) {
+              console.error('[取消拉黑失败]', err)
               uni.showToast({ title: '操作失败', icon: 'none' })
             }
           }
         }
       })
+    },
+    async loadBlockedUsers() {
+      try {
+        const res = await api.getBlockedUsers()
+        if (res && res.data) {
+          const blockedIds = res.data.map(u => u.id)
+          this.isUserBlocked = blockedIds.includes(this.userId)
+          console.log('[聊天页] 拉黑状态:', { blockedIds, currentUserId: this.userId, isBlocked: this.isUserBlocked })
+        }
+      } catch (err) {
+        console.error('[聊天页] 加载拉黑列表失败:', err)
+      }
     },
     async loadMessages(silent = false) {
       const cacheKey = `conv_${this.currentUserId}_${this.userId}`

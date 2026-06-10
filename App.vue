@@ -148,8 +148,11 @@ export default {
           plus.runtime.setBadgeNumber(0)
         }
 
-        // ─── 检测版本更新（强制检测）───
+        // ─── 检测版本更新（仅 App 平台 - 强制检测）───
         this.checkUpdate()
+        
+        // 处理通知点击跳转
+        this.handleNotificationClick()
       } catch (e) {}
     }
     
@@ -160,6 +163,13 @@ export default {
   onShow: function() {
     // 每次显示时确保主题正确
     this.applyTheme()
+    
+    // 应用回到前台时重连 WebSocket
+    if (!websocket.isConnected()) {
+      console.log('应用回到前台，重新连接 WebSocket')
+      websocket.connect()
+    }
+    
     // #ifdef APP-PLUS
     try {
       if (typeof plus !== 'undefined' && plus && plus.runtime) {
@@ -171,6 +181,7 @@ export default {
   },
   onHide: function() {
     // 应用隐藏时继续心跳检测
+    console.log('应用进入后台')
   },
   onUnload: function() {
     // 应用卸载时停止心跳
@@ -402,43 +413,86 @@ export default {
       // #endif
     },
     
-    // 申请通知权限（仅首次，不跳转设置页）
+    // 申请通知权限（主动请求）
     requestNotificationPermission() {
       notification.init()
       // #ifdef APP-PLUS
       try {
         if (typeof plus === 'undefined' || !plus) return
+        
         if (plus.android) {
           const main = plus.android.runtimeMainActivity()
           const Build = plus.android.importClass('android.os.Build')
           const Context = plus.android.importClass('android.content.Context')
-          const notificationManager = main.getSystemService(Context.NOTIFICATION_SERVICE)
-          const channelId = 'lost_found_msg'
-          const channelName = '新消息通知'
+          const NotificationManager = plus.android.importClass('android.app.NotificationManager')
+          
+          const nm = main.getSystemService(Context.NOTIFICATION_SERVICE)
 
-          // Android 8.0+ 创建通知渠道（必需，否则推送不显示）
+          // Android 8.0+ 创建通知渠道
           if (Build.VERSION.SDK_INT >= 26) {
             try {
               const NotificationChannel = plus.android.importClass('android.app.NotificationChannel')
-              const ch = notificationManager.getNotificationChannel(channelId)
-              if (!ch) {
-                const nc = new NotificationChannel(channelId, channelName, 4) // IMPORTANCE_HIGH=4
-                nc.enableVibration(true)
-                nc.setShowBadge(true)
-                notificationManager.createNotificationChannel(nc)
-              }
-            } catch (e) {}
+              const channelId = 'lost_found_msg_channel'
+              const channelName = '新消息通知'
+              
+              // 删除旧渠道，重新创建
+              nm.deleteNotificationChannel(channelId)
+              
+              const channel = new NotificationChannel(
+                channelId,
+                channelName,
+                NotificationManager.IMPORTANCE_HIGH
+              )
+              channel.enableVibration(true)
+              channel.setShowBadge(true)
+              channel.setLockscreenVisibility(1)
+              nm.createNotificationChannel(channel)
+              console.log('通知渠道创建成功')
+            } catch (e) {
+              console.error('创建通知渠道失败:', e)
+            }
           }
 
-          // 静默检查权限，不弹窗不跳转（首次打开由系统自动询问）
+          // Android 13+ 主动请求通知权限
+          if (Build.VERSION.SDK_INT >= 33) {
+            try {
+              // 检查是否已有权限
+              if (!nm.areNotificationsEnabled()) {
+                console.log('请求通知权限...')
+                // 跳转到应用通知设置页面
+                const Intent = plus.android.importClass('android.content.Intent')
+                const Settings = plus.android.importClass('android.provider.Settings')
+                const Uri = plus.android.importClass('android.net.Uri')
+                
+                const intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, main.getPackageName())
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                main.startActivity(intent)
+              } else {
+                console.log('通知权限已授予')
+              }
+            } catch (e) {
+              console.error('请求通知权限失败:', e)
+            }
+          }
         } else if (plus.ios) {
+          // iOS 请求通知权限
           try {
             const UNUserNotificationCenter = plus.ios.import('UNUserNotificationCenter')
             const center = UNUserNotificationCenter.currentNotificationCenter()
-            center.requestAuthorizationWithOptionsCompletionHandler(7, function(granted) {}) // badge+sound+alert
-          } catch (e) {}
+            // badge(1) + sound(2) + alert(4) = 7
+            center.requestAuthorizationWithOptionsCompletionHandler(7, function(granted) {
+              if (granted) {
+                console.log('iOS 通知权限已授予')
+              }
+            })
+          } catch (e) {
+            console.error('iOS 请求通知权限失败:', e)
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('申请通知权限失败:', e)
+      }
       // #endif
     },
     
@@ -549,24 +603,46 @@ export default {
     
     // 处理 WebSocket 消息
     handleWebSocketMessage(message) {
-      if (!message || !message.userId) {
+      console.log('处理 WebSocket 消息:', message)
+      
+      if (!message || !message.type) {
+        return
+      }
+      
+      // 只处理新消息类型
+      if (message.type !== 'new_message') {
+        return
+      }
+      
+      const userId = message.userId
+      if (!userId) {
         return
       }
       
       const now = Date.now()
-      const userId = message.userId
       const lastNotify = lastNotifyTimes[userId] || 0
       
+      // 10秒冷却时间
       if (now - lastNotify >= NOTIFY_COOLDOWN) {
-        const userName = message.userName || '未知用户'
-        const content = message.content || message.lastMessage || '新消息'
+        // 确保用户名有效
+        let userName = message.userName
+        if (!userName || userName.trim() === '' || userName === 'undefined') {
+          userName = '用户'
+        }
+        
+        // 确保内容有效
+        let content = message.content
+        if (!content || content.trim() === '') {
+          content = '新消息'
+        }
         
         // #ifdef APP-PLUS
         notification.showMessageNotification(
           userId,
           userName,
           content,
-          message.userAvatar
+          message.userAvatar || '',
+          message.messageId || ''
         )
         // #endif
         
@@ -578,6 +654,46 @@ export default {
       
       // 触发全局事件通知
       uni.$emit('new-message', message)
+    },
+    
+    // 处理通知点击跳转
+    handleNotificationClick() {
+      // #ifdef APP-PLUS
+      try {
+        if (typeof plus === 'undefined' || !plus.android) {
+          return
+        }
+        
+        const main = plus.android.runtimeMainActivity()
+        const Intent = plus.android.importClass('android.content.Intent')
+        
+        const intent = main.getIntent()
+        if (!intent) return
+        
+        const userId = intent.getStringExtra('userId')
+        const userName = intent.getStringExtra('userName')
+        const fromNotification = intent.getBooleanExtra('fromNotification', false)
+        
+        if (fromNotification && userId) {
+          console.log('从通知点击启动，跳转到聊天页面:', userId, userName)
+          
+          // 清除标记，防止重复跳转
+          intent.removeExtra('fromNotification')
+          
+          // 延迟跳转，确保页面已加载
+          setTimeout(() => {
+            uni.navigateTo({
+              url: `/pages/message/chat?userId=${userId}&userName=${encodeURIComponent(userName || '用户')}`,
+              fail: (err) => {
+                console.error('跳转聊天页面失败:', err)
+              }
+            })
+          }, 500)
+        }
+      } catch (e) {
+        console.error('处理通知点击失败:', e)
+      }
+      // #endif
     },
     // 检测版本更新（仅 App 平台 - 强制检测）
     async checkUpdate() {

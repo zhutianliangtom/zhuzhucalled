@@ -103,7 +103,7 @@ export default {
         success: (res) => {
           const filePath = res.tempFilePaths[0]
           uni.navigateTo({
-            url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(filePath)}`
+            url: `/pages/user/avatar-crop?src=${filePath}`
           })
         },
         fail: () => {
