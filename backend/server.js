@@ -1284,6 +1284,10 @@ app.post('/auth/login', loginLimit, async (req, res) => {
   const hasOtherDevice = getActiveSessionCount(user.id) > 0
 
   const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  
+  // 记录会话（普通登录会创建新会话，如果有旧会话会保留在同一设备）
+  addSession(user.id, token, deviceId)
+  
   const avatarUrl = getPublicUrl(user.avatar)
   
   logUserAction(user.id, 'USER_LOGIN', { studentId, hasOtherDevice })
@@ -1356,7 +1360,7 @@ app.post('/auth/logout', authenticateToken, async (req, res) => {
   res.json({ success: true, message: '退出成功' })
 })
 
-// 心跳检测接口
+// 心跳检测接口（使用 authenticateToken 中间件检测是否被顶号）
 app.get('/api/heartbeat', authenticateToken, async (req, res) => {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
@@ -2228,16 +2232,6 @@ app.get('/developer_avatar.jpg', (req, res) => {
 // 提供微信捐赠码图片
 app.get('/donation_qrcode.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', '微信捐赠码.png'))
-})
-
-// 心跳检测 API（不需要token认证，允许未登录状态检测）
-app.get('/api/heartbeat', (req, res) => {
-  res.json({ 
-    success: true, 
-    timestamp: Date.now(),
-    message: 'Server is alive',
-    serverTime: new Date().toISOString()
-  })
 })
 
 // ==================== 今日人品功能 ====================

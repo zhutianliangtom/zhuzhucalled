@@ -102,12 +102,33 @@ export default {
         sourceType: ['album', 'camera'],
         success: (res) => {
           const filePath = res.tempFilePaths[0]
+          console.log('=== 编辑页面选择图片成功 ===')
+          console.log('图片路径:', filePath)
+          
+          // 使用全局变量传递图片路径，避免URL编码问题
+          const app = getApp()
+          console.log('getApp() 返回:', app)
+          console.log('globalData:', app.globalData)
+          
+          app.globalData.cropImagePath = filePath
+          console.log('设置 globalData.cropImagePath:', app.globalData.cropImagePath)
+          
           uni.navigateTo({
-            url: `/pages/user/avatar-crop?src=${filePath}`
+            url: '/pages/user/avatar-crop',
+            success: () => {
+              console.log('跳转到裁剪页面成功')
+            },
+            fail: (err) => {
+              console.error('跳转到裁剪页面失败:', err)
+            }
           })
         },
-        fail: () => {
-          uni.showToast({ title: '选择图片失败', icon: 'none' })
+        fail: (err) => {
+          console.error('选择图片失败:', err)
+          // 用户取消选择时不显示错误提示
+          if (err && err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+            uni.showToast({ title: '选择图片失败', icon: 'none' })
+          }
         }
       })
     },

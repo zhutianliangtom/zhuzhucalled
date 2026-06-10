@@ -85,6 +85,9 @@ function getAppVersion() {
 
 // 监听 Android 通知点击事件，跳转到对应对话
 export default {
+  globalData: {
+    cropImagePath: null
+  },
   onLaunch: function() {
     // 应用主题设置
     this.applyTheme()
@@ -225,9 +228,9 @@ export default {
     async checkConnection() {
       try {
         const response = await uni.request({
-          url: 'https://chentian.dpdns.org/api/health',
+          url: 'https://chentian.dpdns.org/api/heartbeat',
           method: 'GET',
-          timeout: 5000
+          timeout: 8000
         })
 
         // 重置失败计数

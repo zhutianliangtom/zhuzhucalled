@@ -97,9 +97,15 @@ export default {
         confirmText: '顶号登录',
         confirmColor: '#334155',
         cancelText: '取消',
-        success: async (modalRes) => {
+        success: (modalRes) => {
           if (modalRes.confirm) {
-            await this.forceLogin()
+            // 用户确认顶号登录
+            this.forceLogin()
+          } else {
+            // 用户取消：清空密码，保持在登录页
+            this.isSubmitting = false
+            this.form.password = ''
+            uni.showToast({ title: '已取消登录', icon: 'none' })
           }
         }
       })

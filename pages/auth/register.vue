@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>
@@ -120,11 +120,18 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
+          // 使用全局变量传递图片路径，避免URL编码问题
+          getApp().globalData.cropImagePath = res.tempFilePaths[0]
           uni.navigateTo({
-            url: `/pages/user/avatar-crop?src=${res.tempFilePaths[0]}`
+            url: '/pages/user/avatar-crop'
           })
         },
-        fail: () => {}
+        fail: (err) => {
+          // 用户取消选择时不显示错误提示
+          if (err && err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+            console.error('选择图片失败:', err)
+          }
+        }
       })
     },
     async handleCropResult(tempFilePath) {

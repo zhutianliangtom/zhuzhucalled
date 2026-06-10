@@ -303,28 +303,38 @@ export default {
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: async (res) => {
+        success: (res) => {
           const filePath = res.tempFilePaths[0]
-          uni.showLoading({ title: '上传中...' })
-          try {
-            const result = await api.uploadImage(filePath)
-            
-            await api.updateUserInfo({ avatar: result.url })
-            
-            this.user.avatar = result.url
-            storage.setUser(this.user)
-            
-            uni.hideLoading()
-            uni.showToast({ title: '头像更新成功', icon: 'success' })
-          } catch (err) {
-            uni.hideLoading()
-            uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
-          }
+          // 使用全局变量传递图片路径，避免URL编码问题
+          getApp().globalData.cropImagePath = filePath
+          uni.navigateTo({
+            url: '/pages/user/avatar-crop'
+          })
         },
-        fail: () => {
-          uni.showToast({ title: '选择图片失败', icon: 'none' })
+        fail: (err) => {
+          // 用户取消选择时不显示错误提示
+          if (err && err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+            uni.showToast({ title: '选择图片失败', icon: 'none' })
+          }
         }
       })
+    },
+    async handleCropResult(imagePath) {
+      uni.showLoading({ title: '上传中...' })
+      try {
+        const result = await api.uploadImage(imagePath)
+        
+        await api.updateUserInfo({ avatar: result.url })
+        
+        this.user.avatar = result.url
+        storage.setUser(this.user)
+        
+        uni.hideLoading()
+        uni.showToast({ title: '头像更新成功', icon: 'success' })
+      } catch (err) {
+        uni.hideLoading()
+        uni.showToast({ title: err.message || '上传失败', icon: 'none', duration: 3000 })
+      }
     },
     checkLoginThenGo(action, param = '') {
       const user = storage.getUser()

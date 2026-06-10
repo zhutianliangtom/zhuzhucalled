@@ -54,13 +54,13 @@ export default {
     async checkConnection() {
       try {
         const response = await uni.request({
-          url: 'https://chentian.dpdns.org/api/health',
+          url: 'https://chentian.dpdns.org/api/heartbeat',
           method: 'GET',
-          timeout: 3000
+          timeout: 8000
         })
 
         this.consecutiveFailures = 0
-        
+
         if (!this.isOnline) {
           this.handleOnline()
         }
