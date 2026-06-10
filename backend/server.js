@@ -270,38 +270,57 @@ const wss = new WebSocket.Server({ server })
 
 // WebSocket 连接管理
 const adminClients = new Set()
+const userClients = new Map() // Map<userId, Set<WebSocket>>
 
 // WebSocket 连接处理
 wss.on('connection', (ws, req) => {
   console.log('WebSocket 新连接')
 
-  // 验证连接（检查 cookie 中的 token）
+  // 解析 URL 参数获取 token
+  const urlParams = new URLSearchParams(req.url.slice(1))
+  const token = urlParams.get('token')
+  
+  // 同时支持 cookie 和 URL 参数两种方式
   const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
     const [name, value] = cookie.trim().split('=')
     acc[name] = value
     return acc
   }, {})
+  
+  const authToken = token || cookies?.token
 
-  if (cookies?.token) {
+  if (authToken) {
     try {
-      const decoded = jwt.verify(cookies.token, JWT_SECRET)
+      const decoded = jwt.verify(authToken, JWT_SECRET)
       pool.query('SELECT * FROM users WHERE id = ?', [decoded.id])
         .then(([rows]) => {
-          if (rows.length > 0 && rows[0].isAdmin) {
-            // 是管理员，绑定用户信息到 WebSocket 连接
+          if (rows.length > 0) {
+            const user = rows[0]
+            // 绑定用户信息到 WebSocket 连接
             ws.userId = decoded.id
-            ws.studentId = rows[0].studentId
-            ws.isAdmin = true
-            adminClients.add(ws)
-            console.log(`WebSocket 管理员连接: ${rows[0].studentId}`)
-            console.log('管理员 WebSocket 连接成功')
-            ws.send(JSON.stringify({ type: 'connected', message: '已连接到服务器' }))
+            ws.studentId = user.studentId
+            ws.isAdmin = user.isAdmin
+            
+            if (user.isAdmin) {
+              adminClients.add(ws)
+              console.log(`WebSocket 管理员连接: ${user.studentId}`)
+            }
+            
+            // 普通用户也加入连接管理
+            if (!userClients.has(decoded.id)) {
+              userClients.set(decoded.id, new Set())
+            }
+            userClients.get(decoded.id).add(ws)
+            
+            console.log(`WebSocket 用户连接成功: ${user.studentId} (${user.isAdmin ? '管理员' : '普通用户'})`)
+            ws.send(JSON.stringify({ type: 'connected', message: '已连接到服务器', userId: decoded.id }))
           } else {
-            ws.close(1008, '无权访问')
+            ws.close(1008, '用户不存在')
           }
         })
         .catch(() => ws.close(1008, '认证失败'))
     } catch (err) {
+      console.error('WebSocket 认证失败:', err)
       ws.close(1008, '认证失败')
     }
   } else {
@@ -310,12 +329,45 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     adminClients.delete(ws)
+    // 从用户连接中移除
+    if (ws.userId) {
+      const clients = userClients.get(ws.userId)
+      if (clients) {
+        clients.delete(ws)
+        if (clients.size === 0) {
+          userClients.delete(ws.userId)
+        }
+      }
+    }
     console.log('WebSocket 连接关闭')
   })
 
   ws.on('error', (err) => {
     console.error('WebSocket 错误:', err)
     adminClients.delete(ws)
+    // 从用户连接中移除
+    if (ws.userId) {
+      const clients = userClients.get(ws.userId)
+      if (clients) {
+        clients.delete(ws)
+        if (clients.size === 0) {
+          userClients.delete(ws.userId)
+        }
+      }
+    }
+  })
+  
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data)
+      console.log('WebSocket 收到消息:', message)
+      
+      if (message.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }))
+      }
+    } catch (err) {
+      console.error('WebSocket 消息解析失败:', err)
+    }
   })
 })
 
@@ -327,11 +379,42 @@ function broadcastToAdmins(message) {
       try {
         client.send(messageString)
       } catch (err) {
-        console.error('[WebSocket] 发送消息失败:', err)
+        console.error('[WebSocket] 发送消息给管理员失败:', err)
         adminClients.delete(client)
       }
     }
   })
+}
+
+// 发送消息给指定用户
+function sendToUser(userId, message) {
+  const clients = userClients.get(userId)
+  if (!clients || clients.size === 0) {
+    console.log(`[WebSocket] 用户 ${userId} 没有在线连接`)
+    return 0
+  }
+  
+  const messageString = JSON.stringify(message)
+  let sentCount = 0
+  
+  clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(messageString)
+        sentCount++
+      } catch (err) {
+        console.error('[WebSocket] 发送消息给用户失败:', err)
+        clients.delete(client)
+      }
+    }
+  })
+  
+  if (clients.size === 0) {
+    userClients.delete(userId)
+  }
+  
+  console.log(`[WebSocket] 已向用户 ${userId} 发送消息，成功 ${sentCount} 个连接`)
+  return sentCount
 }
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
@@ -1653,6 +1736,19 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
       }
     })
   }
+
+  // 通过 WebSocket 实时推送消息给接收用户
+  sendToUser(userId, {
+    type: 'new_message',
+    userId: req.user.id,
+    userName: sender.name || sender.studentId || '未知用户',
+    userAvatar: sender.avatar || '',
+    content: content || '',
+    type: type,
+    mediaUrl: mediaUrl,
+    createdAt: createdAt * 1000,
+    messageId: id
+  })
 
   res.json({ success: true, message: { id, senderId: req.user.id, receiverId: userId, content: content || '', type, mediaUrl, read: false, createdAt: createdAt * 1000 } })
 })
