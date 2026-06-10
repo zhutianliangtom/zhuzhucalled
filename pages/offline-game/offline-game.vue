@@ -1,6 +1,7 @@
 <template>
   <view class="game-container" @click="handleClick">
     <view v-if="!gameStarted && !gameOver" class="start-screen">
+      <text class="network-error">:( 你与 Internet 断开，请检查防火墙配置或网络适配器，或者...</text>
       <view class="start-content">
         <image src="/uniapp_1145114/person.png" class="logo" mode="aspectFit" />
         <text class="start-title">跳跃游戏</text>
@@ -276,6 +277,19 @@ export default {
   align-items: center;
   justify-content: center;
   background: #fff;
+}
+
+.network-error {
+  position: absolute;
+  top: 30rpx;
+  left: 30rpx;
+  right: 30rpx;
+  font-size: 112rpx;
+  color: #666;
+  line-height: 1.6;
+  background: transparent;
+  max-height: 45%;
+  overflow: hidden;
 }
 
 .start-content {
