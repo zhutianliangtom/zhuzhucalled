@@ -266,7 +266,13 @@ if (USE_HTTPS) {
   console.log('[HTTPS] 未配置证书，使用 HTTP 模式')
 }
 
-const wss = new WebSocket.Server({ server })
+const wss = new WebSocket.Server({ 
+  server,
+  clientTracking: true,
+  // 心跳检测配置
+  pingInterval: 30000,  // 每30秒发送一次 ping
+  pingTimeout: 60000    // 60秒没有响应则关闭连接
+})
 
 // WebSocket 连接管理
 const adminClients = new Set()
@@ -332,7 +338,8 @@ wss.on('connection', (ws, req) => {
     ws.close(1008, '需要登录')
   }
 
-  ws.on('close', () => {
+  ws.on('close', (code, reason) => {
+    console.log(`[WebSocket] 连接关闭, userId: ${ws.userId || '未知'}, code: ${code}, reason: ${reason?.toString() || '无'}`)
     adminClients.delete(ws)
     // 从用户连接中移除
     if (ws.userId) {
@@ -344,7 +351,6 @@ wss.on('connection', (ws, req) => {
         }
       }
     }
-    console.log('WebSocket 连接关闭')
   })
 
   ws.on('error', (err) => {
@@ -393,22 +399,29 @@ function broadcastToAdmins(message) {
 
 // 发送消息给指定用户
 function sendToUser(userId, message) {
+  console.log(`[WebSocket] sendToUser 被调用，接收者: ${userId}`)
+  console.log(`[WebSocket] 消息内容:`, JSON.stringify(message))
+  
   const clients = userClients.get(userId)
   if (!clients || clients.size === 0) {
     console.log(`[WebSocket] 用户 ${userId} 没有在线连接`)
     return 0
   }
   
+  console.log(`[WebSocket] 用户 ${userId} 有 ${clients.size} 个在线连接`)
+  
   const messageString = JSON.stringify(message)
   let sentCount = 0
   
-  clients.forEach((client) => {
+  clients.forEach((client, index) => {
+    console.log(`[WebSocket] 连接 ${index}: readyState = ${client.readyState}`)
     if (client.readyState === WebSocket.OPEN) {
       try {
         client.send(messageString)
         sentCount++
+        console.log(`[WebSocket] 消息发送成功到连接 ${index}`)
       } catch (err) {
-        console.error('[WebSocket] 发送消息给用户失败:', err)
+        console.error(`[WebSocket] 发送消息给用户失败 (连接 ${index}):`, err)
         clients.delete(client)
       }
     }

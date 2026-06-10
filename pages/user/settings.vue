@@ -46,7 +46,7 @@
     </view>
     
     <view class="version-info">
-      <text class="version-text">版本 1.1.6</text>
+      <text class="version-text">版本 1.1.7</text>
     </view>
     
     <!-- 人品弹窗 -->
@@ -109,7 +109,7 @@ export default {
       
       try {
         // #ifdef APP-PLUS
-        let currentVersion = '1.1.6'
+        let currentVersion = '1.1.7'
         let currentVersionCode = 0
         
         // 尝试获取真实版本号
@@ -160,7 +160,7 @@ export default {
             uni.hideLoading()
             uni.showModal({
               title: '检查完成',
-              content: '当前已是最新版本（v1.1.6）',
+              content: '当前已是最新版本（v1.1.7）',
               showCancel: false
             })
           }
@@ -174,7 +174,7 @@ export default {
         uni.hideLoading()
         uni.showModal({
           title: '检查完成',
-          content: '当前已是最新版本（v1.1.6）',
+          content: '当前已是最新版本（v1.1.7）',
           showCancel: false
         })
         // #endif
@@ -182,7 +182,7 @@ export default {
         uni.hideLoading()
         uni.showModal({
           title: '检查完成',
-          content: '当前已是最新版本（v1.1.6）',
+          content: '当前已是最新版本（v1.1.7）',
           showCancel: false
         })
       }

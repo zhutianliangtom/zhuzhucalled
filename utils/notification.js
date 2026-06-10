@@ -72,14 +72,17 @@ export const notification = {
   showMessageNotification(userId, userName, content, avatarUrl = '', messageId = '') {
     // #ifdef APP-PLUS
     try {
+      console.log('[通知] showMessageNotification 被调用:', {userId, userName, content, messageId})
+      
       if (typeof plus === 'undefined' || !plus.android) {
+        console.log('[通知] 不是 Android 环境，跳过')
         return
       }
 
       // 消息去重检查
       const msgKey = messageId || `${userId}_${Date.now()}`
       if (shownMessages.has(msgKey)) {
-        console.log('通知已显示过，跳去重')
+        console.log('[通知] 消息已显示过，跳过去重')
         return
       }
       
@@ -91,9 +94,11 @@ export const notification = {
       }
 
       // 确保通知渠道已创建
+      console.log('[通知] 初始化通知渠道')
       this.init()
 
       const main = plus.android.runtimeMainActivity()
+      console.log('[通知] 获取到主 Activity')
       
       // 导入 Android 原生类
       const Context = plus.android.importClass('android.content.Context')
@@ -106,10 +111,15 @@ export const notification = {
       // 确保用户名和内容有效
       const displayName = (userName && userName.trim()) ? userName.trim() : '用户'
       const displayContent = (content && content.trim()) ? content.trim() : '新消息'
+      
+      console.log('[通知] 显示内容:', displayName, '-', displayContent)
 
       // 创建点击通知后的 Intent
       const packageName = main.getPackageName()
+      console.log('[通知] 应用包名:', packageName)
+      
       const launchIntent = main.getPackageManager().getLaunchIntentForPackage(packageName)
+      console.log('[通知] 获取 Launch Intent:', launchIntent ? '成功' : '失败')
       
       if (launchIntent) {
         launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -120,6 +130,8 @@ export const notification = {
 
       // 创建 PendingIntent
       const flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_IMMUTABLE : 0)
+      console.log('[通知] PendingIntent flags:', flags)
+      
       const pendingIntent = PendingIntent.getActivity(
         main,
         parseInt(userId) || Date.now(),
@@ -160,15 +172,16 @@ export const notification = {
       // 使用 NotificationManagerCompat 发送通知
       const nm = NotificationManagerCompat.from(main)
       const notificationId = NOTIFICATION_ID_BASE + (parseInt(userId) % 10000 || 0)
+      console.log('[通知] 通知 ID:', notificationId)
       
       // 发送通知
       nm.notify(notificationId, builder.build())
 
-      console.log('Android 原生通知发送成功:', displayName, '-', displayContent)
+      console.log('[通知] Android 原生通知发送成功')
       return notificationId
       
     } catch (e) {
-      console.error('Android 原生通知发送失败:', e)
+      console.error('[通知] Android 原生通知发送失败:', e)
       return null
     }
     // #endif

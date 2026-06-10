@@ -577,13 +577,16 @@ export default {
     
     // 初始化 WebSocket 连接
     initWebSocket() {
+      console.log('[WebSocket] 开始初始化...')
+      
       websocket.addListener((event, data) => {
+        console.log('[WebSocket] 收到事件:', event, data)
         this.handleWebSocketEvent(event, data)
       })
-      // 延迟连接，等待登录状态就绪
-      setTimeout(() => {
-        websocket.connect()
-      }, 2000)
+      
+      // 立即连接，不要延迟
+      console.log('[WebSocket] 开始连接...')
+      websocket.connect()
     },
     
     // 处理 WebSocket 事件
@@ -606,24 +609,29 @@ export default {
     
     // 处理 WebSocket 消息
     handleWebSocketMessage(message) {
-      console.log('处理 WebSocket 消息:', message)
+      console.log('[WebSocket] 收到消息:', JSON.stringify(message))
       
       if (!message || !message.type) {
+        console.log('[WebSocket] 消息格式错误，跳过')
         return
       }
       
       // 只处理新消息类型
       if (message.type !== 'new_message') {
+        console.log('[WebSocket] 消息类型不是 new_message，跳过')
         return
       }
       
       const userId = message.userId
       if (!userId) {
+        console.log('[WebSocket] 消息没有 userId，跳过')
         return
       }
       
       const now = Date.now()
       const lastNotify = lastNotifyTimes[userId] || 0
+      
+      console.log('[WebSocket] 距离上次通知:', now - lastNotify, 'ms, 冷却时间:', NOTIFY_COOLDOWN, 'ms')
       
       // 10秒冷却时间
       if (now - lastNotify >= NOTIFY_COOLDOWN) {
@@ -639,17 +647,25 @@ export default {
           content = '新消息'
         }
         
+        console.log('[WebSocket] 显示通知:', userName, '-', content)
+        
         // #ifdef APP-PLUS
-        notification.showMessageNotification(
-          userId,
-          userName,
-          content,
-          message.userAvatar || '',
-          message.messageId || ''
-        )
+        try {
+          notification.showMessageNotification(
+            userId,
+            userName,
+            content,
+            message.userAvatar || '',
+            message.messageId || ''
+          )
+        } catch (e) {
+          console.error('[WebSocket] 显示通知失败:', e)
+        }
         // #endif
         
         lastNotifyTimes[userId] = now
+      } else {
+        console.log('[WebSocket] 还在冷却期内，跳过通知')
       }
       
       // 更新本地消息计数
