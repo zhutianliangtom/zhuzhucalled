@@ -78,9 +78,9 @@
                 "useOriginalMsgbox" : true,
                 "androidStyle" : "default",
                 "android" : {
-                    "hdpi" : "C:/Users/zhuzhu/Desktop/drawable-xhdpi/1780830243135.9.png",
-                    "xhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxhdpi/1780830243135.9.png",
-                    "xxhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxxhdpi/1780830243135.9.png"
+                    "hdpi" : "C:/Users/zhuzhu/Desktop/drawable-xhdpi/chentian.9.png",
+                    "xhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxhdpi/chentian.9.png",
+                    "xxhdpi" : "C:/Users/zhuzhu/Desktop/drawable-xxxhdpi/chentian.9.png"
                 }
             },
             "icons" : {

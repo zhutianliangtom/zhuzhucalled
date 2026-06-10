@@ -41,6 +41,10 @@
           <!-- 文字消息 -->
           <view v-if="msg.type === 'text'" class="text-message">
             <text>{{ msg.content }}</text>
+            <!-- 发送失败状态图标 -->
+            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status">
+              <text class="status-icon">!</text>
+            </view>
           </view>
 
           <!-- 图片消息 -->
@@ -53,6 +57,10 @@
             />
             <view class="media-tag">
               <text>[图片]</text>
+            </view>
+            <!-- 发送失败状态图标 -->
+            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
+              <text class="status-icon">!</text>
             </view>
           </view>
 
@@ -70,6 +78,10 @@
             </view>
             <view class="media-tag">
               <text>[视频]</text>
+            </view>
+            <!-- 发送失败状态图标 -->
+            <view v-if="msg.status === 'blocked_by_receiver' || msg.status === 'blocked_by_sender'" class="message-status media-status">
+              <text class="status-icon">!</text>
             </view>
           </view>
 
@@ -141,6 +153,7 @@ import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
 import { simpleImageCache } from '@/utils/simpleImageCache'
+import { notification } from '@/utils/notification'
 
 export default {
   data() {
@@ -199,6 +212,8 @@ export default {
     this.loadMessages()
     // 进入聊天页面时立即标记该对话为已读
     this.markAsRead()
+    // 清除该用户的通知
+    this.clearNotification()
   },
   onHide() {
     this.stopPoll()
@@ -584,6 +599,21 @@ export default {
       })
     },
     async sendMessage() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showModal({
+          title: '提示',
+          content: '请先登录后再发送消息',
+          confirmText: '去登录',
+          success: (res) => {
+            if (res.confirm) {
+              uni.navigateTo({ url: '/pages/auth/login' })
+            }
+          }
+        })
+        return
+      }
+      
       if (!this.inputText.trim()) return
       
       const content = this.inputText.trim()
@@ -594,7 +624,12 @@ export default {
       cache.set(cacheKey, null)
       
       try {
-        await api.sendMessage(this.userId, content)
+        const res = await api.sendMessage(this.userId, content)
+        // 检查是否有拉黑状态
+        if (res.message && res.message.status) {
+          // 消息已保存但处于拉黑状态，显示提示
+          uni.showToast({ title: res.message.errorMessage, icon: 'none', duration: 2000 })
+        }
         this.loadMessages()
         this.scrollToBottom()
       } catch (err) {
@@ -622,12 +657,21 @@ export default {
           cache.set(cacheKey, null)
           
           try {
+            let lastErrorMsg = ''
             for (let filePath of filePaths) {
               const result = await api.uploadImage(filePath)
-              await api.sendMessage(this.userId, '', 'image', result.url)
+              const sendRes = await api.sendMessage(this.userId, '', 'image', result.url)
+              // 检查是否有拉黑状态
+              if (sendRes.message && sendRes.message.status) {
+                lastErrorMsg = sendRes.message.errorMessage
+              }
             }
             uni.hideLoading()
-            uni.showToast({ title: '发送成功', icon: 'success' })
+            if (lastErrorMsg) {
+              uni.showToast({ title: lastErrorMsg, icon: 'none', duration: 2000 })
+            } else {
+              uni.showToast({ title: '发送成功', icon: 'success' })
+            }
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
@@ -667,9 +711,14 @@ export default {
           
           try {
             const result = await api.uploadVideo(tempFilePath)
-            await api.sendMessage(this.userId, '', 'video', result.url)
+            const sendRes = await api.sendMessage(this.userId, '', 'video', result.url)
             uni.hideLoading()
-            uni.showToast({ title: '发送成功', icon: 'success' })
+            // 检查是否有拉黑状态
+            if (sendRes.message && sendRes.message.status) {
+              uni.showToast({ title: sendRes.message.errorMessage, icon: 'none', duration: 2000 })
+            } else {
+              uni.showToast({ title: '发送成功', icon: 'success' })
+            }
             this.loadMessages()
           } catch (err) {
             uni.hideLoading()
@@ -798,6 +847,14 @@ export default {
         await api.markConversationRead(this.userId)
       } catch (err) {
       }
+    },
+    
+    // 清除该用户的通知
+    clearNotification() {
+      // #ifdef APP-PLUS
+      const notificationId = 10000 + (parseInt(this.userId) || 0)
+      notification.cancelNotification(notificationId)
+      // #endif
     }
   }
 }
@@ -948,6 +1005,7 @@ export default {
   line-height: 1.6;
   display: inline-block;
   word-break: break-all;
+  position: relative;
 }
 
 .message-item.other .text-message {
@@ -1093,6 +1151,32 @@ export default {
   font-size: 22rpx;
   color: #aaa;
   margin-top: 8rpx;
+}
+
+/* ─── 发送失败状态 ─── */
+.message-status {
+  position: absolute;
+  right: -36rpx;
+  bottom: 0;
+  width: 32rpx;
+  height: 32rpx;
+  background: #ff4757;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .status-icon {
+    font-size: 20rpx;
+    color: #fff;
+    font-weight: bold;
+    line-height: 1;
+  }
+}
+
+.media-status {
+  right: 8rpx;
+  bottom: 8rpx;
 }
 
 .message-item.self .message-time {

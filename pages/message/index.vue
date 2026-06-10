@@ -6,7 +6,8 @@
     
     <view v-if="conversations.length === 0" class="empty">
       <text class="empty-icon">💬</text>
-      <text class="empty-text">暂无消息</text>
+      <text class="empty-text">{{ hasToken ? '暂无消息' : '登录后可以查看和发送消息' }}</text>
+      <button v-if="!hasToken" class="empty-btn" @click="goLogin">立即登录</button>
     </view>
     
     <view v-else class="conversation-list">
@@ -62,6 +63,7 @@ import { api } from '@/utils/api'
 import { format } from '@/utils/format'
 import { storage } from '@/utils/storage'
 import { cache } from '@/utils/cache'
+import { notification } from '@/utils/notification'
 import SimpleCachedImage from '@/components/SimpleCachedImage.vue'
 
 export default {
@@ -73,6 +75,7 @@ export default {
       format,
       isDark: false,
       conversations: [],
+      hasToken: false,
       tabBarItems: [
         { pagePath: '/pages/index/index', iconPath: '/static/tab/home.png', activeIconPath: '/static/tab/home.png' },
         { pagePath: '/pages/message/index', iconPath: '/static/tab/message.png', activeIconPath: '/static/tab/message.png' },
@@ -138,6 +141,7 @@ export default {
     // 检查登录状态并加载对话列表
     checkLoginAndLoad() {
       const token = storage.getToken()
+      this.hasToken = !!token
       if (token) {
         this.loadConversations()
       } else {
@@ -145,6 +149,9 @@ export default {
         this.conversations = []
         this.unreadTotal = 0
       }
+    },
+    goLogin() {
+      uni.navigateTo({ url: '/pages/auth/login' })
     },
     async loadConversations(force) {
       if (this._loading) return
@@ -219,21 +226,20 @@ export default {
     },
 
     showLocalNotification(conversation) {
-      // 前台静默，只更新角标；后台才发系统通知
-      if (this._appInForeground) return
-
       const now = Date.now()
       if (this._notifyCooldown[conversation.userId] && now - this._notifyCooldown[conversation.userId] < 10000) return
       this._notifyCooldown[conversation.userId] = now
 
       // #ifdef APP-PLUS
-      const text = `${conversation.userName}: ${conversation.lastMessage || '新消息'}`
-      if (typeof plus !== 'undefined' && plus.push) {
-        plus.push.createMessage(text,
-          JSON.stringify({ userId: conversation.userId, userName: conversation.userName }),
-          { title: '校园失物招领', sound: 'system', cover: false }
-        )
-      }
+      const userName = conversation.userName || '未知用户'
+      const content = conversation.lastMessage || '新消息'
+      
+      notification.showMessageNotification(
+        conversation.userId,
+        userName,
+        content,
+        conversation.userAvatar
+      )
       // #endif
     },
 
@@ -369,6 +375,16 @@ export default {
 .empty-text {
   font-size: 28rpx;
   color: #999;
+  margin-bottom: 30rpx;
+}
+
+.empty-btn {
+  width: 200rpx;
+  height: 70rpx;
+  background: #334155;
+  color: #fff;
+  border-radius: 35rpx;
+  font-size: 28rpx;
 }
 
 .conversation-list {

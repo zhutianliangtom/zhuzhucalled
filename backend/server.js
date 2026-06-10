@@ -49,6 +49,105 @@ const originalWarn = console.warn
 // 日志缓冲区：{ '2026-05-31.log': '...lines...', ... }
 const logBuffer = {}
 
+// ==================== 登录设备限制功能 ====================
+// 活跃会话存储: Map<userId, Array<{ token, deviceId, loginTime, lastActiveTime }>>
+const activeSessions = new Map()
+
+// Token 黑名单（已失效的 token）
+const tokenBlacklist = new Set()
+
+// 最大允许登录设备数
+const MAX_DEVICES = 1
+
+// 会话超时时间（30分钟）
+const SESSION_TIMEOUT = 30 * 60 * 1000
+
+// 添加会话
+function addSession(userId, token, deviceId = '') {
+  if (!activeSessions.has(userId)) {
+    activeSessions.set(userId, [])
+  }
+  const sessions = activeSessions.get(userId)
+  sessions.push({
+    token,
+    deviceId,
+    loginTime: Date.now(),
+    lastActiveTime: Date.now()
+  })
+  // 限制会话数量
+  if (sessions.length > MAX_DEVICES) {
+    // 返回被挤掉的旧会话
+    return sessions.shift()
+  }
+  return null
+}
+
+// 移除会话
+function removeSession(userId, token) {
+  if (!activeSessions.has(userId)) return
+  const sessions = activeSessions.get(userId)
+  const index = sessions.findIndex(s => s.token === token)
+  if (index !== -1) {
+    sessions.splice(index, 1)
+    // 如果没有会话了，清理 Map
+    if (sessions.length === 0) {
+      activeSessions.delete(userId)
+    }
+  }
+}
+
+// 清除用户所有会话（用于顶号登录）
+function clearAllSessions(userId) {
+  if (!activeSessions.has(userId)) return []
+  const sessions = activeSessions.get(userId)
+  const oldTokens = sessions.map(s => s.token)
+  // 将旧 token 加入黑名单
+  oldTokens.forEach(token => tokenBlacklist.add(token))
+  activeSessions.delete(userId)
+  return oldTokens
+}
+
+// 检查 token 是否在黑名单中
+function isTokenBlacklisted(token) {
+  return tokenBlacklist.has(token)
+}
+
+// 更新会话活跃时间
+function updateSessionActiveTime(userId, token) {
+  if (!activeSessions.has(userId)) return false
+  const sessions = activeSessions.get(userId)
+  const session = sessions.find(s => s.token === token)
+  if (session) {
+    session.lastActiveTime = Date.now()
+    return true
+  }
+  return false
+}
+
+// 获取用户活跃会话数
+function getActiveSessionCount(userId) {
+  return activeSessions.has(userId) ? activeSessions.get(userId).length : 0
+}
+
+// 清理过期会话
+function cleanupExpiredSessions() {
+  const now = Date.now()
+  for (const [userId, sessions] of activeSessions) {
+    const validSessions = sessions.filter(s => now - s.lastActiveTime < SESSION_TIMEOUT)
+    if (validSessions.length === 0) {
+      activeSessions.delete(userId)
+    } else if (validSessions.length !== sessions.length) {
+      // 将过期的 token 加入黑名单
+      const expiredTokens = sessions.filter(s => now - s.lastActiveTime >= SESSION_TIMEOUT).map(s => s.token)
+      expiredTokens.forEach(token => tokenBlacklist.add(token))
+      activeSessions.set(userId, validSessions)
+    }
+  }
+}
+
+// 每5分钟清理一次过期会话
+setInterval(cleanupExpiredSessions, 5 * 60 * 1000)
+
 // 日志记录函数 - 写入缓冲区，定时批量刷盘
 function log(level, ...args) {
   const now = new Date()
@@ -719,6 +818,11 @@ async function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1]
   if (!token) return res.status(401).json({ message: '未授权' })
 
+  // 检查 token 是否在黑名单中（被顶号）
+  if (isTokenBlacklisted(token)) {
+    return res.status(401).json({ message: '您的账号已在其他设备登录，请重新登录' })
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     // 验证用户是否存在且状态正常
@@ -1069,7 +1173,7 @@ app.post('/auth/register', registerLimit, async (req, res) => {
 })
 
 app.post('/auth/login', loginLimit, async (req, res) => {
-  const { studentId, password } = req.body
+  const { studentId, password, deviceId = '' } = req.body
   const [rows] = await pool.query('SELECT * FROM users WHERE studentId = ?', [studentId])
   const user = rows[0]
 
@@ -1082,10 +1186,53 @@ app.post('/auth/login', loginLimit, async (req, res) => {
     return res.status(400).json({ message: '账号待审核或已被拒绝，请联系管理员' })
   }
 
+  // 检查是否有其他设备登录
+  const hasOtherDevice = getActiveSessionCount(user.id) > 0
+
   const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
   const avatarUrl = getPublicUrl(user.avatar)
   
-  logUserAction(user.id, 'USER_LOGIN', { studentId })
+  logUserAction(user.id, 'USER_LOGIN', { studentId, hasOtherDevice })
+  res.json({
+    token,
+    hasOtherDevice,
+    user: {
+      id: user.id,
+      studentId: user.studentId,
+      name: user.name,
+      phone: user.phone,
+      avatar: avatarUrl,
+      className: user.className
+    }
+  })
+})
+
+// 强制登录（顶号）接口
+app.post('/auth/login/force', loginLimit, async (req, res) => {
+  const { studentId, password, deviceId = '' } = req.body
+  const [rows] = await pool.query('SELECT * FROM users WHERE studentId = ?', [studentId])
+  const user = rows[0]
+
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    if (req.onLoginFailure) req.onLoginFailure()
+    return res.status(400).json({ message: '学号或密码错误' })
+  }
+
+  if (user.status !== 'approved') {
+    return res.status(400).json({ message: '账号待审核或已被拒绝，请联系管理员' })
+  }
+
+  // 清除该用户所有旧会话并加入黑名单
+  const oldTokens = clearAllSessions(user.id)
+  console.log(`[FORCE LOGIN] 用户 ${user.studentId} 顶号登录，强制下线 ${oldTokens.length} 个设备`)
+
+  // 创建新会话
+  const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  addSession(user.id, token, deviceId)
+
+  const avatarUrl = getPublicUrl(user.avatar)
+  
+  logUserAction(user.id, 'FORCE_LOGIN', { studentId, forcedDevices: oldTokens.length })
   res.json({
     token,
     user: {
@@ -1097,6 +1244,33 @@ app.post('/auth/login', loginLimit, async (req, res) => {
       className: user.className
     }
   })
+})
+
+// 退出登录接口
+app.post('/auth/logout', authenticateToken, async (req, res) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+  
+  // 从活跃会话中移除
+  removeSession(req.user.id, token)
+  // 将 token 加入黑名单
+  if (token) {
+    tokenBlacklist.add(token)
+  }
+  
+  logUserAction(req.user.id, 'USER_LOGOUT', {})
+  res.json({ success: true, message: '退出成功' })
+})
+
+// 心跳检测接口
+app.get('/api/heartbeat', authenticateToken, async (req, res) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+  
+  // 更新会话活跃时间
+  updateSessionActiveTime(req.user.id, token)
+  
+  res.json({ success: true, message: '心跳检测成功' })
 })
 
 app.get('/auth/me', authenticateToken, async (req, res) => {
@@ -1379,11 +1553,75 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
   if (receiverRows.length === 0) return res.status(404).json({ message: '用户不存在' })
 
   const receiver = receiverRows[0]
-  const blocked = safeJSONParse(receiver.blockedUsers)
-  if (blocked.includes(req.user.id)) {
-    return res.status(403).json({ message: '对方已将你拉黑，无法发送消息' })
+  const sender = senderRows[0]
+  
+  // 检查发送者是否被对方拉黑
+  const receiverBlocked = safeJSONParse(receiver.blockedUsers)
+  const isBlockedByReceiver = receiverBlocked.includes(req.user.id)
+  
+  // 检查发送者是否拉黑了对方
+  const senderBlocked = safeJSONParse(sender?.blockedUsers || '[]')
+  const isSenderBlockingReceiver = senderBlocked.includes(userId)
+
+  // 如果发送者被对方拉黑
+  if (isBlockedByReceiver) {
+    // 消息仍然存入数据库，但标记为发送失败状态，仅发送方可见
+    const id = uuidv4()
+    const createdAt = Math.floor(Date.now() / 1000)
+
+    await pool.query(
+      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
+      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt]
+    )
+
+    // 返回特殊状态码，表示消息已保存但对方收不到
+    return res.json({ 
+      success: true, 
+      message: { 
+        id, 
+        senderId: req.user.id, 
+        receiverId: userId, 
+        content: content || '', 
+        type, 
+        mediaUrl, 
+        read: true, 
+        createdAt: createdAt * 1000,
+        status: 'blocked_by_receiver',
+        errorMessage: '对方已将你拉黑'
+      } 
+    })
   }
 
+  // 如果发送者拉黑了对方
+  if (isSenderBlockingReceiver) {
+    // 消息仍然存入数据库，但标记为发送失败状态，仅发送方可见
+    const id = uuidv4()
+    const createdAt = Math.floor(Date.now() / 1000)
+
+    await pool.query(
+      'INSERT INTO messages (id, senderId, receiverId, content, type, mediaUrl, `read`, createdAt) VALUES (?,?,?,?,?,?,?,?)',
+      [id, req.user.id, userId, content || '', type, mediaUrl, true, createdAt]
+    )
+
+    // 返回特殊状态码，表示消息已保存但对方收不到
+    return res.json({ 
+      success: true, 
+      message: { 
+        id, 
+        senderId: req.user.id, 
+        receiverId: userId, 
+        content: content || '', 
+        type, 
+        mediaUrl, 
+        read: true, 
+        createdAt: createdAt * 1000,
+        status: 'blocked_by_sender',
+        errorMessage: '暂不支持给已拉黑的用户发消息'
+      } 
+    })
+  }
+
+  // 正常消息发送
   const id = uuidv4()
   const createdAt = Math.floor(Date.now() / 1000)
 
@@ -1394,7 +1632,6 @@ app.post('/messages/send', authenticateToken, async (req, res) => {
 
   // 广播新消息通知给所有管理员
   if (senderRows.length > 0) {
-    const sender = senderRows[0]
     broadcastToAdmins({
       type: 'new_message',
       data: {
@@ -1447,11 +1684,8 @@ app.post('/user/block', authenticateToken, async (req, res) => {
     blocked.push(userId)
     await pool.query('UPDATE users SET blockedUsers = ? WHERE id = ?', [JSON.stringify(blocked), req.user.id])
     
-    // 拉黑后删除所有与该用户的对话消息
-    await pool.query(
-      'DELETE FROM messages WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)',
-      [req.user.id, userId, userId, req.user.id]
-    )
+    // 保留被拉黑方的聊天记录，不再删除消息
+    // 拉黑方的对话列表会通过前端逻辑清空
   }
 
   res.json({ success: true })

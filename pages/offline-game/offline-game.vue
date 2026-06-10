@@ -1,7 +1,7 @@
 <template>
   <view class="game-container" @click="handleClick">
     <view v-if="!gameStarted && !gameOver" class="start-screen">
-      <text class="network-error">:( 你与 Internet 断开，请检查防火墙配置或网络适配器，或者...</text>
+      <text v-if="isOffline" class="network-error">:( 你与 Internet 断开，请检查防火墙配置或网络适配器，或者...</text>
       <view class="start-content">
         <image src="/uniapp_1145114/person.png" class="logo" mode="aspectFit" />
         <text class="start-title">跳跃游戏</text>
@@ -58,7 +58,8 @@ export default {
       gameAreaWidth: 375,
       dinoY: 0,
       jumpTimer: null,
-      sysWidth: 375
+      sysWidth: 375,
+      isOffline: true
     }
   },
   onLoad(options) {
@@ -72,6 +73,19 @@ export default {
     } catch (e) {
       this.highScore = 0
     }
+    
+    uni.getNetworkType({
+      success: (res) => {
+        this.isOffline = res.networkType === 'none'
+      },
+      fail: () => {
+        this.isOffline = true
+      }
+    })
+    
+    uni.onNetworkStatusChange((res) => {
+      this.isOffline = !res.isConnected
+    })
   },
   onUnload() {
     this.stopGame()

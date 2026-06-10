@@ -104,13 +104,18 @@ export const api = {
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
+            const message = res.data.message || '未登录或登录已过期'
+            // 检测是否被顶号
+            if (message.includes('其他设备登录')) {
+              this.handleForceLogout()
+              reject(new Error(message))
+              return
+            }
             if (header['X-Heartbeat'] === 'true') {
               reject(new Error('心跳检测失败'))
               return
             }
-            storage.clearUser()
-            uni.reLaunch({ url: '/pages/auth/login' })
-            reject(new Error('登录已过期'))
+            reject(new Error(message))
           } else {
             reject(new Error(res.data.message || '请求失败'))
           }
@@ -121,11 +126,29 @@ export const api = {
       })
     })
   },
+  handleForceLogout() {
+    storage.clearUser()
+    this.stopHeartbeat()
+    uni.showToast({
+      title: '您的账号已在其他设备登录',
+      icon: 'none',
+      duration: 3000
+    })
+    setTimeout(() => {
+      uni.reLaunch({ url: '/pages/auth/login' })
+    }, 1500)
+  },
   async register(data) {
     return await this.request('/auth/register', 'POST', data)
   },
   async login(data) {
     return await this.request('/auth/login', 'POST', data)
+  },
+  async forceLogin(data) {
+    return await this.request('/auth/login/force', 'POST', data)
+  },
+  async logout() {
+    return await this.request('/auth/logout', 'POST')
   },
   async getUserInfo() {
     return await this.request('/user/info')
@@ -218,9 +241,7 @@ export const api = {
               reject(new Error('服务器响应格式错误'))
             }
           } else if (res.statusCode === 401) {
-            storage.clearUser()
-            uni.reLaunch({ url: '/pages/auth/login' })
-            reject(new Error('登录已过期，请重新登录'))
+            reject(new Error('未登录或登录已过期'))
           } else {
             try {
               const errData = JSON.parse(res.data)
@@ -303,9 +324,7 @@ export const api = {
               reject(new Error('服务器响应格式错误'))
             }
           } else if (res.statusCode === 401) {
-            storage.clearUser()
-            uni.reLaunch({ url: '/pages/auth/login' })
-            reject(new Error('登录已过期，请重新登录'))
+            reject(new Error('未登录或登录已过期'))
           } else {
             try {
               const errData = typeof res.data === 'object' ? res.data : JSON.parse(res.data)

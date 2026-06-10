@@ -66,7 +66,7 @@
             <text class="luck-icon-big">{{ getLuckIcon(luckData.luck) }}</text>
             <text class="luck-value-big" :style="{ color: luckData.color }">{{ luckData.luck }}</text>
             <text class="luck-comment-text">{{ luckData.comment }}</text>
-            <text class="luck-tip-text">每个账号每天只能查看一次</text>
+            <text class="luck-tip-text">{{ luckToday ? '明天再来看看吧！' : '每个账号每天只能查看一次' }}</text>
           </view>
         </view>
       </view>
@@ -76,6 +76,7 @@
 
 <script>
 import { api } from '@/utils/api.js'
+import { storage } from '@/utils/storage'
 
 export default {
   data() {
@@ -210,6 +211,22 @@ export default {
       })
     },
     async checkLuck() {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showModal({
+          title: '提示',
+          content: '请先登录后再查看今日人品',
+          confirmText: '去登录',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              uni.navigateTo({ url: '/pages/auth/login' })
+            }
+          }
+        })
+        return
+      }
+      
       if (this.luckToday) {
         this.luckVisible = true
         return

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>
@@ -120,7 +120,6 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          // 跳转到裁剪页
           uni.navigateTo({
             url: `/pages/user/avatar-crop?imagePath=${encodeURIComponent(res.tempFilePaths[0])}`
           })
@@ -128,7 +127,6 @@ export default {
         fail: () => {}
       })
     },
-    // 裁剪页回调：接收裁剪后的图片路径
     async handleCropResult(tempFilePath) {
       uni.showLoading({ title: '上传中...' })
       try {

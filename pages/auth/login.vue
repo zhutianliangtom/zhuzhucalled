@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="container">
     <view class="logo">
       <view class="logo-icon">
@@ -55,18 +55,20 @@ export default {
         studentId: '',
         password: '',
         remember: false
-      }
+      },
+      isSubmitting: false
     }
   },
   computed: {
     canSubmit() {
-      return this.form.studentId && this.form.password
+      return this.form.studentId && this.form.password && !this.isSubmitting
     }
   },
   methods: {
     async handleLogin() {
       if (!this.canSubmit) return
       
+      this.isSubmitting = true
       uni.showLoading({ title: '登录中...' })
       try {
         const res = await api.login({
@@ -74,22 +76,61 @@ export default {
           password: this.form.password
         })
         
-        storage.setUser(res.user)
-        storage.setToken(res.token)
-        
         uni.hideLoading()
-        uni.showToast({ title: '登录成功', icon: 'success' })
         
-        // 登录成功后启动心跳检测
-        api.resetHeartbeat()
-        
-        setTimeout(() => {
-          uni.reLaunch({ url: '/pages/index/index' })
-        }, 1500)
+        // 检测是否有其他设备登录
+        if (res.hasOtherDevice) {
+          this.showForceLoginConfirm(res)
+        } else {
+          this.completeLogin(res)
+        }
       } catch (err) {
+        this.isSubmitting = false
         uni.hideLoading()
         uni.showToast({ title: err.message || '登录失败', icon: 'none' })
       }
+    },
+    showForceLoginConfirm(res) {
+      uni.showModal({
+        title: '登录提示',
+        content: '该账号已在其他设备登录，是否顶号登录？',
+        confirmText: '顶号登录',
+        confirmColor: '#334155',
+        cancelText: '取消',
+        success: async (modalRes) => {
+          if (modalRes.confirm) {
+            await this.forceLogin()
+          }
+        }
+      })
+    },
+    async forceLogin() {
+      this.isSubmitting = true
+      uni.showLoading({ title: '登录中...' })
+      try {
+        const res = await api.forceLogin({
+          studentId: this.form.studentId,
+          password: this.form.password
+        })
+        this.completeLogin(res)
+      } catch (err) {
+        this.isSubmitting = false
+        uni.hideLoading()
+        uni.showToast({ title: err.message || '登录失败', icon: 'none' })
+      }
+    },
+    completeLogin(res) {
+      storage.setUser(res.user)
+      storage.setToken(res.token)
+      
+      uni.hideLoading()
+      uni.showToast({ title: '登录成功', icon: 'success' })
+      
+      api.resetHeartbeat()
+      
+      setTimeout(() => {
+        uni.reLaunch({ url: '/pages/index/index' })
+      }, 1500)
     },
     goRegister() {
       uni.navigateTo({ url: '/pages/auth/register' })

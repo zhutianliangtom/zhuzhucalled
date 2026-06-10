@@ -22,54 +22,54 @@
       </view>
     </view>
     
-    <view v-if="user" class="stats-section">
+    <view class="stats-section">
       <view class="stat-item">
-        <text class="stat-num">{{ stats.lostCount }}</text>
+        <text class="stat-num">{{ user ? stats.lostCount : '-' }}</text>
         <text class="stat-label">寻物启事</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item">
-        <text class="stat-num">{{ stats.foundCount }}</text>
+        <text class="stat-num">{{ user ? stats.foundCount : '-' }}</text>
         <text class="stat-label">失物招领</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item">
-        <text class="stat-num">{{ stats.solvedCount }}</text>
+        <text class="stat-num">{{ user ? stats.solvedCount : '-' }}</text>
         <text class="stat-label">已解决</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item">
-        <text class="stat-num">{{ stats.totalCount }}</text>
+        <text class="stat-num">{{ user ? stats.totalCount : '-' }}</text>
         <text class="stat-label">总发布</text>
       </view>
     </view>
     
-    <view v-if="user" class="menu-list">
-      <view class="menu-item" @click="goMyItems('all')">
+    <view class="menu-list">
+      <view class="menu-item" @click="checkLoginThenGo('myItems', 'all')">
         <text class="menu-icon">📦</text>
         <text class="menu-text">我的发布</text>
-        <text class="menu-count">{{ stats.totalCount }}</text>
+        <text class="menu-count">{{ user ? stats.totalCount : '-' }}</text>
         <text class="menu-arrow">›</text>
       </view>
       
-      <view class="menu-item" @click="goMyItems('lost')">
+      <view class="menu-item" @click="checkLoginThenGo('myItems', 'lost')">
         <text class="menu-icon">🔍</text>
         <text class="menu-text">寻物启事</text>
-        <text class="menu-count">{{ stats.lostCount }}</text>
+        <text class="menu-count">{{ user ? stats.lostCount : '-' }}</text>
         <text class="menu-arrow">›</text>
       </view>
       
-      <view class="menu-item" @click="goMyItems('found')">
+      <view class="menu-item" @click="checkLoginThenGo('myItems', 'found')">
         <text class="menu-icon">✨</text>
         <text class="menu-text">失物招领</text>
-        <text class="menu-count">{{ stats.foundCount }}</text>
+        <text class="menu-count">{{ user ? stats.foundCount : '-' }}</text>
         <text class="menu-arrow">›</text>
       </view>
       
-      <view class="menu-item" @click="goMyItems('all', 'solved')">
+      <view class="menu-item" @click="checkLoginThenGo('myItems', 'solved')">
         <text class="menu-icon">✓</text>
         <text class="menu-text">已解决</text>
-        <text class="menu-count">{{ stats.solvedCount }}</text>
+        <text class="menu-count">{{ user ? stats.solvedCount : '-' }}</text>
         <text class="menu-arrow">›</text>
       </view>
       
@@ -79,7 +79,7 @@
         <text class="menu-arrow">›</text>
       </view>
       
-      <view class="menu-item" @click="goBlockedUsers">
+      <view class="menu-item" @click="checkLoginThenGo('blockedUsers')">
         <text class="menu-icon">🚫</text>
         <text class="menu-text">黑名单</text>
         <text class="menu-arrow">›</text>
@@ -91,18 +91,15 @@
         <text class="menu-arrow">›</text>
       </view>
       
-      <view class="menu-item logout" @click="handleLogout">
+      <view v-if="user" class="menu-item logout" @click="handleLogout">
         <text class="menu-icon">🚪</text>
         <text class="menu-text">退出登录</text>
         <text class="menu-arrow">›</text>
       </view>
-    </view>
-    
-    <view v-else class="guest-content">
-      <view class="guest-card">
-        <text class="guest-title">欢迎使用校园失物招领</text>
-        <text class="guest-desc">登录后可以发布物品、查看消息</text>
-        <button class="guest-btn" @click="goLogin">立即登录</button>
+      <view v-else class="menu-item login" @click="goLogin">
+        <text class="menu-icon">🔑</text>
+        <text class="menu-text">立即登录</text>
+        <text class="menu-arrow">›</text>
       </view>
     </view>
     
@@ -329,20 +326,46 @@ export default {
         }
       })
     },
+    checkLoginThenGo(action, param = '') {
+      const user = storage.getUser()
+      if (!user) {
+        uni.showModal({
+          title: '提示',
+          content: '请先登录后再使用此功能',
+          confirmText: '去登录',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              uni.navigateTo({ url: '/pages/auth/login' })
+            }
+          }
+        })
+        return
+      }
+      
+      // 已登录，执行对应操作
+      switch (action) {
+        case 'myItems':
+          const status = param === 'solved' ? 'solved' : 'active'
+          const type = param === 'solved' ? 'all' : param
+          uni.navigateTo({ url: `/pages/user/my-items?type=${type}&status=${status}` })
+          break
+        case 'settings':
+          uni.navigateTo({ url: '/pages/user/settings' })
+          break
+        case 'blockedUsers':
+          uni.navigateTo({ url: '/pages/user/blocked-users' })
+          break
+      }
+    },
     goLogin() {
       uni.navigateTo({ url: '/pages/auth/login' })
     },
     goEdit() {
       uni.navigateTo({ url: '/pages/user/edit' })
     },
-    goMyItems(type, status = 'active') {
-      uni.navigateTo({ url: `/pages/user/my-items?type=${type}&status=${status}` })
-    },
     goSettings() {
       uni.navigateTo({ url: '/pages/user/settings' })
-    },
-    goBlockedUsers() {
-      uni.navigateTo({ url: '/pages/user/blocked-users' })
     },
     goDonation() {
       uni.showToast({ 
@@ -561,39 +584,8 @@ export default {
   color: #ccc;
 }
 
-.guest-content {
-  padding: 40rpx 20rpx;
-}
-
-.guest-card {
-  background: #ffffff;
-  border-radius: 15rpx;
-  padding: 40rpx;
-  text-align: center;
-}
-
-.guest-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-  display: block;
-  margin-bottom: 15rpx;
-}
-
-.guest-desc {
-  font-size: 26rpx;
-  color: #999;
-  display: block;
-  margin-bottom: 30rpx;
-}
-
-.guest-btn {
-  width: 200rpx;
-  height: 70rpx;
-  background: #334155;
-  color: #fff;
-  border-radius: 35rpx;
-  font-size: 28rpx;
+.menu-item.login .menu-text {
+  color: #334155;
 }
 
 .tabbar-container {

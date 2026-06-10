@@ -1,6 +1,7 @@
 <script>
 import { api } from '@/utils/api.js'
 import { storage } from '@/utils/storage.js'
+import { notification } from '@/utils/notification.js'
 
 // 全局网络状态
 let globalNetworkStatus = {
@@ -22,6 +23,16 @@ const baseUrl = 'https://chentian.dpdns.org'
 
 // 保活定时器引用
 let keepAliveTimer = null
+
+// 消息轮询定时器
+let messagePollTimer = null
+let messagePollInterval = 5000
+let lastMessageCounts = {}
+let lastNotifyTimes = {}
+const NOTIFY_COOLDOWN = 10000
+
+// 版本更新标记：记录本次启动是否已通知过更新
+let hasShownUpdateNotification = false
 
 // 设置网络状态
 export function setNetworkStatus(isOffline) {
@@ -96,6 +107,9 @@ export default {
     // 启动网络检测（离线游戏）
     this.initNetworkCheck()
     
+    // 启动全局消息轮询服务
+    this.startGlobalMessagePoll()
+    
     // 不管是否登录，都跳转到主页
     uni.reLaunch({ url: '/pages/index/index' })
     
@@ -167,6 +181,9 @@ export default {
       clearInterval(keepAliveTimer)
       keepAliveTimer = null
     }
+    
+    // 停止全局消息轮询
+    this.stopGlobalMessagePoll()
   },
   methods: {
     // 初始化网络检测
@@ -380,6 +397,7 @@ export default {
     
     // 申请通知权限（仅首次，不跳转设置页）
     requestNotificationPermission() {
+      notification.init()
       // #ifdef APP-PLUS
       try {
         if (typeof plus === 'undefined' || !plus) return
@@ -416,11 +434,90 @@ export default {
       } catch (e) {}
       // #endif
     },
+    
+    // 启动全局消息轮询服务（App生命周期内持续运行）
+    startGlobalMessagePoll() {
+      if (messagePollTimer) {
+        clearInterval(messagePollTimer)
+        messagePollTimer = null
+      }
+      
+      // 立即执行一次
+      this.pollMessages()
+      
+      messagePollTimer = setInterval(() => {
+        this.pollMessages()
+      }, messagePollInterval)
+    },
+    
+    // 停止全局消息轮询
+    stopGlobalMessagePoll() {
+      if (messagePollTimer) {
+        clearInterval(messagePollTimer)
+        messagePollTimer = null
+      }
+    },
+    
+    // 轮询消息
+    async pollMessages() {
+      const token = storage.getToken()
+      if (!token) return
+      
+      try {
+        const res = await api.getMessages()
+        if (res && res.data && res.data.length > 0) {
+          this.handleNewMessages(res.data)
+        }
+      } catch (e) {
+        // 静默失败，继续轮询
+      }
+    },
+    
+    // 处理新消息
+    handleNewMessages(conversations) {
+      const now = Date.now()
+      
+      conversations.forEach(conv => {
+        const userId = conv.userId
+        const currentCount = parseInt(conv.unread) || 0
+        const lastCount = parseInt(lastMessageCounts[userId]) || 0
+        
+        if (currentCount > lastCount) {
+          const lastNotify = lastNotifyTimes[userId] || 0
+          if (now - lastNotify >= NOTIFY_COOLDOWN) {
+            this.showMessageNotification(conv)
+            lastNotifyTimes[userId] = now
+          }
+        }
+        
+        lastMessageCounts[userId] = currentCount
+      })
+    },
+    
+    // 显示消息通知
+    showMessageNotification(conversation) {
+      // #ifdef APP-PLUS
+      if (typeof plus === 'undefined') return
+      
+      const userName = conversation.userName || '未知用户'
+      const content = conversation.lastMessage || '新消息'
+      
+      notification.showMessageNotification(
+        conversation.userId,
+        userName,
+        content,
+        conversation.userAvatar
+      )
+      // #endif
+    },
     // 检测版本更新（仅 App 平台 - 强制检测）
     async checkUpdate() {
       // #ifdef APP-PLUS
       try {
-        // 每次强制访问服务器，不缓存
+        if (hasShownUpdateNotification) {
+          return
+        }
+
         const res = await api.getLatestVersion()
         if (!res || !res.data) return
 
@@ -428,7 +525,7 @@ export default {
         const currentCode = parseInt(getAppVersion()) || 0
 
         if (latest.versionCode > currentCode) {
-          // 发现新版本，弹窗提示
+          hasShownUpdateNotification = true
           uni.showModal({
             title: `发现新版本 v${latest.version}`,
             content: latest.changelog || '点击确定前往下载页面',
