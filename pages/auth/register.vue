@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <view class="container">
     <view class="header">
       <text class="title">注册账号</text>
@@ -76,7 +76,10 @@
         />
       </view>
       
-      <button class="submit-btn" :disabled="!canSubmit" @click="handleRegister">注册</button>
+      <view class="submit-wrapper">
+        <button class="submit-btn" :disabled="!canSubmit" @click="handleRegister">注册</button>
+        <text class="submit-tip">（请加18799784824的qq审核）</text>
+      </view>
       
       <view class="link-row">
         <text class="link" @click="goLogin">已有账号？立即登录</text>
@@ -160,11 +163,15 @@ export default {
         })
         
         uni.hideLoading()
-        uni.showToast({ title: '注册成功，请等待管理员审核', icon: 'success' })
-        
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 2000)
+        uni.showModal({
+          title: '注册成功',
+          content: '请等待管理员审核，审核通过后即可登录使用',
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => {
+            uni.navigateBack()
+          }
+        })
       } catch (err) {
         uni.hideLoading()
         uni.showToast({ title: err.message || '注册失败', icon: 'none' })
@@ -263,18 +270,35 @@ export default {
   box-sizing: border-box;
 }
 
+.submit-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20rpx;
+}
+
 .submit-btn {
   width: 100%;
+  max-width: 600rpx;
+  min-width: 300rpx;
   height: 88rpx;
   background: #334155;
   color: #fff;
   border-radius: 44rpx;
   font-size: 32rpx;
-  margin-top: 20rpx;
 }
 
 .submit-btn[disabled] {
   opacity: 0.5;
+}
+
+.submit-tip {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 16rpx;
+  text-align: center;
+  word-break: break-all;
+  max-width: 100%;
 }
 
 .link-row {
