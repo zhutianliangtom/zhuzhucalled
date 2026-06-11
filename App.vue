@@ -1,4 +1,4 @@
-﻿<script>
+<script>
 import { api } from '@/utils/api.js'
 import { storage } from '@/utils/storage.js'
 import { notification } from '@/utils/notification.js'
@@ -603,6 +603,9 @@ export default {
         this.handleWebSocketEvent(event, data)
       })
       
+      // 监听强制登出全局事件
+      uni.$on('force-logout', this.handleForceLogout)
+      
       // 立即连接，不要延迟
       console.log('[WebSocket] 开始连接...')
       websocket.connect()
@@ -624,6 +627,14 @@ export default {
           this.handleWebSocketMessage(data)
           break
       }
+    },
+    
+    // 处理强制登出
+    handleForceLogout() {
+      console.log('[App] 处理强制登出事件')
+      api.stopHeartbeat()
+      websocket.disconnect()
+      api.handleForceLogout()
     },
     
     // 处理 WebSocket 消息

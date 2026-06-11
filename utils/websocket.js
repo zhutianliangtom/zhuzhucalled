@@ -50,6 +50,16 @@ function registerGlobalSocketListeners() {
     console.log('[WebSocket] 连接关闭, code:', res.code)
     isConnected = false
     websocket.stopHeartbeat()
+    
+    // 检测是否被强制下线（code 1008 = 账号在其他设备登录）
+    if (res.code === 1008) {
+      console.log('[WebSocket] 检测到强制下线')
+      shouldReconnect = false
+      // 触发全局事件，让App.vue处理强制登出
+      uni.$emit('force-logout', { code: res.code, reason: res.reason })
+      return
+    }
+    
     websocket.notifyListeners('disconnected', res)
     if (shouldReconnect) {
       websocket.scheduleReconnect()

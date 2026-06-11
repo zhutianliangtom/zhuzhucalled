@@ -302,6 +302,13 @@ wss.on('connection', (ws, req) => {
 
   if (authToken) {
     try {
+      // 检查 token 是否在黑名单中（被顶号）
+      if (isTokenBlacklisted(authToken)) {
+        console.log(`[WebSocket] Token已被拉黑，拒绝连接`)
+        ws.close(1008, '账号已在其他设备登录')
+        return
+      }
+      
       const decoded = jwt.verify(authToken, JWT_SECRET)
       pool.query('SELECT * FROM users WHERE id = ?', [decoded.id])
         .then(([rows]) => {
@@ -1336,6 +1343,16 @@ app.post('/auth/login/force', loginLimit, async (req, res) => {
   // 清除该用户所有旧会话并加入黑名单
   const oldTokens = clearAllSessions(user.id)
   console.log(`[FORCE LOGIN] 用户 ${user.studentId} 顶号登录，强制下线 ${oldTokens.length} 个设备`)
+
+  // 断开该用户所有WebSocket连接
+  const clients = userClients.get(user.id)
+  if (clients) {
+    clients.forEach(ws => {
+      ws.close(1008, '账号已在其他设备登录')
+    })
+    userClients.delete(user.id)
+    console.log(`[FORCE LOGIN] 已断开用户 ${user.studentId} 的所有WebSocket连接`)
+  }
 
   // 创建新会话
   const token = jwt.sign({ id: user.id, studentId: user.studentId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })

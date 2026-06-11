@@ -47,6 +47,7 @@
 <script>
 import { api } from '@/utils/api'
 import { storage } from '@/utils/storage'
+import { websocket } from '@/utils/websocket.js'
 
 export default {
   data() {
@@ -118,6 +119,8 @@ export default {
           studentId: this.form.studentId,
           password: this.form.password
         })
+        // 顶号登录成功后，先断开WebSocket再保存新token
+        websocket.disconnect()
         this.completeLogin(res)
       } catch (err) {
         this.isSubmitting = false
@@ -133,6 +136,11 @@ export default {
       uni.showToast({ title: '登录成功', icon: 'success' })
       
       api.resetHeartbeat()
+      
+      // 重新连接WebSocket
+      setTimeout(() => {
+        websocket.connect()
+      }, 500)
       
       setTimeout(() => {
         uni.reLaunch({ url: '/pages/index/index' })
