@@ -235,9 +235,9 @@
     }
 
     function getLogLevelClass(line) {
-      if (/\[ERROR \]/.test(line)) return 'level-error'
-      if (/\[WARN  \]/.test(line)) return 'level-warn'
-      if (/\[INFO  \]/.test(line)) return 'level-info'
+      if (/\[ERROR  \]/.test(line)) return 'level-error'
+      if (/\[WARN   \]/.test(line)) return 'level-warn'
+      if (/\[INFO   \]/.test(line)) return 'level-info'
       if (/\[SYSTEM\]/.test(line) || /\[启动\]/.test(line)) return 'level-system'
       return ''
     }
