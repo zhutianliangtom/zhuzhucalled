@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="container" :class="{ 'theme-dark': isDark }">
     <view class="header" :style="{ paddingTop: (statusBarHeight + 10) + 'px' }">
       <text class="title">消息</text>
@@ -105,11 +105,20 @@ export default {
   },
   onShow() {
     this._appInForeground = true
+    // ????????????????????????????????
+    if (typeof notification !== `undefined` && notification.setForeground) {
+      notification.setForeground(true)
+      notification.setActiveChatUser(``)
+    }
     this.updateBadge()
     this.currentTabBarIndex = 1
   },
   onHide() {
     this._appInForeground = false
+    // ???????????
+    if (typeof notification !== `undefined` && notification.setForeground) {
+      notification.setForeground(false)
+    }
   },
   onUnload() {
     uni.$off('theme-change')

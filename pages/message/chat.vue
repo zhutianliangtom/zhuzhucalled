@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="container">
     <view class="header">
       <view class="back-btn" @click="goBack">
@@ -237,13 +237,22 @@ export default {
   },
   onShow() {
     this.loadMessages()
-    // 进入聊天页面时立即标记该对话为已读
+    // ?????????????????
     this.markAsRead()
-    // 清除该用户的通知
+    // ????????
     this.clearNotification()
+    // ?????????????????
+    if (typeof notification !== `undefined` && notification.setActiveChatUser) {
+      notification.setForeground(true)
+      notification.setActiveChatUser(this.userId || ``)
+    }
   },
   onHide() {
     this.stopPoll()
+    // ?????????????
+    if (typeof notification !== `undefined` && notification.setForeground) {
+      notification.setForeground(false)
+    }
   },
   onUnload() {
     this.stopPoll()

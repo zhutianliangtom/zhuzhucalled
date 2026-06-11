@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 import { api } from '@/utils/api.js'
 import { storage } from '@/utils/storage.js'
 import { notification } from '@/utils/notification.js'
@@ -164,18 +164,35 @@ export default {
     // #endif
   },
   onShow: function() {
-    // 每次显示时确保主题正确
+    // ???????????
     this.applyTheme()
     
-    // 应用回到前台时重连 WebSocket
+    // ????????
+    notification.setForeground(true)
+    
+    // ??????????????????
+    try {
+      const pages = getCurrentPages()
+      if (pages.length > 0) {
+        const currentPage = pages[pages.length - 1]
+        if (currentPage && currentPage.route && currentPage.route.includes(`message/chat`)) {
+          const options = currentPage.options || {}
+          const userId = options.userId || ``
+          notification.setActiveChatUser(userId)
+          console.log(`[通知] 当前查看聊天用户:`, userId)
+        }
+      }
+    } catch (e) {}
+    
+    // ????????? WebSocket
     if (!websocket.isConnected()) {
-      console.log('应用回到前台，重新连接 WebSocket')
+      console.log(`应用回到前台，重新连接 WebSocket`)
       websocket.connect()
     }
     
     // #ifdef APP-PLUS
     try {
-      if (typeof plus !== 'undefined' && plus && plus.runtime) {
+      if (typeof plus !== `undefined` && plus && plus.runtime) {
         plus.runtime.setBadgeNumber(0)
       }
       this.checkUpdate()
@@ -183,8 +200,10 @@ export default {
     // #endif
   },
   onHide: function() {
-    // 应用隐藏时继续心跳检测
-    console.log('应用进入后台')
+    // ???????????????
+    notification.setForeground(false)
+    notification.setActiveChatUser(``)
+    console.log(`应用进入后台`)
   },
   onUnload: function() {
     // 应用卸载时停止心跳
@@ -633,42 +652,45 @@ export default {
       
       console.log('[WebSocket] 距离上次通知:', now - lastNotify, 'ms, 冷却时间:', NOTIFY_COOLDOWN, 'ms')
       
-      // 10秒冷却时间
+      // 10?????
       if (now - lastNotify >= NOTIFY_COOLDOWN) {
-        // 确保用户名有效
-        let userName = message.userName
-        if (!userName || userName.trim() === '' || userName === 'undefined') {
-          userName = '用户'
+        // ???????????????
+        if (notification.isViewingChat(userId)) {
+          console.log('[WebSocket] ????????????????????')
+        } else {
+          // ???????
+          let userName = message.userName
+          if (!userName || userName.trim() === '' || userName === 'undefined') {
+            userName = '??'
+          }
+          
+          // ??????
+          let content = message.content
+          if (!content || content.trim() === '') {
+            content = '???'
+          }
+          
+          console.log('[WebSocket] ????:', userName, '-', content)
+          
+          // #ifdef APP-PLUS
+          try {
+            notification.showMessageNotification(
+              userId,
+              userName,
+              content,
+              message.userAvatar || '',
+              message.messageId || ''
+            )
+          } catch (e) {
+            console.error('[WebSocket] ??????:', e)
+          }
+          // #endif
         }
-        
-        // 确保内容有效
-        let content = message.content
-        if (!content || content.trim() === '') {
-          content = '新消息'
-        }
-        
-        console.log('[WebSocket] 显示通知:', userName, '-', content)
-        
-        // #ifdef APP-PLUS
-        try {
-          notification.showMessageNotification(
-            userId,
-            userName,
-            content,
-            message.userAvatar || '',
-            message.messageId || ''
-          )
-        } catch (e) {
-          console.error('[WebSocket] 显示通知失败:', e)
-        }
-        // #endif
         
         lastNotifyTimes[userId] = now
       } else {
-        console.log('[WebSocket] 还在冷却期内，跳过通知')
+        console.log('[WebSocket] ???????????')
       }
-      
-      // 更新本地消息计数
       lastMessageCounts[userId] = (lastMessageCounts[userId] || 0) + 1
       
       // 触发全局事件通知
