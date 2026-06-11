@@ -1,0 +1,8 @@
+- [x] Task 1: logBuffer 内存泄漏修复 — 已添加大小限制（50000行），确认高流量下不会无限增长
+- [x] Task 2: cleanBuffer 竞态修复 — flushLogs 和 cleanBuffer 均添加了 LOG_DIR 存在性检查
+- [x] Task 3: WebSocket 推送异常处理 — send 调用包裹 try-catch，失败时移除断开客户端
+- [x] Task 4: 请求日志中间件 token 验证 — 移除手动 jwt.verify，使用 req.user 获取用户信息
+- [x] Task 5: res.end 重复包装防护 — 添加 res._logWrapped 标志检查
+- [x] Task 6: 日志 API 目录防护 — /admin/logs 和 /admin/logs/dates 均添加 LOG_DIR 存在性检查
+- [x] Task 7: logs.ejs 无 token 处理 — connectWebSocket 中 token 为空时提示并提前返回
+- [x] Task 8: 日志颜色 ANSI 代码隔离 — logLine 无 ANSI 颜色序列，仅 colorLine（控制台输出）有颜色

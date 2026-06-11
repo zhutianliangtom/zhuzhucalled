@@ -172,11 +172,31 @@ function log(level, ...args) {
   if (!logBuffer[fileName]) {
     logBuffer[fileName] = ''
   }
+  // Task 1: 内存泄漏防护 - 限制每个日期文件最大行数
+  if (logBuffer[fileName] && logBuffer[fileName].split('\n').length >= 50000) {
+    const lines = logBuffer[fileName].split('\n')
+    logBuffer[fileName] = lines.slice(-49000).join('\n')
+  }
   logBuffer[fileName] += logLine
+  
+  // Task 3: WebSocket 推送异常处理
+  for (const client of adminClients) {
+    try {
+      if (client.isAdminLogSubscriber && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'log_line',
+          line: logLine
+        }))
+      }
+    } catch (err) {
+      adminClients.delete(client)
+    }
+  }
 }
 
 // 刷盘：将缓冲区内容写入磁盘
 function flushLogs() {
+  if (!fs.existsSync(LOG_DIR)) return
   const fileNames = Object.keys(logBuffer)
   for (const fileName of fileNames) {
     if (logBuffer[fileName].length > 0) {
@@ -193,6 +213,7 @@ function flushLogs() {
 
 // 清理旧日期的缓冲区（跨天后旧 key 不再有写入，刷盘后清理）
 function cleanBuffer() {
+  if (!fs.existsSync(LOG_DIR)) return
   const today = getLogFileName()
   for (const fileName of Object.keys(logBuffer)) {
     if (fileName !== today && logBuffer[fileName].length === 0) {
@@ -383,6 +404,19 @@ wss.on('connection', (ws, req) => {
       
       if (message.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong' }))
+      }
+      
+      // 管理员请求实时日志订阅
+      if (message.type === 'subscribe_logs') {
+        ws.isAdminLogSubscriber = true
+        // 立即推送当前缓冲区的日志
+        const todayLog = getLogFileName()
+        if (logBuffer[todayLog] && logBuffer[todayLog].length > 0) {
+          ws.send(JSON.stringify({
+            type: 'log_lines',
+            content: logBuffer[todayLog]
+          }))
+        }
       }
     } catch (err) {
       console.error('WebSocket 消息解析失败:', err)
@@ -927,6 +961,37 @@ app.use('/admin', rateLimitMiddleware({
 // 静态文件：图片和视频
 app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/uploads/videos', express.static(VIDEO_DIR))
+
+// ==================== 请求日志中间件 ====================
+app.use((req, res, next) => {
+  const start = Date.now()
+  const timestamp = new Date().toISOString().replace('T', ' ').replace('Z', '')
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'
+  const method = req.method
+  const url = req.url
+  const userAgent = req.headers['user-agent'] || ''
+  
+  let userDetail = req.user ? `${req.user.name || ''}(${req.user.studentId || ''})` : 'anonymous'
+  
+  const isAdminRequest = req.url.startsWith('/admin')
+  
+  const originalEnd = res.end
+  if (res._logWrapped) return next()
+  res._logWrapped = true
+  res.end = function(...args) {
+    const duration = Date.now() - start
+    const status = res.statusCode
+    const logLevel = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info'
+    
+    const logMsg = `[${timestamp}] ${method} ${url} ${status} ${duration}ms ${ip} ${userDetail}${isAdminRequest ? ' [ADMIN]' : ''}${userAgent.includes('uniapp') ? ' [APP]' : ''}${userAgent.includes('Mozilla') && !userAgent.includes('uniapp') ? ' [WEB]' : ''}`
+    
+    log(logLevel, logMsg)
+    
+    originalEnd.apply(res, args)
+  }
+  
+  next()
+})
 
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization']
@@ -2459,6 +2524,86 @@ app.get('/admin/luck/today', authMiddleware, async (req, res) => {
   }
 })
 
+// ==================== 日志查看 API ====================
+
+// 日志查看页面（渲染 EJS）和日志 API（JSON）
+app.get('/admin/logs', authMiddleware, async (req, res) => {
+  // 检查 ?api=1 参数来区分页面渲染和 API 调用
+  if (req.query.api === '1') {
+    const { date } = req.query
+    try {
+      if (!fs.existsSync(LOG_DIR)) {
+        return res.json({ success: true, content: '', date: date || getLogFileName(), exists: false })
+      }
+      const logDate = date || getLogFileName()
+      const logPath = path.join(LOG_DIR, logDate)
+      
+      let content = ''
+      let exists = false
+      if (fs.existsSync(logPath)) {
+        content = fs.readFileSync(logPath, 'utf8')
+        exists = true
+      }
+      
+      if (logBuffer[logDate]) {
+        content += logBuffer[logDate]
+      }
+      
+      return res.json({
+        success: true,
+        content: content,
+        date: logDate,
+        exists: exists
+      })
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message })
+    }
+  }
+  
+  // 渲染 EJS 页面
+  const now = new Date()
+  const hour = now.getHours()
+  let greeting = '你好'
+  if (hour < 12) greeting = '早上好'
+  else if (hour < 18) greeting = '下午好'
+  else greeting = '晚上好'
+  
+  res.render('logs', {
+    adminName: req.user.name,
+    greeting: greeting,
+    serverTime: now.toLocaleString('zh-CN')
+  })
+})
+
+// 获取所有可用的日志日期列表
+app.get('/admin/logs/dates', authMiddleware, (req, res) => {
+  try {
+    if (!fs.existsSync(LOG_DIR)) {
+      return res.json({ success: true, dates: [] })
+    }
+    const files = fs.readdirSync(LOG_DIR).filter(f => f.endsWith('.log')).sort().reverse()
+    res.json({ success: true, dates: files })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// 下载日志文件
+app.get('/admin/logs/download/:filename', authMiddleware, (req, res) => {
+  const { filename } = req.params
+  // 安全校验：防止路径遍历攻击
+  if (!/^\d{4}-\d{2}-\d{2}\.log$/.test(filename)) {
+    return res.status(400).json({ success: false, message: '无效的文件名' })
+  }
+  
+  const logPath = path.join(LOG_DIR, filename)
+  if (!fs.existsSync(logPath)) {
+    return res.status(404).json({ success: false, message: '日志文件不存在' })
+  }
+  
+  res.download(logPath, filename)
+})
+
 // 全局错误处理（捕获 async handler 和 multer 的错误）
 app.use((err, req, res, next) => {
   console.error('[Express 错误]', err.message || err)
@@ -2533,7 +2678,7 @@ process.on('SIGINT', () => {
 })
 
 // 启动
-;(async () => {
+async function startServer() {
   try {
     await initDatabase()
 
@@ -2567,4 +2712,7 @@ process.on('SIGINT', () => {
     console.error('[启动失败]', e.message || e, e.stack)
     process.exit(1)
   }
-})()
+}
+
+// 启动服务器
+startServer()

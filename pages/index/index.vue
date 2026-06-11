@@ -223,6 +223,11 @@ export default {
     uni.$on('theme-change', ({ isDark }) => {
       this.isDark = isDark
     })
+    
+    // 主页加载后启动心跳检测
+    try {
+      api.resetHeartbeat()
+    } catch (e) {}
   },
   onUnload() {
     uni.$off('theme-change')

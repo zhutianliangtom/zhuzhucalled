@@ -100,11 +100,6 @@ export default {
     // 申请通知权限
     this.requestNotificationPermission()
     
-    // App启动就启动心跳检测
-    try {
-      api.resetHeartbeat()
-    } catch (e) {}
-    
     // 启动Android保活服务
     this.startAndroidKeepAlive()
     

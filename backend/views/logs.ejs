@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园失物招领 - 日志查看</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width:220px; background:#1e293b; min-height:100vh; position:fixed; left:0; top:0;
+      padding:28px 18px; color:#cbd5e1; transition:transform 0.3s; z-index:1000;
+    }
+    .sidebar h2 { font-size:16px; color:#fff; margin-bottom:32px; padding-bottom:16px; border-bottom:1px solid #334155; font-weight:600; }
+    .sidebar ul { list-style:none; }
+    .sidebar li { margin-bottom:4px; }
+    .sidebar a { display:block; padding:10px 14px; color:#94a3b8; text-decoration:none; border-radius:6px; font-size:13px; transition:all 0.2s; }
+    .sidebar a:hover, .sidebar a.active { background:#334155; color:#fff; }
+    .sidebar .logout-link { position:absolute; bottom:24px; left:18px; right:18px; display:block; padding:10px 14px; color:#64748b; text-decoration:none; border-radius:6px; font-size:13px; text-align:center; border:1px solid #334155; transition:all 0.2s; }
+    .sidebar .logout-link:hover { background:#334155; color:#fff; }
+    .main-content { margin-left:220px; padding:32px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+    .header h1 { font-size:22px; color:#111; font-weight:600; }
+    .header .sub { color:#6b7280; font-size:13px; margin-top:4px; }
+
+    /* 工具栏 */
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+    .toolbar select, .toolbar button { padding:8px 14px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:#fff; cursor:pointer; }
+    .toolbar button { background:#2563eb; color:#fff; border:none; font-weight:500; }
+    .toolbar button:hover { background:#1d4ed8; }
+    .toolbar button.outline { background:#fff; color:#374151; border:1px solid #d1d5db; }
+    .toolbar button.outline:hover { background:#f9fafb; }
+    .toolbar label { font-size:13px; color:#374151; display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .toolbar .spacer { flex:1; }
+    .toolbar .status { font-size:12px; padding:4px 10px; border-radius:10px; }
+    .toolbar .status.live { background:#dcfce7; color:#166534; }
+    .toolbar .status.stopped { background:#fef2f2; color:#991b1b; }
+
+    /* 日志显示区 */
+    .log-wrap {
+      background:#0f172a; border-radius:8px; border:1px solid #e5e7eb;
+      padding:16px; max-height:calc(100vh - 240px); overflow-y:auto;
+      font-family:'Courier New',Courier,monospace; font-size:12px; line-height:1.6;
+      color:#e2e8f0;
+    }
+    .log-wrap.scrolled-to-bottom { scroll-behavior:smooth; }
+    .log-line { white-space:pre-wrap; word-break:break-all; }
+    .log-line.level-info { color:#4ade80; }
+    .log-line.level-warn { color:#fbbf24; }
+    .log-line.level-error { color:#f87171; }
+    .log-line.level-system { color:#7dd3fc; }
+    .log-empty { color:#64748b; text-align:center; padding:60px 20px; font-size:14px; }
+
+    /* 通知 */
+    .notif-c { position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; max-width:360px; }
+    .notif { background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); border-left:3px solid #2563eb; animation:slideIn 0.3s; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .notif.warn { border-left-color:#f59e0b; }
+    .notif.ok { border-left-color:#10b981; }
+    .notif .title { font-weight:600; font-size:13px; color:#111; margin-bottom:4px; }
+    .notif .msg { font-size:12px; color:#6b7280; }
+    .notif .cls { background:none; border:none; color:#9ca3af; cursor:pointer; font-size:16px; line-height:1; }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideOut { from{transform:translateX(0);opacity:1} to{transform:translateX(100%);opacity:0} }
+    .notif.out { animation:slideOut 0.3s forwards; }
+
+    .hb { display:none; position:fixed; top:12px; left:12px; z-index:1001; background:#1e293b; color:#fff; border:none; width:38px; height:38px; border-radius:6px; font-size:20px; cursor:pointer; }
+    .sb-cls { display:none; position:absolute; top:14px; right:14px; background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; }
+    @media (max-width:768px) {
+      .hb { display:block; }
+      .sb-cls { display:block; }
+      .sidebar { transform:translateX(-100%); padding-top:54px; }
+      .sidebar.open { transform:translateX(0); }
+      .main-content { margin-left:0 !important; padding:20px 14px; padding-top:58px; }
+      .header h1 { font-size:18px; }
+      .log-wrap { max-height:calc(100vh - 180px); font-size:11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="notif-c" id="nc"></div>
+  <button class="hb" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar" id="sb">
+    <button class="sb-cls" onclick="toggleSidebar()">✕</button>
+    <h2>管理后台</h2>
+    <ul>
+      <li><a href="/admin/dashboard">数据概览</a></li>
+      <li><a href="/admin/items">物品管理</a></li>
+      <li><a href="/admin/users">用户管理</a></li>
+      <li><a href="/admin/versions">版本管理</a></li>
+      <li><a href="/admin/luck">今日人品</a></li>
+      <li><a href="/admin/logs" class="active">日志查看</a></li>
+    </ul>
+    <a href="/admin/logout" class="logout-link">退出登录</a>
+  </div>
+  <div class="main-content">
+    <div class="header">
+      <div>
+        <h1>日志查看</h1>
+        <p class="sub"><%= greeting %>，<%= adminName %> · 服务器时间 <%= serverTime %></p>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <select id="dateSelect"><option value="">加载中...</option></select>
+      <button onclick="loadLogs()">刷新</button>
+      <button class="outline" onclick="downloadLogs()">下载日志</button>
+      <button class="outline" onclick="clearDisplay()">清空显示</button>
+      <label><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
+      <span class="spacer"></span>
+      <span id="connStatus" class="status stopped">未连接</span>
+    </div>
+
+    <div class="log-wrap" id="logWrap">
+      <div class="log-empty" id="logEmpty">点击"刷新"加载日志</div>
+    </div>
+  </div>
+
+  <script>
+    let currentLines = []
+    const MAX_LINES = 5000
+    let ws = null
+    let pollingTimer = null
+    let lastLogCount = 0
+
+    function toggleSidebar() {
+      document.getElementById('sb').classList.toggle('open')
+      let ov = document.getElementById('sb-ov')
+      if (!ov) {
+        ov = document.createElement('div')
+        ov.id = 'sb-ov'
+        ov.onclick = toggleSidebar
+        ov.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:999;'
+        document.body.appendChild(ov)
+      }
+      ov.style.display = document.getElementById('sb').classList.contains('open') ? 'block' : 'none'
+    }
+
+    function notify(title, msg, type) {
+      type = type || 'info'
+      var c = document.getElementById('nc')
+      var n = document.createElement('div')
+      n.className = 'notif ' + (type === 'success' ? 'ok' : type === 'warning' ? 'warn' : '')
+      n.innerHTML = '<div><div class="title">' + title + '</div><div class="msg">' + msg + '</div></div><button class="cls" onclick="this.parentElement.classList.add(\'out\');setTimeout(function(){if(this.parentElement.parentElement)this.parentElement.parentElement.removeChild(this.parentElement)},300)">×</button>'
+      c.appendChild(n)
+      setTimeout(function() {
+        if (n.parentElement) {
+          n.classList.add('out')
+          setTimeout(function() { if (n.parentElement) n.parentElement.removeChild(n) }, 300)
+        }
+      }, 5000)
+    }
+
+    // 加载日期列表
+    async function loadDates() {
+      try {
+        const res = await fetch('/admin/logs/dates')
+        const json = await res.json()
+        const select = document.getElementById('dateSelect')
+        select.innerHTML = ''
+        if (json.dates && json.dates.length > 0) {
+          // 今天日期
+          const today = json.dates.find(d => d.indexOf(new Date().toISOString().slice(0,10)) === 0)
+          if (today) {
+            const opt = document.createElement('option')
+            opt.value = today
+            opt.textContent = '今天 (' + today + ')'
+            opt.selected = true
+            select.appendChild(opt)
+          }
+          json.dates.forEach(function(d) {
+            const opt = document.createElement('option')
+            opt.value = d
+            opt.textContent = d
+            if (d === today) opt.selected = true
+            select.appendChild(opt)
+          })
+        } else {
+          const opt = document.createElement('option')
+          opt.value = ''
+          opt.textContent = '暂无历史日志'
+          select.appendChild(opt)
+        }
+      } catch (e) {
+        console.error('加载日期失败:', e)
+      }
+    }
+
+    // 加载日志内容
+    async function loadLogs() {
+      const select = document.getElementById('dateSelect')
+      const date = select.value
+      const logWrap = document.getElementById('logWrap')
+      const logEmpty = document.getElementById('logEmpty')
+
+      try {
+        const url = date ? '/admin/logs?api=1&date=' + encodeURIComponent(date) : '/admin/logs?api=1'
+        const res = await fetch(url)
+        const json = await res.json()
+
+        if (json.success && json.content) {
+          const lines = json.content.split('\n').filter(l => l.trim())
+          logEmpty.style.display = 'none'
+          logWrap.innerHTML = ''
+          currentLines = lines
+
+          // 限制显示行数
+          const displayLines = lines.slice(-MAX_LINES)
+          displayLines.forEach(function(line) {
+            const div = document.createElement('div')
+            div.className = 'log-line ' + getLogLevelClass(line)
+            div.textContent = line
+            logWrap.appendChild(div)
+          })
+
+          if (document.getElementById('autoScroll').checked) {
+            logWrap.scrollTop = logWrap.scrollHeight
+          }
+        } else {
+          logEmpty.style.display = 'block'
+          logEmpty.textContent = '暂无日志数据'
+        }
+      } catch (e) {
+        notify('错误', '加载日志失败: ' + e.message, 'warning')
+      }
+    }
+
+    function getLogLevelClass(line) {
+      if (/\[ERROR\]/.test(line)) return 'level-error'
+      if (/\[WARN \]/.test(line)) return 'level-warn'
+      if (/\[INFO  \]/.test(line)) return 'level-info'
+      if (/\[SYSTEM\]/.test(line) || /\[启动\]/.test(line)) return 'level-system'
+      return ''
+    }
+
+    // 清空显示
+    function clearDisplay() {
+      const logWrap = document.getElementById('logWrap')
+      const logEmpty = document.getElementById('logEmpty')
+      logWrap.innerHTML = ''
+      logEmpty.style.display = 'block'
+      logEmpty.textContent = '已清空'
+      currentLines = []
+    }
+
+    // 下载日志
+    function downloadLogs() {
+      const select = document.getElementById('dateSelect')
+      const date = select.value
+      if (!date) {
+        notify('提示', '请先选择要下载的日期', 'warning')
+        return
+      }
+      window.open('/admin/logs/download/' + date, '_blank')
+    }
+
+    // WebSocket 连接
+    function connectWebSocket() {
+      if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return
+
+      const host = window.location.hostname
+      const port = window.location.port
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      // 从 cookie 获取 token
+      const cookies = document.cookie.split(';')
+      let token = null
+      for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim()
+        if (c.indexOf('token=') === 0) {
+          token = c.substring(6)
+          break
+        }
+      }
+
+      if (!token) {
+        notify('提示', '请先登录后再查看日志', 'warning')
+        updateConnStatus('未登录', 'stopped')
+        return
+      }
+
+      const wsUrl = protocol + '//' + host + (port ? ':' + port : '') + '/?token=' + encodeURIComponent(token)
+
+      try {
+        ws = new WebSocket(wsUrl)
+      } catch (e) {
+        updateConnStatus('连接失败', 'stopped')
+        return
+      }
+
+      ws.onopen = function() {
+        updateConnStatus('实时同步中', 'live')
+        // 请求订阅日志
+        ws.send(JSON.stringify({ type: 'subscribe_logs' }))
+        // 启动轮询作为 fallback
+        startPolling()
+      }
+
+      ws.onmessage = function(event) {
+        try {
+          const msg = JSON.parse(event.data)
+
+          if (msg.type === 'log_line' && msg.line) {
+            appendLogLine(msg.line)
+          } else if (msg.type === 'log_lines' && msg.content) {
+            // 初始批量推送
+            const lines = msg.content.split('\n').filter(function(l) { return l.trim() })
+            if (currentLines.length === 0) {
+              const logWrap = document.getElementById('logWrap')
+              const logEmpty = document.getElementById('logEmpty')
+              logEmpty.style.display = 'none'
+              logWrap.innerHTML = ''
+              currentLines = lines
+              lines.forEach(function(line) {
+                const div = document.createElement('div')
+                div.className = 'log-line ' + getLogLevelClass(line)
+                div.textContent = line
+                logWrap.appendChild(div)
+              })
+              lastLogCount = lines.length
+            }
+          }
+        } catch (e) {
+          // 忽略非 JSON 消息
+        }
+      }
+
+      ws.onclose = function() {
+        updateConnStatus('已断开', 'stopped')
+        stopPolling()
+        // 5秒后重连
+        setTimeout(connectWebSocket, 5000)
+      }
+
+      ws.onerror = function() {
+        updateConnStatus('连接错误', 'stopped')
+      }
+    }
+
+    function appendLogLine(line) {
+      const logWrap = document.getElementById('logWrap')
+      const logEmpty = document.getElementById('logEmpty')
+
+      if (currentLines.length === 0) {
+        logEmpty.style.display = 'none'
+        logWrap.innerHTML = ''
+      }
+
+      const div = document.createElement('div')
+      div.className = 'log-line ' + getLogLevelClass(line)
+      div.textContent = line
+      logWrap.appendChild(div)
+
+      currentLines.push(line)
+      lastLogCount = currentLines.length
+
+      // 限制行数
+      if (currentLines.length > MAX_LINES) {
+        currentLines = currentLines.slice(-MAX_LINES)
+        // 移除 DOM 中过旧的行
+        while (logWrap.firstChild && logWrap.children.length > MAX_LINES) {
+          logWrap.removeChild(logWrap.firstChild)
+        }
+      }
+
+      if (document.getElementById('autoScroll').checked) {
+        logWrap.scrollTop = logWrap.scrollHeight
+      }
+    }
+
+    function updateConnStatus(text, cls) {
+      var el = document.getElementById('connStatus')
+      el.textContent = text
+      el.className = 'status ' + cls
+    }
+
+    // 轮询 Fallback
+    function startPolling() {
+      stopPolling()
+      pollingTimer = setInterval(async function() {
+        try {
+          const select = document.getElementById('dateSelect')
+          const date = select.value
+          const url = date ? '/admin/logs?api=1&date=' + encodeURIComponent(date) : '/admin/logs?api=1'
+          const res = await fetch(url)
+          const json = await res.json()
+
+          if (json.success && json.content) {
+            const lines = json.content.split('\n').filter(function(l) { return l.trim() })
+            if (lines.length !== lastLogCount) {
+              const newLines = lines.slice(lastLogCount)
+              newLines.forEach(function(line) {
+                appendLogLine(line)
+              })
+              lastLogCount = lines.length
+            }
+          }
+        } catch (e) {
+          // 轮询失败不影响 WebSocket
+        }
+      }, 2000)
+    }
+
+    function stopPolling() {
+      if (pollingTimer) {
+        clearInterval(pollingTimer)
+        pollingTimer = null
+      }
+    }
+
+    // 页面加载
+    document.addEventListener('DOMContentLoaded', function() {
+      loadDates()
+      loadLogs()
+      connectWebSocket()
+    })
+
+    // 页面卸载时断开 WebSocket
+    window.addEventListener('beforeunload', function() {
+      if (ws) ws.close()
+      stopPolling()
+    })
+  </script>
+</body>
+</html>

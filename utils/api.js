@@ -52,7 +52,10 @@ export const api = {
     if (heartbeatTimer) {
       return
     }
-    this.checkHeartbeat().catch(() => {})
+    // 首次心跳延迟3秒，确保页面已加载
+    setTimeout(() => {
+      this.checkHeartbeat().catch(() => {})
+    }, 3000)
     heartbeatTimer = setInterval(async () => {
       try {
         await this.checkHeartbeat()
@@ -64,18 +67,18 @@ export const api = {
       await this.request('/api/heartbeat', 'GET', {}, {
         'X-Heartbeat': 'true'
       })
-      if (!isOnline) {
+      // 心跳成功，隐藏横幅并触发事件
+      if (offlineBannerShown) {
         hideOfflineBanner()
         showOnlineToast()
-        uni.$emit('network-status-change', { isOnline: true })
       }
       heartbeatFailCount = 0
       isOnline = true
+      // 触发网络状态事件（确保OfflineBanner能隐藏）
+      uni.$emit('network-status-change', { isOnline: true })
     } catch (error) {
-      console.log('[API] 心跳检测失败:', error.message)
       // 如果错误信息包含"其他设备"，说明被顶号了（已经在request中调用了handleForceLogout）
       if (error.message && error.message.includes('其他设备')) {
-        console.log('[API] 心跳检测到被顶号，已触发强制登出')
         return
       }
       
@@ -115,15 +118,12 @@ export const api = {
         data,
         header: { ...defaultHeader, ...header },
         success: (res) => {
-          console.log('[API] 请求响应:', url, 'statusCode:', res.statusCode)
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
             const message = res.data.message || '未登录或登录已过期'
-            console.log('[API] 收到401响应:', message)
             // 检测是否被顶号
             if (message.includes('其他设备登录') || message.includes('其他设备')) {
-              console.log('[API] 检测到被顶号，触发强制登出')
               this.handleForceLogout()
               reject(new Error(message))
               return
@@ -138,7 +138,6 @@ export const api = {
           }
         },
         fail: (err) => {
-          console.error('[API] 请求失败:', url, err)
           reject(err)
         }
       })
