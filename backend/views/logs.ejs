@@ -104,6 +104,10 @@
       </div>
     </div>
 
+    <% if (wsToken) { %>
+    <script>var WS_TOKEN = '<%= wsToken.replace(/'/g, "\\'") %>';</script>
+    <% } %>
+
     <div class="toolbar">
       <select id="dateSelect"><option value="">加载中...</option></select>
       <button onclick="loadLogs()">刷新</button>
@@ -229,8 +233,8 @@
     }
 
     function getLogLevelClass(line) {
-      if (/\[ERROR\]/.test(line)) return 'level-error'
-      if (/\[WARN \]/.test(line)) return 'level-warn'
+      if (/\[ERROR \]/.test(line)) return 'level-error'
+      if (/\[WARN  \]/.test(line)) return 'level-warn'
       if (/\[INFO  \]/.test(line)) return 'level-info'
       if (/\[SYSTEM\]/.test(line) || /\[启动\]/.test(line)) return 'level-system'
       return ''
@@ -264,24 +268,14 @@
       const host = window.location.hostname
       const port = window.location.port
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      // 从 cookie 获取 token
-      const cookies = document.cookie.split(';')
-      let token = null
-      for (var i = 0; i < cookies.length; i++) {
-        var c = cookies[i].trim()
-        if (c.indexOf('token=') === 0) {
-          token = c.substring(6)
-          break
-        }
-      }
 
-      if (!token) {
+      if (!WS_TOKEN) {
         notify('提示', '请先登录后再查看日志', 'warning')
         updateConnStatus('未登录', 'stopped')
         return
       }
 
-      const wsUrl = protocol + '//' + host + (port ? ':' + port : '') + '/?token=' + encodeURIComponent(token)
+      const wsUrl = protocol + '//' + host + (port ? ':' + port : '') + '/?token=' + encodeURIComponent(WS_TOKEN)
 
       try {
         ws = new WebSocket(wsUrl)

@@ -2571,7 +2571,8 @@ app.get('/admin/logs', authMiddleware, async (req, res) => {
   res.render('logs', {
     adminName: req.user.name,
     greeting: greeting,
-    serverTime: now.toLocaleString('zh-CN')
+    serverTime: now.toLocaleString('zh-CN'),
+    wsToken: req.cookies?.token || ''
   })
 })
 
