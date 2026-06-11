@@ -49,6 +49,10 @@ const originalWarn = console.warn
 // 日志缓冲区：{ '2026-05-31.log': '...lines...', ... }
 const logBuffer = {}
 
+// WebSocket 连接管理（提前声明，避免 TDZ 问题）
+let adminClients = new Set()
+let userClients = new Map() // Map<userId, Set<WebSocket>>
+
 // ==================== 登录设备限制功能 ====================
 // 活跃会话存储: Map<userId, Array<{ token, deviceId, loginTime, lastActiveTime }>>
 const activeSessions = new Map()
@@ -295,11 +299,7 @@ const wss = new WebSocket.Server({
   pingInterval: 30000,  // 每30秒发送一次 ping
   pingTimeout: 60000    // 60秒没有响应则关闭连接
 })
-
-// WebSocket 连接管理
-const adminClients = new Set()
-const userClients = new Map() // Map<userId, Set<WebSocket>>
-
+  
 // WebSocket 连接处理
 wss.on('connection', (ws, req) => {
   console.log('WebSocket 新连接')
