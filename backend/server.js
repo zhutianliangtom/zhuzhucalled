@@ -2532,7 +2532,7 @@ app.get('/admin/logs', authMiddleware, async (req, res) => {
   if (req.query.api === '1') {
     const { date } = req.query
     // 防止路径遍历攻击
-    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (date && !/^\d{4}-\d{2}-\d{2}(\.log)?$/.test(date)) {
       return res.status(400).json({ success: false, message: '无效的日期格式' })
     }
     try {

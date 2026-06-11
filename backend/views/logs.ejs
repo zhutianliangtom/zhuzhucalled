@@ -201,9 +201,11 @@
     // 加载日志内容
     async function loadLogs() {
       const select = document.getElementById('dateSelect')
+      if (!select) return
       const date = select.value
       const logWrap = document.getElementById('logWrap')
       const logEmpty = document.getElementById('logEmpty')
+      if (!logWrap || !logEmpty) return
 
       try {
         const url = date ? '/admin/logs?api=1&date=' + encodeURIComponent(date) : '/admin/logs?api=1'
@@ -251,6 +253,7 @@
     function clearDisplay() {
       const logWrap = document.getElementById('logWrap')
       const logEmpty = document.getElementById('logEmpty')
+      if (!logWrap || !logEmpty) return
       logWrap.innerHTML = ''
       logEmpty.style.display = 'block'
       logEmpty.textContent = '已清空'
@@ -304,14 +307,15 @@
           const msg = JSON.parse(event.data)
 
           if (msg.type === 'log_line' && msg.line) {
-            appendLogLine(msg.line)
-          } else if (msg.type === 'log_lines' && msg.content) {
-            // 初始批量推送
-            const lines = msg.content.split('\n').filter(function(l) { return l.trim() })
-            if (currentLines.length === 0) {
-              const logWrap = document.getElementById('logWrap')
-              const logEmpty = document.getElementById('logEmpty')
-              logEmpty.style.display = 'none'
+        appendLogLine(msg.line)
+      } else if (msg.type === 'log_lines' && msg.content) {
+        // 初始批量推送
+        const lines = msg.content.split('\n').filter(function(l) { return l.trim() })
+        if (currentLines.length === 0) {
+          const logWrap = document.getElementById('logWrap')
+          const logEmpty = document.getElementById('logEmpty')
+          if (!logWrap || !logEmpty) return
+          logEmpty.style.display = 'none'
               logWrap.innerHTML = ''
               currentLines = lines
               lines.forEach(function(line) {
@@ -343,6 +347,7 @@
     function appendLogLine(line) {
       const logWrap = document.getElementById('logWrap')
       const logEmpty = document.getElementById('logEmpty')
+      if (!logWrap || !logEmpty) return
 
       if (currentLines.length === 0) {
         logEmpty.style.display = 'none'
@@ -373,6 +378,7 @@
 
     function updateConnStatus(text, cls) {
       var el = document.getElementById('connStatus')
+      if (!el) return
       el.textContent = text
       el.className = 'status ' + cls
     }
