@@ -117,6 +117,11 @@
       <span class="spacer"></span>
       <span id="connStatus" class="status stopped">未连接</span>
     </div>
+    <script>
+      document.getElementById('dateSelect').addEventListener('change', function() {
+        loadLogs()
+      })
+    </script>
 
     <div class="log-wrap" id="logWrap">
       <div class="log-empty" id="logEmpty">点击"刷新"加载日志</div>
