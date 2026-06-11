@@ -223,6 +223,8 @@
           if (document.getElementById('autoScroll').checked) {
             logWrap.scrollTop = logWrap.scrollHeight
           }
+          
+          lastLogCount = displayLines.length
         } else {
           logEmpty.style.display = 'block'
           logEmpty.textContent = '暂无日志数据'
