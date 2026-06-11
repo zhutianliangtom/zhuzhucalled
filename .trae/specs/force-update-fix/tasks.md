@@ -1,0 +1,33 @@
+# Tasks
+- [x] 后端：版本发布接口增加 versionCode 递增校验
+  - [x] 在 `/admin/version/publish` 中查询最大 versionCode
+  - [x] 比较提交的 versionCode 与已有最大值，不递增则返回 400
+  - [x] 返回具体错误信息
+- [x] 后端：版本发布接口增加版本号格式校验
+  - [x] 校验 version 字段匹配 `^\d+\.\d+\.\d+$`
+  - [x] 校验 versionCode 为正整数
+  - [x] 格式错误时返回 400 及具体原因
+- [x] 后端：版本查询接口保证返回数据完整
+  - [x] `/version/latest` 中强制 forceUpdate 为布尔类型（coerce to boolean）
+  - [x] 确保 versionCode 有默认值 0
+- [x] 前端：App.vue checkUpdate() 增加错误处理
+  - [x] 网络请求失败时显示 toast 提示
+  - [x] 后端返回 null 时显示提示
+  - [x] forceUpdate 字段增加默认值处理（`latest.forceUpdate === true`）
+  - [x] 已是最新版本时显示提示
+- [x] 前端：App.vue 实现强制更新阻塞机制
+  - [x] 移除 hasShownUpdateNotification 一次性跳过标记
+  - [x] 强制更新时用户取消则调用 plus.runtime.quit() 退出 App
+  - [x] 设置 forceQuitHandled 标记防止本次启动重复弹窗
+  - [x] 非强制更新时用户可以跳过，正常进入 App
+- [x] 前端：settings.vue checkUpdate() 增加错误处理
+  - [x] 同 App.vue 的错误处理逻辑
+  - [x] 统一使用 `latest.forceUpdate === true` 判断
+
+# Task Dependencies
+- [后端：版本发布接口增加 versionCode 递增校验] 独立，可并行
+- [后端：版本发布接口增加版本号格式校验] 独立，可并行
+- [后端：版本查询接口保证返回数据完整] 依赖以上两个任务完成后
+- [前端：App.vue checkUpdate() 增加错误处理] 独立，可并行
+- [前端：App.vue 实现强制更新阻塞机制] 依赖 App.vue checkUpdate 修改完成后
+- [前端：settings.vue checkUpdate() 增加错误处理] 依赖 App.vue 任务完成后统一风格

@@ -226,7 +226,8 @@ const {
   xssProtection,
   sqlInjectionProtection,
   logUserAction,
-  logAdminAction
+  logAdminAction,
+  registerAttempts
 } = require('./security')
 
 const app = express()
@@ -1282,6 +1283,10 @@ app.post('/auth/register', registerLimit, async (req, res) => {
     [id, studentId, name, phone, hashedPassword, avatar || '', className, 'pending', '[]', createdAt]
   )
 
+  // 标记该IP已注册，防止重复注册
+  const ipKey = req.ip || req.socket.remoteAddress
+  registerAttempts.set(ipKey, { registeredAt: Date.now() })
+
   logUserAction(id, 'USER_REGISTER', { studentId, name })
   res.json({ message: '注册成功，请等待管理员审核' })
 })
@@ -2067,8 +2072,22 @@ const apkUpload = multer({
 app.post('/admin/version/publish', authMiddleware, apkUpload.single('apk'), async (req, res) => {
 
   const { version, versionCode, changelog, forceUpdate } = req.body
-  if (!version || !versionCode) {
-    return res.status(400).json({ message: '版本号和版本码必填' })
+
+  // 1. Version format validation: must be X.Y.Z
+  if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
+    return res.status(400).json({ message: '版本号格式不正确，请使用 X.Y.Z 格式' })
+  }
+
+  // 2. versionCode must be a positive integer
+  const vc = parseInt(versionCode)
+  if (!versionCode || isNaN(vc) || vc <= 0 || String(vc) !== String(versionCode).trim()) {
+    return res.status(400).json({ message: '版本码必须为正整数' })
+  }
+
+  // 3. versionCode must be greater than existing max
+  const [[{ maxCode }]] = await pool.query('SELECT MAX(versionCode) AS maxCode FROM versions')
+  if (vc <= maxCode) {
+    return res.status(400).json({ message: `版本码必须大于最新版本码 ${maxCode}` })
   }
 
   let apkUrl = ''
@@ -2081,7 +2100,7 @@ app.post('/admin/version/publish', authMiddleware, apkUpload.single('apk'), asyn
 
   await pool.query(
     'INSERT INTO versions (id, version, versionCode, title, changelog, apkUrl, forceUpdate, createdAt) VALUES (?,?,?,?,?,?,?,?)',
-    [id, version, parseInt(versionCode), version, changelog || '', apkUrl, forceUpdate === 'true' || forceUpdate === true, createdAt]
+    [id, version, vc, version, changelog || '', apkUrl, forceUpdate === 'true' || forceUpdate === true, createdAt]
   )
 
   res.json({ success: true, data: { id, version, versionCode: parseInt(versionCode), changelog: changelog || '', apkUrl, forceUpdate: forceUpdate === 'true' || forceUpdate === true, createdAt } })

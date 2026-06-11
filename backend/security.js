@@ -83,28 +83,19 @@ function rateLimitMiddleware(options = {}) {
   };
 }
 
-// 注册限制（10分钟1次）
+// 注册限制（每个IP只能注册一次）
 function registerLimit(req, res, next) {
   const key = req.ip || req.socket.remoteAddress;
-  const now = Date.now();
 
-  // 单个IP 10分钟内只能注册1次
-  const attempt = registerAttempts.get(key);
-  if (attempt && now - attempt.lastAttempt < 10 * 60 * 1000) {
-    const remaining = Math.ceil((10 * 60 * 1000 - (now - attempt.lastAttempt)) / 1000);
-    logSecurityEvent('REGISTER_RATE_LIMIT', {
-      ip: key,
-      remainingSeconds: remaining
+  // 检查该IP是否已经注册过
+  if (registerAttempts.has(key)) {
+    logSecurityEvent('REGISTER_LIMIT_EXCEEDED', {
+      ip: key
     });
     return res.status(429).json({ 
-      message: `注册过于频繁，请${remaining}秒后再试` 
+      message: '该设备/IP已注册过账号，如需帮助请联系管理员' 
     });
   }
-
-  registerAttempts.set(key, {
-    lastAttempt: now,
-    expiresAt: now + 10 * 60 * 1000
-  });
 
   next();
 }
@@ -129,13 +120,15 @@ function loginLimit(req, res, next) {
   req.onLoginFailure = () => {
     const existing = loginFailures.get(key);
     if (!existing) {
+      // 第1次失败
       loginFailures.set(key, {
         count: 1,
-        lockedUntil: now + 5 * 60 * 1000,
+        lockedUntil: null,
         expiresAt: now + 10 * 60 * 1000
       });
     } else {
       existing.count++;
+      // 达到3次失败，锁定5分钟
       if (existing.count >= 3) {
         existing.lockedUntil = now + 5 * 60 * 1000;
         logSecurityEvent('LOGIN_THRESHOLD_EXCEEDED', {
@@ -282,5 +275,6 @@ module.exports = {
   sanitizeXSS,
   logSecurityEvent,
   logUserAction,
-  logAdminAction
+  logAdminAction,
+  registerAttempts  // 导出供server.js使用
 };

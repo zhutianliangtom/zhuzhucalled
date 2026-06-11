@@ -130,7 +130,7 @@ export default {
               title: `发现新版本 v${latest.version}`,
               content: latest.changelog || '点击确定前往下载页面',
               confirmText: '立即更新',
-              showCancel: !latest.forceUpdate,
+              showCancel: latest.forceUpdate !== true,
               success: (modalRes) => {
                 if (modalRes.confirm) {
                   api.getEncryptedDownloadUrl(latest.id).then(downloadRes => {
@@ -147,7 +147,7 @@ export default {
                     }
                   })
                 }
-                if (latest.forceUpdate && !modalRes.confirm) {
+                if (latest.forceUpdate === true && !modalRes.confirm) {
                   try {
                     if (typeof plus !== 'undefined' && plus && plus.runtime) {
                       plus.runtime.quit()
@@ -158,33 +158,22 @@ export default {
             })
           } else {
             uni.hideLoading()
-            uni.showModal({
-              title: '检查完成',
-              content: '当前已是最新版本（v1.1.7）',
-              showCancel: false
-            })
+            uni.showToast({ title: '当前已是最新版本', icon: 'none' })
           }
         } else {
-          throw new Error('获取版本信息失败')
+          uni.hideLoading()
+          uni.showToast({ title: '暂无版本更新信息', icon: 'none' })
         }
         // #endif
         
         // #ifndef APP-PLUS
         // 非APP平台的处理
         uni.hideLoading()
-        uni.showModal({
-          title: '检查完成',
-          content: '当前已是最新版本（v1.1.7）',
-          showCancel: false
-        })
+        uni.showToast({ title: '当前已是最新版本', icon: 'none' })
         // #endif
       } catch (e) {
         uni.hideLoading()
-        uni.showModal({
-          title: '检查完成',
-          content: '当前已是最新版本（v1.1.7）',
-          showCancel: false
-        })
+        uni.showToast({ title: '检查更新失败，请检查网络', icon: 'none' })
       }
     },
     clearCache() {

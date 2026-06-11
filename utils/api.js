@@ -5,7 +5,7 @@ const baseUrl = 'https://chentian.dpdns.org'
 let heartbeatTimer = null
 let isOnline = true
 let heartbeatFailCount = 0
-const MAX_FAIL_COUNT = 3
+const MAX_FAIL_COUNT = 5
 let offlineBannerTimer = null
 let offlineBannerShown = false
 
@@ -17,9 +17,14 @@ const showOfflineBanner = () => {
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
   }
+  // 触发事件让OfflineBanner显示
+  uni.$emit('network-status-change', { isOnline: false })
 }
 
 const hideOfflineBanner = () => {
+  if (!offlineBannerShown) {
+    return
+  }
   if (offlineBannerTimer) {
     clearTimeout(offlineBannerTimer)
     offlineBannerTimer = null
@@ -28,6 +33,8 @@ const hideOfflineBanner = () => {
   try {
     uni.hideToast()
   } catch (e) {}
+  // 触发事件让OfflineBanner隐藏
+  uni.$emit('network-status-change', { isOnline: true })
 }
 
 const showOnlineToast = () => {
@@ -65,6 +72,13 @@ export const api = {
       heartbeatFailCount = 0
       isOnline = true
     } catch (error) {
+      console.log('[API] 心跳检测失败:', error.message)
+      // 如果错误信息包含"其他设备"，说明被顶号了（已经在request中调用了handleForceLogout）
+      if (error.message && error.message.includes('其他设备')) {
+        console.log('[API] 心跳检测到被顶号，已触发强制登出')
+        return
+      }
+      
       heartbeatFailCount++
       if (heartbeatFailCount >= MAX_FAIL_COUNT) {
         isOnline = false
@@ -101,12 +115,15 @@ export const api = {
         data,
         header: { ...defaultHeader, ...header },
         success: (res) => {
+          console.log('[API] 请求响应:', url, 'statusCode:', res.statusCode)
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
             const message = res.data.message || '未登录或登录已过期'
+            console.log('[API] 收到401响应:', message)
             // 检测是否被顶号
-            if (message.includes('其他设备登录')) {
+            if (message.includes('其他设备登录') || message.includes('其他设备')) {
+              console.log('[API] 检测到被顶号，触发强制登出')
               this.handleForceLogout()
               reject(new Error(message))
               return
@@ -121,6 +138,7 @@ export const api = {
           }
         },
         fail: (err) => {
+          console.error('[API] 请求失败:', url, err)
           reject(err)
         }
       })

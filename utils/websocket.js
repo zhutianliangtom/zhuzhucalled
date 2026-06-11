@@ -1,5 +1,18 @@
 ﻿import { storage } from './storage'
 
+// 导入api，用于强制登出
+let api = null
+
+// 延迟加载api，避免循环依赖
+function getApi() {
+  if (!api) {
+    try {
+      api = require('./api').api
+    } catch (e) {}
+  }
+  return api
+}
+
 let reconnectTimer = null
 let heartbeatTimer = null
 let maxReconnectAttempts = 999
@@ -47,16 +60,47 @@ function registerGlobalSocketListeners() {
   })
 
   uni.onSocketClose(function(res) {
-    console.log('[WebSocket] 连接关闭, code:', res.code)
+    console.log('[WebSocket] 连接关闭, code:', res.code, 'reason:', res.reason)
     isConnected = false
     websocket.stopHeartbeat()
     
     // 检测是否被强制下线（code 1008 = 账号在其他设备登录）
-    if (res.code === 1008) {
-      console.log('[WebSocket] 检测到强制下线')
+    // 同时也检测reason中包含"其他设备"的情况
+    const isForceLogout = res.code === 1008 || (res.reason && res.reason.toString().includes('其他设备'))
+    
+    if (isForceLogout) {
+      console.log('[WebSocket] 检测到强制下线，准备跳转登录页')
       shouldReconnect = false
-      // 触发全局事件，让App.vue处理强制登出
-      uni.$emit('force-logout', { code: res.code, reason: res.reason })
+      
+      // 直接在这里处理强制登出，不依赖全局事件
+      setTimeout(() => {
+        try {
+          // 清除用户数据
+          storage.clearUser()
+          
+          // 显示提示
+          uni.showToast({
+            title: '您的账号已在其他设备登录',
+            icon: 'none',
+            duration: 3000
+          })
+          
+          // 跳转到登录页
+          setTimeout(() => {
+            console.log('[WebSocket] 跳转到登录页')
+            uni.reLaunch({ url: '/pages/auth/login' })
+          }, 1500)
+          
+          // 尝试调用api的handleForceLogout（如果可用）
+          const apiInstance = getApi()
+          if (apiInstance && apiInstance.stopHeartbeat) {
+            apiInstance.stopHeartbeat()
+          }
+        } catch (e) {
+          console.error('[WebSocket] 强制登出处理失败:', e)
+        }
+      }, 500)
+      
       return
     }
     

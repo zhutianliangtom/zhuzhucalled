@@ -32,8 +32,8 @@ let lastMessageCounts = {}
 let lastNotifyTimes = {}
 const NOTIFY_COOLDOWN = 10000
 
-// 版本更新标记：记录本次启动是否已通知过更新
-let hasShownUpdateNotification = false
+// 版本更新：记录本次启动是否已处理过强制更新
+let forceQuitHandled = false
 
 // 设置网络状态
 export function setNetworkStatus(isOffline) {
@@ -751,53 +751,64 @@ export default {
     async checkUpdate() {
       // #ifdef APP-PLUS
       try {
-        if (hasShownUpdateNotification) {
+        const res = await api.getLatestVersion()
+        if (!res || !res.data) {
+          uni.showToast({ title: '暂无版本更新信息', icon: 'none' })
           return
         }
-
-        const res = await api.getLatestVersion()
-        if (!res || !res.data) return
 
         const latest = res.data
         const currentCode = parseInt(getAppVersion()) || 0
 
-        if (latest.versionCode > currentCode) {
-          hasShownUpdateNotification = true
-          uni.showModal({
-            title: `发现新版本 v${latest.version}`,
-            content: latest.changelog || '点击确定前往下载页面',
-            confirmText: '立即更新',
-            showCancel: !latest.forceUpdate,
-            success: (modalRes) => {
-              if (modalRes.confirm) {
-                // 获取加密下载地址并跳转到下载页面
-                api.getEncryptedDownloadUrl(latest.id).then(downloadRes => {
-                  const encryptedUrl = downloadRes?.data?.url || ''
-                  const downloadPageUrl = `${baseUrl}/download?token=${encodeURIComponent(encryptedUrl)}`
-                  
-                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                    plus.runtime.openURL(downloadPageUrl)
-                  }
-                }).catch(() => {
-                  // 如果获取加密地址失败，直接跳转到普通下载页
-                  const downloadUrl = `${baseUrl}/download`
-                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                    plus.runtime.openURL(downloadUrl)
-                  }
-                })
-              }
-              // 强制更新且用户点了取消 → 退出 App
-              if (latest.forceUpdate && !modalRes.confirm) {
-                try {
-                  if (typeof plus !== 'undefined' && plus && plus.runtime) {
-                    plus.runtime.quit()
-                  }
-                } catch (e) {}
-              }
-            }
-          })
+        if (latest.versionCode <= currentCode) {
+          uni.showToast({ title: '当前已是最新版本', icon: 'none' })
+          return
         }
-      } catch (e) {}
+
+        // 有新版本，弹出更新弹窗
+        const isForce = latest.forceUpdate === true
+
+        if (isForce && forceQuitHandled) {
+          // 本次启动已处理过强制更新，用户之前已选择退出，不再重复弹窗
+          return
+        }
+
+        uni.showModal({
+          title: `发现新版本 v${latest.version}`,
+          content: latest.changelog || '发现重要更新，请立即升级以继续使用',
+          confirmText: '立即更新',
+          showCancel: !isForce,
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              // 用户点击立即更新 → 跳转下载页
+              api.getEncryptedDownloadUrl(latest.id).then(downloadRes => {
+                const encryptedUrl = downloadRes?.data?.url || ''
+                const downloadPageUrl = `${baseUrl}/download?token=${encodeURIComponent(encryptedUrl)}`
+                if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                  plus.runtime.openURL(downloadPageUrl)
+                }
+              }).catch(() => {
+                const downloadUrl = `${baseUrl}/download`
+                if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                  plus.runtime.openURL(downloadUrl)
+                }
+              })
+            } else {
+              // 非强制更新 → 用户可以跳过，正常进入 App
+              if (!isForce) return
+              // 强制更新且用户取消 → 标记已处理并退出 App
+              forceQuitHandled = true
+              try {
+                if (typeof plus !== 'undefined' && plus && plus.runtime) {
+                  plus.runtime.quit()
+                }
+              } catch (e) {}
+            }
+          }
+        })
+      } catch (e) {
+        uni.showToast({ title: '检查更新失败，请检查网络', icon: 'none' })
+      }
       // #endif
     },
     // 深色模式 —— 直接注入 style 标签到 head，最高优先级
