@@ -2531,6 +2531,10 @@ app.get('/admin/logs', authMiddleware, async (req, res) => {
   // 检查 ?api=1 参数来区分页面渲染和 API 调用
   if (req.query.api === '1') {
     const { date } = req.query
+    // 防止路径遍历攻击
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, message: '无效的日期格式' })
+    }
     try {
       if (!fs.existsSync(LOG_DIR)) {
         return res.json({ success: true, content: '', date: date || getLogFileName(), exists: false })
