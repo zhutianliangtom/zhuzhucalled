@@ -1,4 +1,4 @@
-﻿let notificationChannelCreated = false
+let notificationChannelCreated = false
 const CHANNEL_ID = 'lost_found_msg_channel'
 const CHANNEL_NAME = '新消息通知'
 
@@ -106,7 +106,7 @@ export const notification = {
       }
 
       // 消息去重检查
-      const msgKey = messageId || ${userId}_
+      const msgKey = messageId || `${userId}_`
       if (shownMessages.has(msgKey)) {
         console.log('[通知] 消息已显示过，跳过重复')
         return

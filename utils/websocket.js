@@ -1,4 +1,4 @@
-﻿import { storage } from './storage'
+import { storage } from './storage'
 
 // 导入api，用于强制登出
 let api = null
@@ -229,7 +229,7 @@ export const websocket = {
 
     reconnectAttempts++
     const delay = Math.min(reconnectDelay * reconnectAttempts, 60000)
-    console.log([WebSocket] ms 后尝试重连 (第 次))
+    console.log(`[WebSocket] ${delay}ms 后尝试重连 (第${reconnectAttempts}次)`)
 
     reconnectTimer = setTimeout(() => {
       shouldReconnect = true
